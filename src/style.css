@@ -1,0 +1,182 @@
+:root {
+  --bg: #14121c;
+  --panel: #1f1c2b;
+  --line: #34304a;
+  --text: #ece8f6;
+  --muted: #9a94b0;
+  --hp: #e5534b;
+  --mp: #4b8be5;
+  --food: #d9a43b;
+  --btn: #2b2740;
+  --btn-active: #4a4370;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ステータス */
+#status {
+  padding: 6px 12px 4px;
+  font-size: 13px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.status-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 2px;
+  font-weight: bold;
+}
+#turn {
+  margin-left: auto;
+  color: var(--muted);
+  font-weight: normal;
+}
+.gauge-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 64px;
+  align-items: center;
+  gap: 6px;
+  height: 16px;
+}
+.label {
+  color: var(--muted);
+}
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.gauge {
+  height: 8px;
+  background: #0c0b12;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.gauge i {
+  display: block;
+  height: 100%;
+  width: 0;
+}
+.gauge.hp i { background: var(--hp); }
+.gauge.mp i { background: var(--mp); }
+.gauge.food i { background: var(--food); }
+
+/* 仲間の枠 */
+#allies {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px 12px;
+}
+.ally-slot {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* マップ */
+#map-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+/* キャンバスの大きさがレイアウトに影響しないよう、絶対配置で中央に置く */
+#map {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+}
+
+/* ログ */
+#log {
+  height: 54px;
+  padding: 4px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow: hidden;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+#log p {
+  margin: 0;
+}
+#log p:not(:last-child) {
+  color: var(--muted);
+}
+
+/* 操作部 */
+#controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 12px;
+}
+/* 設定でパッドを右にしたとき */
+#controls.pad-right {
+  flex-direction: row-reverse;
+}
+#pad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 4px;
+}
+#pad button,
+#buttons button {
+  border: none;
+  border-radius: 10px;
+  background: var(--btn);
+}
+#pad button {
+  font-size: 20px;
+}
+#pad button.center {
+  font-size: 12px;
+  color: var(--muted);
+}
+#pad button.pressed,
+#buttons button:active {
+  background: var(--btn-active);
+}
+#buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  grid-auto-rows: 44px;
+  gap: 6px;
+}
+#buttons .wide {
+  grid-column: span 2;
+}

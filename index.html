@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#14121c" />
+    <title>召喚士ローグライク</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="status">
+        <div class="status-row">
+          <span id="floor">B1F</span>
+          <span id="level">Lv1</span>
+          <span id="turn">0T</span>
+        </div>
+        <div class="gauge-row"><span class="label">HP</span><div class="gauge hp"><i></i></div><span class="value" id="hp-text"></span></div>
+        <div class="gauge-row"><span class="label">MP</span><div class="gauge mp"><i></i></div><span class="value" id="mp-text"></span></div>
+        <div class="gauge-row"><span class="label">満腹</span><div class="gauge food"><i></i></div><span class="value" id="food-text"></span></div>
+      </header>
+
+      <section id="allies">
+        <button class="ally-slot" data-slot="0">－</button>
+        <button class="ally-slot" data-slot="1">－</button>
+        <button class="ally-slot" data-slot="2">－</button>
+      </section>
+
+      <main id="map-wrap">
+        <canvas id="map"></canvas>
+      </main>
+
+      <section id="log"></section>
+
+      <footer id="controls">
+        <div id="pad">
+          <button data-dir="7">↖</button><button data-dir="0">↑</button><button data-dir="1">↗</button>
+          <button data-dir="6">←</button><button data-dir="wait" class="center">●</button><button data-dir="2">→</button>
+          <button data-dir="5">↙</button><button data-dir="4">↓</button><button data-dir="3">↘</button>
+        </div>
+        <div id="buttons">
+          <button id="btn-attack" class="wide">攻撃</button>
+          <button id="btn-magic">魔法</button>
+          <button id="btn-card">カード</button>
+          <button id="btn-bag">バッグ</button>
+          <button id="btn-menu">メニュー</button>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
