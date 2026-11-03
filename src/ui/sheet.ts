@@ -5,6 +5,8 @@ export interface SheetRow {
   sub: string;
   dim?: boolean;
   button?: { label: string; disabled?: boolean; onClick: () => void };
+  /** 行（ボタン以外）を押したとき。つよさを見るなど */
+  onSelect?: () => void;
 }
 
 /** カード・魔法などの一覧を下側に出す。閉じられない一覧は、選ぶまで開いたままにする */
@@ -68,6 +70,13 @@ export function renderRow(row: SheetRow): HTMLElement {
   sub.textContent = row.sub;
   text.append(name, sub);
   el.append(icon, text);
+  const select = row.onSelect;
+  if (select) {
+    el.classList.add('tappable');
+    el.addEventListener('click', (e) => {
+      if (!(e.target instanceof Element && e.target.closest('button'))) select();
+    });
+  }
   if (row.button) {
     const b = document.createElement('button');
     b.textContent = row.button.label;

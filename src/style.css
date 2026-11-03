@@ -389,7 +389,7 @@ button {
 }
 #base-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 #base-tabs button {
@@ -424,6 +424,52 @@ button {
   color: var(--text);
   font-weight: bold;
 }
+.base-sort {
+  margin: 4px 0 8px;
+}
+#base-body > .sheet-wide {
+  margin: 8px 0;
+}
+
+/* 仲間のつよさ。上の枠は、あとで魔物の絵に差し替える */
+.status-view {
+  padding: 8px 4px;
+}
+.status-portrait {
+  display: grid;
+  place-items: center;
+  height: 120px;
+  font-size: 72px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.status-title {
+  margin: 10px 0 6px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+.status-table {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 6px 10px;
+  margin: 0;
+}
+.status-table dt {
+  color: var(--muted);
+}
+.status-table dd {
+  margin: 0;
+  white-space: pre-line;
+}
+.sheet-row.tappable {
+  cursor: pointer;
+}
+.sheet-row.tappable:active {
+  background: var(--btn-active);
+}
+
 #base-depart {
   height: 52px;
   border: none;

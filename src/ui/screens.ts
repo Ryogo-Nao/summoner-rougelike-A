@@ -1,8 +1,9 @@
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
-import { SPELLS, type GameState, type SpellId } from '../game/state';
+import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
+import { statusView } from './status';
 
 /** 一覧から行動したあとに呼ぶ（再描画、力つきたかの確認など） */
 type AfterAction = () => void;
@@ -34,13 +35,16 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
     f();
     after();
   };
+  const back = () => openCardSheet(state, sheet, after);
   const rows: SheetRow[] = state.cards.map((card) => {
+    const onSelect = () => openStatusSheet(state, sheet, card, back);
     if (card.status === 'summoned') {
       return {
         icon: cardIcon(card),
         name: card.species.name,
         sub: cardSub(card),
         button: { label: '戻す', onClick: act(() => state.recall(card)) },
+        onSelect,
       };
     }
     const problem = state.summonProblem(card);
@@ -50,11 +54,20 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
       sub: cardSub(card),
       dim: problem !== null,
       button: { label: '召喚', disabled: problem !== null, onClick: act(() => state.summon(card)) },
+      onSelect,
     };
   });
   sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
-    note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}`,
+    note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}\nカードを押すとつよさを見る`,
   });
+}
+
+/** 仲間のつよさ。back は［戻る］で開き直す一覧 */
+export function openStatusSheet(state: GameState, sheet: Sheet, card: Card, back: () => void): void {
+  const ally = state.allies.find((a) => a.card === card);
+  const footer = document.createElement('div');
+  footer.append(statusView(card, { ally, inDungeon: true }), wideButton('戻る', false, back));
+  sheet.open('つよさ', [], { footer });
 }
 
 /** 魔法の一覧。選ぶと、向いている方向（雷はまわり）に使う */
@@ -66,13 +79,13 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     const effect: Record<SpellId, string> = {
       fire: `正面の敵に${10 + p.level * 2}`,
       thunder: `周りの敵に${6 + p.level}`,
-      power: '20ターン攻撃力×1.5',
-      guard: '20ターン受けるダメージ×0.6',
+      power: `20ターン攻撃力×${powerRate(state.rankOf('power'))}`,
+      guard: `20ターン受けるダメージ×${guardRate(state.rankOf('guard'))}`,
       bigFire: `前方3マス幅の敵に${20 + p.level * 2}`,
     };
     return {
       icon: SPELL_ICONS[id],
-      name: spell.label,
+      name: state.rankOf(id) > 0 ? `${spell.label}+${state.rankOf(id)}` : spell.label,
       sub: `MP${spell.mp}　${effect[id]}`,
       dim: !enough,
       button: {
@@ -89,7 +102,7 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
 }
 
-const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱', bigFire: '☄️' };
+export const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱', bigFire: '☄️' };
 
 /** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
 export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
@@ -287,11 +300,18 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
       },
     },
   }));
-  const footer = wideButton('カードに戻す', false, () => {
-    sheet.close();
-    state.recall(card);
-    after();
-  });
+  const footer = document.createElement('div');
+  footer.className = 'sheet-pair';
+  footer.append(
+    wideButton('つよさ', false, () =>
+      openStatusSheet(state, sheet, card, () => openOrderSheet(state, sheet, ally, after)),
+    ),
+    wideButton('カードに戻す', false, () => {
+      sheet.close();
+      state.recall(card);
+      after();
+    }),
+  );
   sheet.open(`${cardIcon(card)} ${card.species.name}`, rows, {
     note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${personalityText(card)}`,
     footer,

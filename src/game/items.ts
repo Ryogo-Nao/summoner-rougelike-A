@@ -45,7 +45,7 @@ export interface ItemDef {
 export const ITEMS: Record<ItemKind, ItemDef> = {
   bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50 },
   bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100 },
-  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}　混乱と毒が治る\n仲間に投げるとその仲間を回復` },
+  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}\n仲間に投げるとその仲間を回復` },
   water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: `MP+${WATER_MP}` },
   blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい' },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
@@ -99,9 +99,21 @@ const DROP_TABLE: [ItemKind, number][] = [
   ['woodShield', 6],
   ['leatherShield', 4],
   ['ironShield', 2],
-  ['tomePower', 3],
-  ['tomeGuard', 3],
+  // 魔導書はめったに出ない。2冊あわせて、ほかのアイテムに対して2.5％ほど
+  ['tomePower', 1.25],
+  ['tomeGuard', 1.25],
 ];
+
+/** 並べ替える。種類順はアイテムの表の順、名前順は読みの五十音順。同じなら手に入れた順 */
+export function sortItems(items: Item[], by: 'kind' | 'name'): Item[] {
+  const kinds = Object.keys(ITEMS);
+  const kana = (i: Item) => ITEMS[i.kind].kana;
+  return [...items].sort((a, b) =>
+    by === 'kind'
+      ? kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || a.id - b.id
+      : kana(a).localeCompare(kana(b), 'ja') || a.id - b.id,
+  );
+}
 
 export function randomItemKind(rng: Rng): ItemKind {
   const total = DROP_TABLE.reduce((sum, [, w]) => sum + w, 0);

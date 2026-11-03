@@ -1,6 +1,14 @@
 import { HAND_LIMIT, IZUTSUCHI, createCard, isPartner, reserveCardIds, type Card } from './cards';
 import { BAG_LIMIT, START_ITEMS, createItem, reserveItemIds, type Item } from './items';
-import { cardFromData, cardToData, type CardData, type GameState, type Loadout, type SpellId } from './state';
+import {
+  cardFromData,
+  cardToData,
+  type CardData,
+  type GameState,
+  type Loadout,
+  type SpellId,
+  type SpellRanks,
+} from './state';
 
 /** 倉庫に入るアイテムの数（requirements.md 10.4） */
 export const WAREHOUSE_LIMIT = 100;
@@ -16,6 +24,8 @@ export interface Profile {
   bag: Item[];
   warehouse: Item[];
   learned: SpellId[];
+  /** 魔法のランク（無印は0） */
+  ranks: SpellRanks;
 }
 
 interface ProfileData {
@@ -25,6 +35,7 @@ interface ProfileData {
   bag: Item[];
   warehouse: Item[];
   learned: SpellId[];
+  ranks?: SpellRanks;
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -33,7 +44,7 @@ const RUN_KEY = 'summoner-run';
 /** 初めて遊ぶとき。イヅツチのカードと、最初の持ち物だけを持っている（balance.md 8章） */
 export function newProfile(): Profile {
   const partner = createCard(IZUTSUCHI, false);
-  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [] };
+  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {} };
 }
 
 export function loadProfile(): Profile {
@@ -41,7 +52,7 @@ export function loadProfile(): Profile {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return newProfile();
     const data = JSON.parse(raw) as ProfileData;
-    const profile: Profile = { ...data, cards: data.cards.map(cardFromData) };
+    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {} };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...profile.bag.map((i) => i.id), ...profile.warehouse.map((i) => i.id)));
     return profile;
@@ -62,7 +73,7 @@ export function saveProfile(profile: Profile): void {
 /** 持っていくカード・バッグ・魔法。カードは召喚できる状態にする */
 export function loadoutOf(profile: Profile): Loadout {
   const cards = profile.hand.flatMap((id) => profile.cards.filter((c) => c.id === id)).slice(0, HAND_LIMIT);
-  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned] };
+  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks } };
 }
 
 // ---- ダンジョンの途中の保存 ----
@@ -123,6 +134,7 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.hand = hand.slice(0, HAND_LIMIT);
   profile.bag = bag.slice(0, BAG_LIMIT);
   profile.learned = [...state.learned];
+  profile.ranks = { ...state.ranks };
   saveProfile(profile);
   clearRun();
   return losses;

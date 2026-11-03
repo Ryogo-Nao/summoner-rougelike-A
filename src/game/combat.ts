@@ -13,6 +13,12 @@ export function rollDamage(rng: Rng, atk: number, def: number): number {
 /** 次のレベルに必要な累計経験値（balance.md 1.3）。index 0 が Lv2 */
 const EXP_TABLE = [10, 30, 60, 100, 150, 220, 300, 400, 520, 660];
 
+/** 次のレベルまでに必要な経験値。いちばん上のレベルなら null */
+export function expToNext(exp: number): number | null {
+  const need = EXP_TABLE.find((n) => exp < n);
+  return need === undefined ? null : need - exp;
+}
+
 /** 累計経験値 exp のときのレベル */
 export function levelForExp(exp: number): number {
   let level = 1;

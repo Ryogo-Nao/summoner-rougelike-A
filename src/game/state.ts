@@ -36,6 +36,7 @@ import {
   createItem,
   randomItemKind,
   reserveItemIds,
+  sortItems,
   type FloorItem,
   type Item,
 } from './items';
@@ -68,10 +69,16 @@ const HUNGER_WARNINGS: Record<number, string> = {
   10: 'おなかがペコペコだ',
   0: 'おなかが空いて倒れそうだ',
 };
-/** 力の魔法・守りの魔法が続くターン数と強さ（balance.md 2.1） */
+/** 力の魔法・守りの魔法が続くターン数（balance.md 2.1） */
 const BUFF_TURNS = 20;
-const POWER_RATE = 1.5;
-const GUARD_RATE = 0.6;
+/** 魔法のランクの上限。同じ魔導書を読むたびに1つ上がる（balance.md 2.2） */
+export const SPELL_MAX_RANK = 5;
+/** 力の魔法の攻撃力の倍率。無印で1.5、+5で2倍 */
+export const powerRate = (rank: number) => Math.round((1.5 + 0.1 * rank) * 100) / 100;
+/** 守りの魔法で受けるダメージの倍率。無印で0.6、+5で0.4 */
+export const guardRate = (rank: number) => Math.round((0.6 - 0.04 * rank) * 100) / 100;
+/** 魔法の名前にランクを付ける。無印は付けない */
+export const rankedName = (name: string, rank: number) => (rank > 0 ? `${name}+${rank}` : name);
 /** 大火球が届くマス数（前方3マス幅） */
 const BIG_FIRE_RANGE = 5;
 /** 状態異常と特技（balance.md 3.5、4章） */
@@ -160,7 +167,11 @@ export interface Loadout {
   cards: Card[];
   bag: Item[];
   learned: SpellId[];
+  ranks: SpellRanks;
 }
+
+/** 覚えた魔法のランク。0（無印）のものは省いてよい */
+export type SpellRanks = Partial<Record<SpellId, number>>;
 
 /** 保存するときのカード。魔物の種類は id で持つ */
 export type CardData = Omit<Card, 'species'> & { species: string };
@@ -182,6 +193,7 @@ export interface RunData {
   bag: Item[];
   floorItems: FloorItem[];
   learned: SpellId[];
+  ranks?: SpellRanks;
   log: LogEntry[];
   logSerial: number;
   provoker: number;
@@ -234,6 +246,7 @@ export class GameState {
   floorItems: FloorItem[] = [];
   /** 魔導書で覚えた魔法 */
   learned = new Set<SpellId>();
+  ranks: SpellRanks = {};
   /** 手元がいっぱいのときに手に入れたカード。保管庫へ送るカードを選ぶまで、ここで待つ */
   pendingCard: Card | null = null;
   popups: Popup[] = [];
@@ -269,6 +282,7 @@ export class GameState {
       this.cards = loadout.cards;
       this.bag = loadout.bag;
       this.learned = new Set(loadout.learned);
+      this.ranks = { ...loadout.ranks };
     }
     this.player = {
       pos: { x: 0, y: 0 },
@@ -312,6 +326,7 @@ export class GameState {
       bag: this.bag,
       floorItems: this.floorItems,
       learned: [...this.learned],
+      ranks: this.ranks,
       log: this.log,
       logSerial: this.logSerial,
       provoker: this.provoker ? this.monsters.indexOf(this.provoker) : -1,
@@ -348,6 +363,7 @@ export class GameState {
     });
     s.floorItems = data.floorItems;
     s.learned = new Set(data.learned);
+    s.ranks = data.ranks ?? {};
     s.log = data.log;
     s.logSerial = data.logSerial;
     s.provoker = s.monsters[data.provoker] ?? null;
@@ -549,7 +565,7 @@ export class GameState {
   attackPower(): number {
     const p = this.player;
     const atk = p.atk + (p.weapon ? (ITEMS[p.weapon.kind].bonus ?? 0) : 0);
-    return p.powerTurns > 0 ? Math.round(atk * POWER_RATE) : atk;
+    return p.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
   }
 
   defensePower(): number {
@@ -590,7 +606,9 @@ export class GameState {
   /** 使えない理由。使えるなら null。足もとの装備はバッグに入れてから装備する */
   useProblem(item: Item): string | null {
     const def = ITEMS[item.kind];
-    if (def.spell && this.learned.has(def.spell)) return `${SPELLS[def.spell].name}はもう覚えている`;
+    if (def.spell && this.learned.has(def.spell) && this.rankOf(def.spell) >= SPELL_MAX_RANK) {
+      return `${this.spellName(def.spell)}は最大ランク`;
+    }
     if (def.slot && !this.bag.includes(item) && this.bag.length >= BAG_LIMIT) return 'バッグがいっぱいで装備できない';
     return null;
   }
@@ -631,6 +649,10 @@ export class GameState {
     if (def.food) {
       p.food = Math.min(p.maxFood, p.food + def.food);
       this.addLog(`${def.name}を食べた`);
+    } else if (def.spell && this.learned.has(def.spell)) {
+      // 覚えている魔法の魔導書を読むと、ランクが1つ上がる
+      this.ranks[def.spell] = this.rankOf(def.spell) + 1;
+      this.addLog(`${SPELLS[def.spell].name}が+${this.rankOf(def.spell)}になった！`);
     } else if (def.spell) {
       this.learned.add(def.spell);
       this.addLog(`${SPELLS[def.spell].name}を覚えた！`);
@@ -639,7 +661,6 @@ export class GameState {
       p.hp += heal;
       this.addLog(`薬草を使った（HP+${heal}）`);
       this.popups.push({ pos: p.pos, text: `+${heal}`, kind: 'info' });
-      this.cure(p.ailments, 'あなた');
     } else if (item.kind === 'water') {
       const gain = Math.min(WATER_MP, p.maxMp - p.mp);
       p.mp += gain;
@@ -676,13 +697,7 @@ export class GameState {
 
   /** バッグを並べ替える。種類順はアイテムの表の順、名前順は五十音順。ターンは使わない */
   sortBag(by: 'kind' | 'name'): void {
-    const kinds = Object.keys(ITEMS);
-    const name = (i: Item) => ITEMS[i.kind].kana;
-    this.bag = [...this.bag].sort((a, b) =>
-      by === 'kind'
-        ? kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || a.id - b.id
-        : name(a).localeCompare(name(b), 'ja') || a.id - b.id,
-    );
+    this.bag = sortItems(this.bag, by);
   }
 
   /** 足もとに置けない理由。階段や、他のアイテムがあるマスには置けない */
@@ -721,7 +736,6 @@ export class GameState {
         ally.card.hp += heal;
         this.addLog(`薬草を投げた → ${ally.card.species.name}のHP+${heal}`);
         this.popups.push({ pos: ally.pos, text: `+${heal}`, kind: 'info' });
-        this.cure(ally.ailments, ally.card.species.name);
       } else if (item.kind === 'herb' && monster) {
         const heal = Math.min(HERB_HEAL, monster.maxHp - monster.hp);
         monster.hp += heal;
@@ -993,10 +1007,21 @@ export class GameState {
     return spells;
   }
 
+  /** 魔法のランク。覚えていない・無印なら0 */
+  rankOf(spell: SpellId): number {
+    return this.ranks[spell] ?? 0;
+  }
+
+  /** ランクを付けた魔法の名前（例：力の魔法+2） */
+  spellName(spell: SpellId): string {
+    return rankedName(SPELLS[spell].name, this.rankOf(spell));
+  }
+
   /** 魔法は必ず当たる。火は向いている方向の最初の魔物、雷はまわり8マスの魔物すべて */
   cast(spell: SpellId): void {
     const p = this.player;
-    const { name, mp } = SPELLS[spell];
+    const { mp } = SPELLS[spell];
+    const name = this.spellName(spell);
     if (p.mp < mp || !this.availableSpells().includes(spell)) return;
     this.beginAction();
     p.mp -= mp;
@@ -1038,14 +1063,6 @@ export class GameState {
     return this.monsters.filter(
       (m) => this.isVisible(m.pos.x, m.pos.y) && tiles.some((t) => t.x === m.pos.x && t.y === m.pos.y),
     );
-  }
-
-  /** 混乱と毒を治す。who はログに出す名前 */
-  private cure(ailments: Ailments, who: string): void {
-    if (ailments.confused === 0 && ailments.poisoned === 0) return;
-    ailments.confused = 0;
-    ailments.poisoned = 0;
-    this.addLog(`${who}の混乱と毒が治った`);
   }
 
   /** 階段を降りる。最下層の階段なら踏破 */
@@ -1433,7 +1450,7 @@ export class GameState {
   /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
   private hurtPlayer(m: Monster, raw: number, how: string): void {
     const p = this.player;
-    const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * GUARD_RATE)) : raw;
+    const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
     p.hp = Math.max(0, p.hp - dmg);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
     this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
