@@ -148,6 +148,61 @@ button {
   color: var(--muted);
 }
 
+/* これまでのログ。マップの上に重ねて、指でスクロールできる */
+#log-history {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  background: rgba(8, 7, 14, 0.6);
+}
+#log-history[hidden] {
+  display: none;
+}
+.log-history-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.log-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-weight: bold;
+}
+.log-history-head button {
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--btn-active);
+}
+#log-history-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 6px 14px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+#log-history-list p {
+  margin: 0;
+}
+#log-history-list .turn {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* 操作部。画面の幅に合わせて大きくする */
 #controls {
   --pad-cell: clamp(52px, 15.5vw, 70px);

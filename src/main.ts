@@ -34,9 +34,9 @@ function updateHud(): void {
 
   const log = document.getElementById('log')!;
   log.replaceChildren(
-    ...state.log.slice(-3).map((m) => {
+    ...state.log.slice(-3).map((entry) => {
       const el = document.createElement('p');
-      el.textContent = m;
+      el.textContent = entry.text;
       return el;
     }),
   );
@@ -77,13 +77,50 @@ canvas.addEventListener('pointerdown', (e) => {
 document.addEventListener(
   'touchstart',
   (e) => {
-    if (!(e.target instanceof Element && e.target.closest('#dialog'))) e.preventDefault();
+    // 確認ダイアログとログの一覧は、click やスクロールを使うので止めない
+    if (!(e.target instanceof Element && e.target.closest('#dialog, #log-history'))) e.preventDefault();
   },
   { passive: false },
 );
 
-/** ダイアログが開いている間や、踏破・力つきた後は、入力を受け付けない */
-const acceptsInput = () => !dialog.isOpen() && !state.cleared && !state.dead;
+const logHistory = document.getElementById('log-history')!;
+const logList = document.getElementById('log-history-list')!;
+
+/** ログの一覧を開く。ターンが変わるところに見出しを入れ、いちばん新しい行が見えるところから始める */
+function openLogHistory(): void {
+  pad.release();
+  const rows: HTMLElement[] = [];
+  let lastTurn = -1;
+  for (const entry of state.log) {
+    if (entry.turn !== lastTurn) {
+      const head = document.createElement('p');
+      head.className = 'turn';
+      head.textContent = `${entry.turn}ターン目`;
+      rows.push(head);
+      lastTurn = entry.turn;
+    }
+    const line = document.createElement('p');
+    line.textContent = entry.text;
+    rows.push(line);
+  }
+  logList.replaceChildren(...rows);
+  logHistory.hidden = false;
+  logList.scrollTop = logList.scrollHeight;
+}
+
+document.getElementById('log')!.addEventListener('pointerdown', () => {
+  if (!dialog.isOpen()) openLogHistory();
+});
+document.getElementById('log-close')!.addEventListener('click', () => {
+  logHistory.hidden = true;
+});
+// 一覧の外側をタップしても閉じる
+logHistory.addEventListener('click', (e) => {
+  if (e.target === logHistory) logHistory.hidden = true;
+});
+
+/** ダイアログやログの一覧が開いている間や、踏破・力つきた後は、入力を受け付けない */
+const acceptsInput = () => !dialog.isOpen() && logHistory.hidden && !state.cleared && !state.dead;
 
 /** 行動のあとに、力つきていたら知らせる */
 function afterAction(): void {

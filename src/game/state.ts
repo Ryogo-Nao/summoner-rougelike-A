@@ -14,6 +14,15 @@ const SPAWN_INTERVAL = 40;
 /** HPが全回復するまでのターン数（balance.md 1.4） */
 const REGEN_TURNS = 150;
 
+/** 残しておくログの行数 */
+const LOG_LIMIT = 100;
+
+export interface LogEntry {
+  /** その出来事が起きたターン */
+  turn: number;
+  text: string;
+}
+
 export interface Player {
   pos: Pos;
   facing: Dir;
@@ -44,7 +53,7 @@ export class GameState {
   popups: Popup[] = [];
   floor = 1;
   turn = 0;
-  log: string[] = [];
+  log: LogEntry[] = [];
   /** 一度でも見たマス（ミニマップと、暗く表示する範囲） */
   explored!: Uint8Array;
   /** 今見えているマス */
@@ -108,9 +117,9 @@ export class GameState {
     return this.map.get(x, y) === Tile.Stairs;
   }
 
-  addLog(message: string): void {
-    this.log.push(message);
-    if (this.log.length > 50) this.log.shift();
+  addLog(text: string): void {
+    this.log.push({ turn: this.turn, text });
+    if (this.log.length > LOG_LIMIT) this.log.shift();
   }
 
   monsterAt(x: number, y: number): Monster | undefined {
@@ -141,20 +150,20 @@ export class GameState {
       return 'attacked';
     }
     if (!this.map.canStep(p.pos, dir)) return 'none';
-    this.popups = [];
+    this.beginAction();
     p.pos = { x: p.pos.x + v.x, y: p.pos.y + v.y };
     this.endTurn();
     return 'moved';
   }
 
   wait(): void {
-    this.popups = [];
+    this.beginAction();
     this.endTurn();
   }
 
   /** 向いている方向を攻撃する。誰もいなくても1ターン使う */
   attack(): void {
-    this.popups = [];
+    this.beginAction();
     const p = this.player;
     const v = DIR_VECTORS[p.facing];
     const target = this.monsterAt(p.pos.x + v.x, p.pos.y + v.y);
@@ -165,9 +174,11 @@ export class GameState {
         const dmg = rollDamage(this.rng, p.atk, target.species.def);
         this.damageMonster(target, dmg);
       } else {
-        this.addLog(`${target.species.name}に攻撃は外れた。`);
+        this.addLog(`あなたの攻撃 → ${target.species.name}にかわされた。`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
+    } else {
+      this.addLog('あなたの攻撃 → 空振りした。');
     }
     this.endTurn();
   }
@@ -178,11 +189,12 @@ export class GameState {
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
     if (m.hp > 0) {
-      this.addLog(`${m.species.name}に${dmg}のダメージ。`);
+      this.addLog(`あなたの攻撃 → ${m.species.name}に${dmg}のダメージ。`);
       return;
     }
     this.monsters = this.monsters.filter((x) => x !== m);
-    this.addLog(`${m.species.name}をたおした。経験値${m.species.exp}`);
+    this.addLog(`あなたの攻撃 → ${m.species.name}に${dmg}のダメージ。`);
+    this.addLog(`${m.species.name}をたおした。経験値${m.species.exp}を得た。`);
     // 仲間を作ったら、経験値を山分けする（balance.md 4.3）
     this.gainExp(m.species.exp);
   }
@@ -199,7 +211,7 @@ export class GameState {
       p.mp += 2;
       p.atk += 1;
       p.def += 1;
-      this.addLog(`レベルが${p.level}に上がった！`);
+      this.addLog(`あなたのレベルが${p.level}に上がった！`);
       this.popups.push({ pos: p.pos, text: 'Lv UP', kind: 'info' });
     }
   }
@@ -246,8 +258,13 @@ export class GameState {
 
   // ---- ターンの終わり ----
 
-  private endTurn(): void {
+  /** 主人公が行動する直前に呼ぶ。この行動のログから新しいターンの番号で記録される */
+  private beginAction(): void {
     this.turn++;
+    this.popups = [];
+  }
+
+  private endTurn(): void {
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
     this.slowRest = !this.slowRest;
@@ -373,18 +390,20 @@ export class GameState {
 
   private monsterAttack(m: Monster): void {
     const p = this.player;
+    // 2マス先から届くのは今はベロッグの舌だけ。ログで普通の攻撃と見分けられるようにする
+    const how = distance(m.pos, p.pos) > 1 ? '舌の攻撃' : '攻撃';
     if (!this.rng.chance(HIT_RATE)) {
-      this.addLog(`${m.species.name}の攻撃は外れた。`);
+      this.addLog(`${m.species.name}の${how} → あなたはかわした。`);
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
     const dmg = rollDamage(this.rng, m.species.atk, p.def);
     p.hp = Math.max(0, p.hp - dmg);
-    this.addLog(`${m.species.name}の攻撃。${dmg}のダメージ。`);
+    this.addLog(`${m.species.name}の${how} → あなたに${dmg}のダメージ。`);
     this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
     if (p.hp === 0) {
       this.dead = true;
-      this.addLog('力つきてしまった…');
+      this.addLog('あなたは力つきてしまった…');
     }
   }
 }
