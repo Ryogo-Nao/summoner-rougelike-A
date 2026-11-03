@@ -10,7 +10,7 @@ const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSe
 
 const state = new GameState(seed);
 state.addLog('ダンジョンに入った。');
-const dialog = new ConfirmDialog();
+const dialog = new ConfirmDialog(() => pad.release());
 // 開発中だけ、ブラウザのコンソールから状態を触れるようにする
 if (import.meta.env.DEV) Object.assign(window, { game: state });
 
@@ -110,7 +110,7 @@ onButton('btn-attack', () => {
   afterAction();
 });
 
-setupPad(document.getElementById('pad')!, {
+const pad = setupPad(document.getElementById('pad')!, {
   onMove(dir) {
     if (!acceptsInput()) return;
     const moved = state.tryMove(dir);

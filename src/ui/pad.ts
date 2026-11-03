@@ -9,11 +9,16 @@ export interface PadHandlers {
 const REPEAT_DELAY = 280;
 const REPEAT_INTERVAL = 110;
 
+export interface Pad {
+  /** 押している状態を解除し、連続移動を止める。指を離すまで次の入力は受け付けない */
+  release(): void;
+}
+
 /**
  * バーチャルパッド。押した瞬間に1回動き、押し続けると連続で動く。
  * 指を滑らせると、指の下のボタンに切り替わる。
  */
-export function setupPad(pad: HTMLElement, handlers: PadHandlers): void {
+export function setupPad(pad: HTMLElement, handlers: PadHandlers): Pad {
   let current: HTMLElement | null = null;
   let timer: number | undefined;
 
@@ -36,11 +41,11 @@ export function setupPad(pad: HTMLElement, handlers: PadHandlers): void {
     if (!button) return;
     button.classList.add('pressed');
     fire(button);
-    // 足踏みは連続させない
-    if (button.dataset.dir === 'wait') return;
+    // 足踏みは連続させない。動いた結果ダイアログが開いて release() されたときも続けない
+    if (button.dataset.dir === 'wait' || current !== button) return;
     const repeat = () => {
       fire(button);
-      timer = window.setTimeout(repeat, REPEAT_INTERVAL);
+      if (current === button) timer = window.setTimeout(repeat, REPEAT_INTERVAL);
     };
     timer = window.setTimeout(repeat, REPEAT_DELAY);
   };
@@ -61,4 +66,7 @@ export function setupPad(pad: HTMLElement, handlers: PadHandlers): void {
   const release = () => press(null);
   pad.addEventListener('pointerup', release);
   pad.addEventListener('pointercancel', release);
+  // ダイアログが前に出たときなど、指を離した知らせが来ないことがある
+  pad.addEventListener('lostpointercapture', release);
+  return { release };
 }
