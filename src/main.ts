@@ -5,7 +5,7 @@ import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { ORDER_LABEL } from './game/cards';
-import { cardIcon, openAllySheet, openBagSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { cardIcon, openAllySheet, openBagSheet, openFloorSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { BaseScreen } from './ui/base';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
@@ -342,6 +342,11 @@ const pad = setupPad(document.getElementById('pad')!, {
     // 階段の上で足踏みすると、降りるかどうかをもう一度聞く
     if (state.isOnStairs) {
       askDescend();
+      return;
+    }
+    // 足もとに道具があれば、拾うか入れ替えるかを選ぶ
+    if (state.itemUnderfoot()) {
+      openFloorSheet(state, sheet, afterAction);
       return;
     }
     state.wait();

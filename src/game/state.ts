@@ -576,6 +576,43 @@ export class GameState {
     this.endTurn();
   }
 
+  /** 足もとのアイテム。なければ undefined */
+  itemUnderfoot(): Item | undefined {
+    return this.itemAt(this.player.pos.x, this.player.pos.y)?.item;
+  }
+
+  /** 足もとのアイテムを拾う。1ターンかかる */
+  pickUpHere(): void {
+    if (!this.itemUnderfoot() || this.bag.length >= BAG_LIMIT) return;
+    this.beginAction();
+    this.pickUp();
+    this.endTurn();
+  }
+
+  /** バッグのアイテムを足もとに置いて、足もとのアイテムを拾う。1ターンかかる */
+  swapWithFloor(item: Item): void {
+    const found = this.itemAt(this.player.pos.x, this.player.pos.y);
+    if (!found || !this.bag.includes(item)) return;
+    this.beginAction();
+    this.removeFromBag(item);
+    this.floorItems = this.floorItems.filter((f) => f !== found);
+    this.bag.push(found.item);
+    this.floorItems.push({ item, pos: { ...this.player.pos } });
+    this.addLog(`${ITEMS[found.item.kind].name}を拾って${ITEMS[item.kind].name}を置いた`);
+    this.endTurn();
+  }
+
+  /** バッグを並べ替える。種類順はアイテムの表の順、名前順は五十音順。ターンは使わない */
+  sortBag(by: 'kind' | 'name'): void {
+    const kinds = Object.keys(ITEMS);
+    const name = (i: Item) => ITEMS[i.kind].kana;
+    this.bag = [...this.bag].sort((a, b) =>
+      by === 'kind'
+        ? kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || a.id - b.id
+        : name(a).localeCompare(name(b), 'ja') || a.id - b.id,
+    );
+  }
+
   /** 足もとに置けない理由。階段や、他のアイテムがあるマスには置けない */
   dropProblem(): string | null {
     const { x, y } = this.player.pos;

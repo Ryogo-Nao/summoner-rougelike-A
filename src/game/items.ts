@@ -28,6 +28,8 @@ export type ItemKind =
 
 export interface ItemDef {
   name: string;
+  /** 名前の読み。名前順に並べるときに使う */
+  kana: string;
   emoji: string;
   /** バッグの一覧に出す説明 */
   desc: string;
@@ -41,19 +43,19 @@ export interface ItemDef {
 }
 
 export const ITEMS: Record<ItemKind, ItemDef> = {
-  bread: { name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50 },
-  bigBread: { name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100 },
-  herb: { name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}\n仲間に投げるとその仲間を回復` },
-  water: { name: '魔力の水', emoji: '💧', desc: `MP+${WATER_MP}` },
-  blank: { name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい' },
-  tomePower: { name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
-  tomeGuard: { name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard' },
-  club: { name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2 },
-  bronzeSword: { name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4 },
-  ironSword: { name: '鉄の剣', emoji: '⚔️', desc: '攻撃力+7', slot: 'weapon', bonus: 7 },
-  woodShield: { name: '木の盾', emoji: '🪵', desc: '防御力+2', slot: 'shield', bonus: 2 },
-  leatherShield: { name: '革の盾', emoji: '🛡️', desc: '防御力+4', slot: 'shield', bonus: 4 },
-  ironShield: { name: '鉄の盾', emoji: '🔰', desc: '防御力+7', slot: 'shield', bonus: 7 },
+  bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50 },
+  bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100 },
+  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}\n仲間に投げるとその仲間を回復` },
+  water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: `MP+${WATER_MP}` },
+  blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい' },
+  tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
+  tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard' },
+  club: { kana: 'こんぼう', name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2 },
+  bronzeSword: { kana: 'どうのけん', name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4 },
+  ironSword: { kana: 'てつのけん', name: '鉄の剣', emoji: '⚔️', desc: '攻撃力+7', slot: 'weapon', bonus: 7 },
+  woodShield: { kana: 'きのたて', name: '木の盾', emoji: '🪵', desc: '防御力+2', slot: 'shield', bonus: 2 },
+  leatherShield: { kana: 'かわのたて', name: '革の盾', emoji: '🛡️', desc: '防御力+4', slot: 'shield', bonus: 4 },
+  ironShield: { kana: 'てつのたて', name: '鉄の盾', emoji: '🔰', desc: '防御力+7', slot: 'shield', bonus: 7 },
 };
 
 export interface Item {

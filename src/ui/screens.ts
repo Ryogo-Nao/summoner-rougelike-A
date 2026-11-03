@@ -94,8 +94,70 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   const buffs = [p.powerTurns > 0 ? `力${p.powerTurns}T` : '', p.guardTurns > 0 ? `守り${p.guardTurns}T` : '']
     .filter((b) => b)
     .join('　');
+  const sort = document.createElement('div');
+  sort.className = 'sheet-pair';
+  sort.append(
+    wideButton('種類順に並べる', false, () => {
+      state.sortBag('kind');
+      openBagSheet(state, sheet, after);
+    }),
+    wideButton('名前順に並べる', false, () => {
+      state.sortBag('name');
+      openBagSheet(state, sheet, after);
+    }),
+  );
   sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
     note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}${buffs ? `　${buffs}` : ''}`,
+    footer: sort,
+  });
+}
+
+/**
+ * 足もとのアイテム。足踏みしたときに開く。詳しい説明を見て、拾うか、バッグのアイテムと入れ替えるかを選ぶ。
+ * 拾う・入れ替えるは1ターン。足踏みすることもできる
+ */
+export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
+  const item = state.itemUnderfoot();
+  if (!item) return;
+  const def = ITEMS[item.kind];
+  const act = (f: () => void) => () => {
+    sheet.close();
+    f();
+    after();
+  };
+  const buttons = document.createElement('div');
+  const preview = state.equipPreview(item);
+  if (preview) buttons.append(statChange(preview, '装備すると'));
+  const full = state.bag.length >= BAG_LIMIT;
+  buttons.append(wideButton(full ? 'バッグがいっぱいで拾えない' : '拾う', full, act(() => state.pickUpHere())));
+  buttons.append(
+    wideButton('バッグの道具と入れ替える', state.bag.length === 0, () => openFloorSwapSheet(state, sheet, after)),
+  );
+  buttons.append(wideButton('足踏みする', false, act(() => state.wait())));
+  sheet.open(`足元：${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
+}
+
+/** 足もとのアイテムと入れ替える、バッグのアイテムを選ぶ */
+function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
+  const floor = state.itemUnderfoot();
+  if (!floor) return;
+  const rows: SheetRow[] = state.bag.map((item) => ({
+    icon: ITEMS[item.kind].emoji,
+    name: state.isEquipped(item) ? `${ITEMS[item.kind].name}（装備中）` : ITEMS[item.kind].name,
+    sub: ITEMS[item.kind].desc,
+    button: {
+      label: '入れ替える',
+      onClick: () => {
+        sheet.close();
+        state.swapWithFloor(item);
+        after();
+      },
+    },
+  }));
+  const back = wideButton('戻る', false, () => openFloorSheet(state, sheet, after));
+  sheet.open(`${ITEMS[floor.kind].emoji} ${ITEMS[floor.kind].name}と入れ替える`, rows, {
+    note: '選んだ道具を足元に置いて拾う',
+    footer: back,
   });
 }
 
@@ -116,17 +178,27 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
     buttons.append(wideButton(problem ?? label, problem !== null, act(() => state.useItem(item))));
   }
   buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
-  const dropProblem = state.dropProblem();
-  buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
+  const underfoot = state.itemUnderfoot();
+  if (underfoot) {
+    // 足もとに道具があれば、置く代わりに入れ替える
+    const name = ITEMS[underfoot.kind].name;
+    buttons.append(wideButton(`足元の${name}と入れ替える`, false, act(() => state.swapWithFloor(item))));
+  } else {
+    const dropProblem = state.dropProblem();
+    buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
+  }
   buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
   sheet.open(`${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
 }
 
 /** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */
-function statChange({ stat, before, after }: { stat: string; before: number; after: number }): HTMLElement {
+function statChange(
+  { stat, before, after }: { stat: string; before: number; after: number },
+  lead = '',
+): HTMLElement {
   const el = document.createElement('p');
   el.className = 'stat-change';
-  el.textContent = `${stat} ${before} → ${after} `;
+  el.textContent = `${lead ? `${lead}　` : ''}${stat} ${before} → ${after} `;
   const diff = document.createElement('span');
   if (after > before) {
     diff.className = 'up';
