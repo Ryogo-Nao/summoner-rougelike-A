@@ -68,16 +68,21 @@ setupPad(document.getElementById('pad')!, {
 });
 
 /** 仲間の枠の上下に最低限空ける隙間（px） */
-const ALLIES_MIN_GAP = 6;
+const ALLIES_MIN_GAP = 10;
+
+const field = document.getElementById('field')!;
+const allies = document.getElementById('allies')!;
 
 /** マップは幅いっぱいを基本にし、高さが足りないときだけ縮める */
 function layout(): void {
-  const field = document.getElementById('field')!;
-  const allies = document.getElementById('allies')!;
   const maxHeight = field.clientHeight - allies.offsetHeight - ALLIES_MIN_GAP * 2;
   renderer.resize(Math.min(field.clientWidth, maxHeight));
   redraw();
 }
 
+// iOS Safari はツールバーの出し入れで表示領域が変わり、resize イベントが来ないことがあるので、
+// 領域そのものの大きさの変化を監視する
+new ResizeObserver(layout).observe(field);
 window.addEventListener('resize', layout);
+window.visualViewport?.addEventListener('resize', layout);
 layout();
