@@ -40,7 +40,7 @@ function updateHud(): void {
   // 仲間の枠には、召喚している仲間とそのHPを出す。空いている枠は、押すと召喚できることを示す
   document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
     const a = state.allies[i];
-    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '魔物を召喚する';
+    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '召喚';
     slot.classList.toggle('filled', a !== undefined);
   });
 
