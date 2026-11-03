@@ -38,6 +38,8 @@ export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private tileSize = 32;
+  private viewW = 0;
+  private viewH = 0;
   /** true のとき、ミニマップを画面いっぱいに広げて表示する */
   minimapExpanded = false;
   private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -49,39 +51,45 @@ export class Renderer {
     this.ctx = ctx;
   }
 
-  /** 一辺 maxSize 以内で、マス目がちょうど収まる最大の正方形にする */
-  resize(maxSize: number): void {
-    const size = Math.max(0, maxSize);
-    this.tileSize = Math.floor(size / VIEW_TILES);
-    const px = this.tileSize * VIEW_TILES;
+  /**
+   * 横は VIEW_TILES マスがちょうど収まる幅にし、縦は maxHeight いっぱいまで使う。
+   * 縦に入りきらないマスは上下の端で切れて見える
+   */
+  resize(maxWidth: number, maxHeight: number): void {
+    this.tileSize = Math.max(1, Math.floor(Math.max(0, maxWidth) / VIEW_TILES));
+    this.viewW = this.tileSize * VIEW_TILES;
+    this.viewH = Math.max(this.tileSize, Math.floor(maxHeight));
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.style.width = `${px}px`;
-    this.canvas.style.height = `${px}px`;
-    this.canvas.width = Math.round(px * dpr);
-    this.canvas.height = Math.round(px * dpr);
+    this.canvas.style.width = `${this.viewW}px`;
+    this.canvas.style.height = `${this.viewH}px`;
+    this.canvas.width = Math.round(this.viewW * dpr);
+    this.canvas.height = Math.round(this.viewH * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   draw(state: GameState): void {
-    const { ctx, tileSize: ts } = this;
+    const { ctx, tileSize: ts, viewW, viewH } = this;
     const { map, player } = state;
-    const originX = player.pos.x - HALF;
-    const originY = player.pos.y - HALF;
+    // 主人公のマスの左上。横は中央の列、縦は画面の真ん中
+    const px0 = HALF * ts;
+    const py0 = Math.floor(viewH / 2 - ts / 2);
+    const rowsAbove = Math.ceil(py0 / ts);
+    const rowsBelow = Math.ceil((viewH - py0 - ts) / ts);
 
     ctx.fillStyle = COLORS.outside;
-    ctx.fillRect(0, 0, ts * VIEW_TILES, ts * VIEW_TILES);
+    ctx.fillRect(0, 0, viewW, viewH);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
-    for (let vy = 0; vy < VIEW_TILES; vy++) {
-      for (let vx = 0; vx < VIEW_TILES; vx++) {
-        const mx = originX + vx;
-        const my = originY + vy;
+    for (let dy = -rowsAbove; dy <= rowsBelow; dy++) {
+      for (let dx = -HALF; dx <= HALF; dx++) {
+        const mx = player.pos.x + dx;
+        const my = player.pos.y + dy;
         if (!state.isExplored(mx, my)) continue;
-        const sx = vx * ts;
-        const sy = vy * ts;
+        const sx = px0 + dx * ts;
+        const sy = py0 + dy * ts;
         const tile = map.get(mx, my);
         if (tile === Tile.Wall) {
           ctx.fillStyle = COLORS.wall;
@@ -102,23 +110,21 @@ export class Renderer {
       }
     }
 
-    // 主人公は常に中央
-    const cx = HALF * ts + ts / 2;
-    const cy = HALF * ts + ts / 2;
+    const cx = px0 + ts / 2;
+    const cy = py0 + ts / 2;
     ctx.fillText('🧙', cx, cy + 1);
     this.drawFacing(cx, cy, player.facing);
 
     if (this.minimapExpanded) {
       ctx.fillStyle = COLORS.expandedBg;
-      ctx.fillRect(0, 0, ts * VIEW_TILES, ts * VIEW_TILES);
-      const view = ts * VIEW_TILES;
-      const tile = Math.floor((view - 16) / Math.max(state.map.width, state.map.height));
-      const w = state.map.width * tile;
-      const h = state.map.height * tile;
-      this.drawMinimap(state, tile, (view - w) / 2, (view - h) / 2);
+      ctx.fillRect(0, 0, viewW, viewH);
+      const tile = Math.max(1, Math.floor(Math.min((viewW - 16) / map.width, (viewH - 16) / map.height)));
+      const w = map.width * tile;
+      const h = map.height * tile;
+      this.drawMinimap(state, tile, Math.floor((viewW - w) / 2), Math.floor((viewH - h) / 2));
     } else {
-      const w = state.map.width * MINI_TILE;
-      this.drawMinimap(state, MINI_TILE, ts * VIEW_TILES - w - 4, 4);
+      const w = map.width * MINI_TILE;
+      this.drawMinimap(state, MINI_TILE, viewW - w - 4, 4);
     }
   }
 

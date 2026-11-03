@@ -71,6 +71,17 @@ canvas.addEventListener('pointerdown', (e) => {
   redraw();
 });
 
+// iOS は CSS だけでは長押しのルーペが消えないので、タッチの既定動作を止める。
+// そのため画面上のボタンでは click が来ない。ボタンには pointer イベントを使うこと
+// （確認ダイアログは除外しているので click のまま使える）
+document.addEventListener(
+  'touchstart',
+  (e) => {
+    if (!(e.target instanceof Element && e.target.closest('#dialog'))) e.preventDefault();
+  },
+  { passive: false },
+);
+
 /** ダイアログが開いている間や踏破後は、パッドの入力を受け付けない */
 const acceptsInput = () => !dialog.isOpen() && !state.cleared;
 
@@ -93,16 +104,16 @@ setupPad(document.getElementById('pad')!, {
   },
 });
 
-/** 仲間の枠の上下に最低限空ける隙間（px） */
-const ALLIES_MIN_GAP = 10;
+/** 仲間の枠の上下に空ける隙間（px） */
+const ALLIES_GAP = 8;
 
 const field = document.getElementById('field')!;
 const allies = document.getElementById('allies')!;
 
-/** マップは幅いっぱいを基本にし、高さが足りないときだけ縮める */
+/** マップは幅いっぱいにし、縦は仲間の枠の下に残った高さをすべて使う */
 function layout(): void {
-  const maxHeight = field.clientHeight - allies.offsetHeight - ALLIES_MIN_GAP * 2;
-  renderer.resize(Math.min(field.clientWidth, maxHeight));
+  const maxHeight = field.clientHeight - allies.offsetHeight - ALLIES_GAP * 2;
+  renderer.resize(field.clientWidth, maxHeight);
   redraw();
 }
 
