@@ -384,3 +384,10 @@ window.visualViewport?.addEventListener('resize', layout);
 layout();
 // 途中のダンジョンがなければ、拠点から始める
 if (!loadRunData()) base.open(profile);
+
+// 公開したものだけ、オフラインでも遊べるようにする（開発中は毎回新しいファイルを読むので使わない）
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {
+    // 登録できなくても、通信できる間は遊べる
+  });
+}
