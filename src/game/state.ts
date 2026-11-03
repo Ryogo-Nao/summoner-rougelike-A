@@ -341,7 +341,7 @@ export class GameState {
       m.facing = atk;
       // ふらつく魔物は、隣にいても半分の確率でその行動を失う
       if (m.species.erratic && this.rng.chance(0.5)) {
-        this.logIfSeen(m, `${m.species.name}はふらついた。`);
+        this.logIfNear(m.pos, `${m.species.name}はふらついた。`);
         return;
       }
       this.monsterAttack(m);
@@ -350,7 +350,7 @@ export class GameState {
 
     if (m.species.erratic && this.rng.chance(0.5)) {
       const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMonsterMove(m, d));
-      this.logIfSeen(m, `${m.species.name}はふらふらと飛び回った。`);
+      this.logIfNear(m.pos, `${m.species.name}はふらふらと飛び回った。`);
       if (dirs.length > 0) this.moveMonster(m, this.rng.pick(dirs));
       return;
     }
@@ -392,21 +392,22 @@ export class GameState {
     const v = DIR_VECTORS[dir];
     const to = { x: m.pos.x + v.x, y: m.pos.y + v.y };
     if (m.species.phasing && this.map.isWalkable(m.pos.x, m.pos.y) && !this.map.isWalkable(to.x, to.y)) {
-      this.logIfSeen(m, `${m.species.name}は壁の中へすり抜けた。`);
+      // 隣から壁の中へ逃げたとき
+      this.logIfNear(m.pos, `${m.species.name}は壁の中へすり抜けた。`);
     } else if (m.species.phasing && !this.map.isWalkable(m.pos.x, m.pos.y) && this.map.isWalkable(to.x, to.y)) {
-      // 壁の中から出てきたときは、出てきた先が見えていれば記録する
-      if (this.isVisible(to.x, to.y)) this.addLog(`${m.species.name}が壁の中から現れた。`);
+      // 壁の中から出て、隣に来たとき
+      this.logIfNear(to, `${m.species.name}が壁の中から現れた。`);
     }
     m.facing = dir;
     m.pos = to;
   }
 
   /**
-   * 魔物の特殊な動きを、主人公から見えているときだけログに残す。
-   * 誰が何をしたかだけを書き、その結果（攻撃しなかった、など）は書かない
+   * 魔物の特殊な動きは、主人公の隣で起きたときだけログに残す。
+   * ログには主人公に関わることだけを書く。誰が何をしたかだけを書き、その結果（攻撃しなかった、など）は書かない
    */
-  private logIfSeen(m: Monster, text: string): void {
-    if (this.isVisible(m.pos.x, m.pos.y)) this.addLog(text);
+  private logIfNear(at: Pos, text: string): void {
+    if (distance(at, this.player.pos) <= 1) this.addLog(text);
   }
 
   private monsterAttack(m: Monster): void {
