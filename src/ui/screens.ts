@@ -17,16 +17,14 @@ export const cardIcon = (card: Card) => (isPartner(card) ? '⚡🐈' : card.spec
 
 export function cardSub(card: Card, status = true): string {
   const line2 = [`MP${card.species.cost}`, ...(status ? [STATUS_LABEL[card.status]] : []), PERSONALITIES[card.personality].name];
-  return `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}
-${line2.join('　')}`;
+  return `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${line2.join('　')}`;
 }
 
-/** 性格の説明。上がる・下がる能力と、動きのくせ */
+/** 性格の説明。上がる能力と下がる能力 */
 export function personalityText(card: Card): string {
-  const { name, up, down, habit } = PERSONALITIES[card.personality];
+  const { name, up, down } = PERSONALITIES[card.personality];
   const stats = up && down ? `（${STAT_LABEL[up]}↑ ${STAT_LABEL[down]}↓）` : '';
-  return `性格：${name}${stats}${habit ? `
-${habit}` : ''}`;
+  return `性格：${name}${stats}`;
 }
 
 /** カード画面（requirements.md 10.3）。待機は「召喚」、召喚中は「戻す」。召喚できないカードは薄く出す */
@@ -294,8 +292,7 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
     after();
   });
   sheet.open(`${cardIcon(card)} ${card.species.name}`, rows, {
-    note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}
-${personalityText(card)}`,
+    note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${personalityText(card)}`,
     footer,
   });
 }

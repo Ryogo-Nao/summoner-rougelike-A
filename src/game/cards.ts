@@ -8,8 +8,6 @@ export const SUMMON_LIMIT = 3;
 export const ALLY_STAIRS_HEAL = 0.25;
 /** イヅツチの「いかずち」を使う確率 */
 export const LIGHTNING_CHANCE = 0.35;
-/** きまぐれな仲間が、指示を聞かずにうろうろする確率 */
-export const KIMAGURE_CHANCE = 0.1;
 
 /** 相棒イヅツチ。ダンジョンには出ないので、出現階は空にしておく（balance.md 4.0） */
 export const IZUTSUCHI: Species = {
@@ -36,24 +34,21 @@ export type Stat = 'maxHp' | 'atk' | 'def';
 export type Stats = Record<Stat, number>;
 export const STAT_LABEL: Record<Stat, string> = { maxHp: 'HP', atk: '攻撃', def: '防御' };
 
-/** 性格（requirements.md 6.2）。封印したときにカードごとに決まる */
-export type PersonalityId = 'ganbari' | 'shincho' | 'takumashii' | 'okubyo' | 'kimagure' | 'sunao';
+/** 性格（requirements.md 6.2）。封印したときにカードごとに決まり、能力だけに効く */
+export type PersonalityId = 'ganbari' | 'shincho' | 'takumashii' | 'okubyo' | 'sunao';
 
 export interface Personality {
   name: string;
   /** ×1.1 になる能力と、×0.9 になる能力 */
   up?: Stat;
   down?: Stat;
-  /** 動きのくせ。なければ undefined */
-  habit?: string;
 }
 
 export const PERSONALITIES: Record<PersonalityId, Personality> = {
-  ganbari: { name: 'がんばりや', up: 'atk', down: 'def', habit: 'ついてくるときも\n主人公の2マス以内の敵に向かう' },
-  shincho: { name: 'しんちょう', up: 'def', down: 'atk', habit: 'HPが半分を切ると\n突撃せずについてくる' },
+  ganbari: { name: 'がんばりや', up: 'atk', down: 'def' },
+  shincho: { name: 'しんちょう', up: 'def', down: 'atk' },
   takumashii: { name: 'たくましい', up: 'maxHp', down: 'atk' },
-  okubyo: { name: 'おくびょう', up: 'maxHp', down: 'def', habit: 'HPが3割を切ると逃げる' },
-  kimagure: { name: 'きまぐれ', habit: 'ときどき指示を聞かずに\nうろうろする' },
+  okubyo: { name: 'おくびょう', up: 'maxHp', down: 'def' },
   sunao: { name: 'すなお' },
 };
 export const PERSONALITY_IDS = Object.keys(PERSONALITIES) as PersonalityId[];

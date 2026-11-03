@@ -2,7 +2,6 @@ import {
   ALLY_STAIRS_HEAL,
   HAND_LIMIT,
   IZUTSUCHI,
-  KIMAGURE_CHANCE,
   LIGHTNING_CHANCE,
   PERSONALITIES,
   PERSONALITY_IDS,
@@ -189,6 +188,8 @@ export const cardToData = (card: Card): CardData => ({ ...card, species: card.sp
  */
 export function cardFromData(data: CardData): Card {
   const card: Card = { ...data, species: speciesById(data.species) };
+  // 前に作った「きまぐれ」など、今はない性格は「すなお」にする
+  if (data.personality !== undefined && !(data.personality in PERSONALITIES)) card.personality = 'sunao';
   if (data.personality === undefined) {
     card.personality = 'sunao';
     const now = cardStats(card.species, card.level);
@@ -1334,17 +1335,8 @@ export class GameState {
   private allyAct(a: Ally): void {
     if (!this.allies.includes(a)) return;
     const species = a.card.species;
-    const order = this.orderOf(a);
-    // きまぐれ：ときどき指示を聞かずに、でたらめな方向へ1歩動く
-    if (a.card.personality === 'kimagure' && this.rng.chance(KIMAGURE_CHANCE)) {
-      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(species, a.pos, d));
-      if (dirs.length > 0) {
-        this.moveAlly(a, this.rng.pick(dirs));
-        return;
-      }
-    }
     // 逃げる：近くに魔物がいれば、まず離れる。逃げ場がなければ、その場で戦う
-    if (order === 'flee' && this.fleeStep(a)) return;
+    if (a.order === 'flee' && this.fleeStep(a)) return;
     const adjacent = this.monsters
       .filter((m) => this.canHitAdjacent(species, a.pos, m.pos))
       .sort((x, y) => x.hp - y.hp);
@@ -1375,22 +1367,10 @@ export class GameState {
     }
 
     // 待機：その場から動かない（隣の魔物への攻撃と、いかずちはする）
-    if (order === 'wait') return;
-
-    // がんばりや：ついてくるときも、主人公の2マス以内に見えている魔物へ向かう
-    if (order === 'follow' && a.card.personality === 'ganbari') {
-      const target = this.monsters
-        .filter((m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, this.player.pos) <= 2)
-        .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
-      if (target) {
-        const dir = this.stepToward(species, a.pos, target.pos);
-        if (dir !== null && this.canMoveTo(species, a.pos, dir)) this.moveAlly(a, dir);
-        return;
-      }
-    }
+    if (a.order === 'wait') return;
 
     // 突撃：見えている魔物のうち、いちばん近いものへ向かう。いなければついてくる
-    if (order === 'charge') {
+    if (a.order === 'charge') {
       const target = this.monsters
         .filter((m) => this.isVisible(m.pos.x, m.pos.y))
         .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
@@ -1416,17 +1396,6 @@ export class GameState {
     if (this.canHitAdjacent(species, a.pos, p)) return;
     const dir = this.followStep(a);
     if (dir !== null) this.moveAlly(a, dir);
-  }
-
-  /**
-   * 性格を考えた、今の指示。おくびょうはHPが3割を切ると逃げ、
-   * しんちょうはHPが半分を切ると突撃をやめてついてくる
-   */
-  private orderOf(a: Ally): AllyOrder {
-    const hp = a.card.hp / a.card.maxHp;
-    if (a.card.personality === 'okubyo' && hp < 0.3) return 'flee';
-    if (a.card.personality === 'shincho' && hp < 0.5 && a.order === 'charge') return 'follow';
-    return a.order;
   }
 
   /**
