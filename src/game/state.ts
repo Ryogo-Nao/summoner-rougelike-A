@@ -889,7 +889,7 @@ export class GameState {
     if (card.status === 'summoned') card.status = 'ready';
   }
 
-  /** 手元に加える。いっぱいなら、保管庫へ送るカードを選ぶまで pendingCard で待つ */
+  /** 手元に加える。いっぱいなら、預けるか別れるカードを選ぶまで pendingCard で待つ */
   private addCard(card: Card): void {
     if (this.cards.length < HAND_LIMIT) {
       this.cards.push(card);
@@ -898,22 +898,42 @@ export class GameState {
     }
     this.pendingCard = card;
     this.addLog(
-      `${card.species.name}のカードを手に入れた（性格：${PERSONALITIES[card.personality].name}）\n手持ちがいっぱいのため保管庫へ送るカードを選んでください`,
+      `${card.species.name}のカードを手に入れた（性格：${PERSONALITIES[card.personality].name}）\n手持ちがいっぱいのため預けるか別れるカードを選んでください`,
     );
   }
 
-  /** pendingCard があるとき、手元の5枚と新しい1枚のうち index のカードを保管庫へ送る。ターンは使わない */
+  /** 拠点の保管庫へ預けられるか。預けられるのは、ダンジョンに持ってきたカードだけ（requirements.md 5.6） */
+  canStore(card: Card): boolean {
+    return !card.obtainedHere;
+  }
+
+  /** pendingCard があるとき、手元の5枚と新しい1枚のうち index のカードを保管庫へ預ける。ターンは使わない */
   sendToStorage(index: number): void {
+    const card = this.pendingCard && [...this.cards, this.pendingCard][index];
+    if (!card || !this.canStore(card)) return;
+    const chosen = this.pickFromFull(index)!;
+    this.storage.push(chosen);
+    this.addLog(`${chosen.species.name}を保管庫へ`);
+  }
+
+  /** pendingCard があるとき、index のカードの仲間と別れる。カードはなくなる。ターンは使わない */
+  partWith(index: number): void {
+    const chosen = this.pickFromFull(index);
+    if (!chosen) return;
+    this.addLog(`${chosen.species.name}と別れた`);
+  }
+
+  /** 手元の5枚と新しい1枚から index のカードを外し、残りを手元にする */
+  private pickFromFull(index: number): Card | null {
     const pending = this.pendingCard;
-    if (!pending) return;
+    if (!pending) return null;
     const all = [...this.cards, pending];
     const chosen = all[index];
-    if (!chosen) return;
+    if (!chosen) return null;
     this.dismissAlly(chosen);
-    this.storage.push(chosen);
     this.cards = all.filter((c) => c !== chosen);
     this.pendingCard = null;
-    this.addLog(`${chosen.species.name}を保管庫へ`);
+    return chosen;
   }
 
   /** 白紙カードが魔物に当たったとき。弱っているほど封印しやすい */

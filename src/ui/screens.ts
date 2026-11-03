@@ -317,25 +317,53 @@ export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after:
   });
 }
 
-/** 手元がいっぱいのときに新しいカードを手に入れたら、保管庫へ送る1枚を選ぶまで閉じない */
+/**
+ * 手元がいっぱいのときに新しいカードを手に入れたら、外す1枚を選ぶまで閉じない。
+ * ダンジョンに持ってきたカードは拠点へ預けられる。ここで手に入れたカードは預けられず、別れるしかない
+ */
 export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const pending = state.pendingCard;
   if (!pending) return;
-  const rows: SheetRow[] = [...state.cards, pending].map((card, index) => ({
-    icon: cardIcon(card),
-    name: card === pending ? `${card.species.name}（新）` : card.species.name,
-    sub: cardSub(card),
-    button: {
-      label: '預ける',
-      onClick: () => {
-        sheet.close();
-        state.sendToStorage(index);
-        after();
-      },
-    },
-  }));
+  const rows: SheetRow[] = [...state.cards, pending].map((card, index) => {
+    const name = card === pending ? `${card.species.name}（新）` : card.species.name;
+    const store = state.canStore(card);
+    return {
+      icon: cardIcon(card),
+      name: store ? `${name}（持ってきた）` : name,
+      sub: cardSub(card),
+      button: store
+        ? {
+            label: '預ける',
+            onClick: () => {
+              sheet.close();
+              state.sendToStorage(index);
+              after();
+            },
+          }
+        : { label: '別れる', onClick: () => openPartSheet(state, sheet, card, index, after) },
+    };
+  });
   sheet.open('カードがいっぱい', rows, {
-    note: '保管庫へ送る1枚を選ぶ',
+    note: '外す1枚を選ぶ\n持ってきたカードは拠点へ預けられる\nここで手に入れたカードとは別れる',
+    closable: false,
+  });
+}
+
+/** 別れる前にもう一度聞く。別れたカードは戻らない */
+function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number, after: AfterAction): void {
+  const buttons = document.createElement('div');
+  buttons.className = 'sheet-pair';
+  buttons.append(
+    wideButton('別れる', false, () => {
+      sheet.close();
+      state.partWith(index);
+      after();
+    }),
+    wideButton('戻る', false, () => openSwapSheet(state, sheet, after)),
+  );
+  sheet.open(`${cardIcon(card)} ${card.species.name}と別れる？`, [], {
+    note: `${cardSub(card)}\n別れたカードは戻らない`,
+    footer: buttons,
     closable: false,
   });
 }
