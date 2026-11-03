@@ -28,10 +28,10 @@ const SPAWN_INTERVAL = 40;
 /** HPが全回復するまでのターン数（balance.md 1.4） */
 const REGEN_TURNS = 150;
 
-/** 魔法（balance.md 2.1） */
+/** 魔法（balance.md 2.1）。name はログに、label は魔法の一覧に出す */
 export const SPELLS = {
-  fire: { name: '火の魔法', mp: 4 },
-  thunder: { name: '雷の魔法', mp: 5 },
+  fire: { name: '火の魔法', label: '火', mp: 4 },
+  thunder: { name: '雷の魔法', label: '雷', mp: 5 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
 /** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
@@ -237,7 +237,7 @@ export class GameState {
       if (this.rng.chance(HIT_RATE)) {
         this.damageMonster(target, rollDamage(this.rng, p.atk, target.species.def), null, '攻撃');
       } else {
-        this.addLog(`あなたの攻撃 → ${target.species.name}にかわされた。`);
+        this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
     }
@@ -250,13 +250,13 @@ export class GameState {
     this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage' });
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
-    this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}のダメージ。`);
+    this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}ダメージ`);
     if (m.hp > 0) return;
     this.monsters = this.monsters.filter((x) => x !== m);
-    this.addLog(`${m.species.name}をたおした。経験値${m.species.exp}を得た。`);
+    this.addLog(`${m.species.name}をたおした（経験値${m.species.exp}）`);
     this.shareExp(m.species.exp, by);
     if (this.rng.chance(dropChance(m.species))) {
-      this.addLog(`${m.species.name}がカードを落とした。`);
+      this.addLog(`${m.species.name}がカードを落とした`);
       this.addCard(createCard(m.species, true));
     }
   }
@@ -280,7 +280,7 @@ export class GameState {
       p.mp += 2;
       p.atk += 1;
       p.def += 1;
-      this.addLog(`あなたのレベルが${p.level}に上がった！`);
+      this.addLog(`あなたはLv${p.level}になった！`);
       this.popups.push({ pos: p.pos, text: 'Lv UP', kind: 'info' });
     }
   }
@@ -291,7 +291,7 @@ export class GameState {
     const next = levelForExp(card.exp);
     while (card.level < next) {
       growCard(card);
-      this.addLog(`${card.species.name}のレベルが${card.level}に上がった！`);
+      this.addLog(`${card.species.name}はLv${card.level}になった！`);
       this.popups.push({ pos: a.pos, text: 'Lv UP', kind: 'info' });
     }
   }
@@ -300,11 +300,11 @@ export class GameState {
 
   /** 召喚できないときは、その理由を返す */
   summonProblem(card: Card): string | null {
-    if (card.status === 'dying') return '瀕死のカードは、このダンジョンでは召喚できない。';
-    if (card.status === 'summoned') return 'すでに召喚している。';
-    if (this.allies.length >= SUMMON_LIMIT) return `同時に召喚できるのは${SUMMON_LIMIT}体まで。`;
-    if (this.player.mp < card.species.cost) return 'MPが足りない。';
-    if (!this.freeSpotNear(this.player.pos)) return 'まわりに空いている場所がない。';
+    if (card.status === 'dying') return '瀕死のカードはこのダンジョンでは召喚できない';
+    if (card.status === 'summoned') return 'すでに召喚している';
+    if (this.allies.length >= SUMMON_LIMIT) return `同時に召喚できるのは${SUMMON_LIMIT}体まで`;
+    if (this.player.mp < card.species.cost) return 'MPが足りない';
+    if (!this.freeSpotNear(this.player.pos)) return 'まわりに空いている場所がない';
     return null;
   }
 
@@ -315,7 +315,7 @@ export class GameState {
     this.player.mp -= card.species.cost;
     card.status = 'summoned';
     this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing });
-    this.addLog(`あなたは${card.species.name}を召喚した。`);
+    this.addLog(`${card.species.name}を召喚した`);
     this.endTurn();
   }
 
@@ -324,7 +324,7 @@ export class GameState {
     if (card.status !== 'summoned') return;
     this.beginAction();
     this.dismissAlly(card);
-    this.addLog(`あなたは${card.species.name}をカードに戻した。`);
+    this.addLog(`${card.species.name}を戻した`);
     this.endTurn();
   }
 
@@ -337,11 +337,11 @@ export class GameState {
   private addCard(card: Card): void {
     if (this.cards.length < HAND_LIMIT) {
       this.cards.push(card);
-      this.addLog(`${card.species.name}のカードを手に入れた。`);
+      this.addLog(`${card.species.name}のカードを手に入れた`);
       return;
     }
     this.pendingCard = card;
-    this.addLog(`${card.species.name}のカードを手に入れた。手元がいっぱいなので、保管庫へ送るカードを選ぶ。`);
+    this.addLog(`${card.species.name}のカードを手に入れた（手持ちがいっぱいのため保管庫へ送るカードを選んでください）`);
   }
 
   /** pendingCard があるとき、手元の5枚と新しい1枚のうち index のカードを保管庫へ送る。ターンは使わない */
@@ -355,7 +355,7 @@ export class GameState {
     this.storage.push(chosen);
     this.cards = all.filter((c) => c !== chosen);
     this.pendingCard = null;
-    this.addLog(`${chosen.species.name}のカードを保管庫へ送った。`);
+    this.addLog(`${chosen.species.name}を保管庫へ`);
   }
 
   /** 向いている方向に白紙カードを投げ、最初に当たった魔物の封印を試みる。1ターンかかる */
@@ -365,16 +365,16 @@ export class GameState {
     this.blankCards--;
     const target = this.traceLine();
     if (!target) {
-      this.addLog('あなたは白紙カードを投げた → 何にも当たらなかった。');
+      this.addLog('封印カードは外れた');
     } else if (this.rng.chance(captureChance(target.species.capture, target.hp / target.maxHp))) {
       this.monsters = this.monsters.filter((m) => m !== target);
       this.popups.push({ pos: target.pos, text: '封印', kind: 'info' });
-      this.addLog(`あなたは白紙カードを投げた → ${target.species.name}を封印した！`);
+      this.addLog(`${target.species.name}を封印した！`);
       this.addCard(createCard(target.species, true));
     } else {
       target.lastSeen = { ...this.player.pos };
       this.popups.push({ pos: target.pos, text: '失敗', kind: 'miss' });
-      this.addLog(`あなたは白紙カードを投げた → ${target.species.name}の封印に失敗した。`);
+      this.addLog('封印に失敗した');
     }
     this.endTurn();
   }
@@ -413,7 +413,7 @@ export class GameState {
       spell === 'fire'
         ? [this.traceLine()].filter((m) => m !== undefined)
         : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
-    if (targets.length === 0) this.addLog(`あなたの${name} → 何にも当たらなかった。`);
+    if (targets.length === 0) this.addLog(`${name}は外れた`);
     const dmg = spell === 'fire' ? 10 + p.level * 2 : 6 + p.level;
     for (const m of targets) this.damageMonster(m, dmg, null, name);
     this.endTurn();
@@ -431,7 +431,7 @@ export class GameState {
       a.card.hp = Math.min(a.card.maxHp, a.card.hp + Math.ceil(a.card.maxHp * ALLY_STAIRS_HEAL));
     }
     this.enterFloor();
-    this.addLog(`B${this.floor}Fに降りた。`);
+    this.addLog(`B${this.floor}Fに降りた`);
   }
 
   // ---- 視界 ----
@@ -585,7 +585,7 @@ export class GameState {
       m.facing = dirFromDelta(target.x - m.pos.x, target.y - m.pos.y) ?? m.facing;
       // ふらつく魔物は、隣にいても半分の確率でその行動を失う
       if (m.species.erratic && this.rng.chance(0.5)) {
-        this.logIfNear(m.pos, `${m.species.name}はふらついた。`);
+        this.logIfNear(m.pos, `${m.species.name}はふらついた`);
         return;
       }
       if (allyTarget) this.monsterAttackAlly(m, allyTarget);
@@ -595,7 +595,7 @@ export class GameState {
 
     if (m.species.erratic && this.rng.chance(0.5)) {
       const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
-      this.logIfNear(m.pos, `${m.species.name}はふらふらと飛び回った。`);
+      this.logIfNear(m.pos, `${m.species.name}はふらふらと飛び回った`);
       if (dirs.length > 0) this.moveMonster(m, this.rng.pick(dirs));
       return;
     }
@@ -625,10 +625,10 @@ export class GameState {
     const to = { x: m.pos.x + v.x, y: m.pos.y + v.y };
     if (m.species.phasing && this.map.isWalkable(m.pos.x, m.pos.y) && !this.map.isWalkable(to.x, to.y)) {
       // 隣から壁の中へ逃げたとき
-      this.logIfNear(m.pos, `${m.species.name}は壁の中へすり抜けた。`);
+      this.logIfNear(m.pos, `${m.species.name}は壁に消えた`);
     } else if (m.species.phasing && !this.map.isWalkable(m.pos.x, m.pos.y) && this.map.isWalkable(to.x, to.y)) {
       // 壁の中から出て、隣に来たとき
-      this.logIfNear(to, `${m.species.name}が壁の中から現れた。`);
+      this.logIfNear(to, `${m.species.name}が壁から出た`);
     }
     m.facing = dir;
     m.pos = to;
@@ -650,13 +650,13 @@ export class GameState {
     // 離れたところから攻撃してきた魔物には、仲間が近づいて戦う
     if (ranged) this.provoker = m;
     if (!this.rng.chance(HIT_RATE)) {
-      this.addLog(`${m.species.name}の${how} → あなたはかわした。`);
+      this.addLog('あなたはかわした');
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
     const dmg = rollDamage(this.rng, m.species.atk, p.def);
     p.hp = Math.max(0, p.hp - dmg);
-    this.addLog(`${m.species.name}の${how} → あなたに${dmg}のダメージ。`);
+    this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
     this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
     if (p.hp === 0) {
       this.dead = true;
@@ -667,18 +667,18 @@ export class GameState {
   private monsterAttackAlly(m: Monster, a: Ally): void {
     const name = a.card.species.name;
     if (!this.rng.chance(HIT_RATE)) {
-      this.addLog(`${m.species.name}の攻撃 → ${name}はかわした。`);
+      this.addLog(`${name}はかわした`);
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
     const dmg = rollDamage(this.rng, m.species.atk, a.card.def);
     a.card.hp = Math.max(0, a.card.hp - dmg);
-    this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}のダメージ。`);
+    this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
     this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
     if (a.card.hp === 0) {
       this.allies = this.allies.filter((x) => x !== a);
       a.card.status = 'dying';
-      this.addLog(`${name}は瀕死になり、カードに戻った。`);
+      this.addLog(`${name}は瀕死になりカードに戻った`);
     }
   }
 
@@ -703,7 +703,7 @@ export class GameState {
       if (this.rng.chance(HIT_RATE)) {
         this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
       } else {
-        this.addLog(`${species.name}の攻撃 → ${target.species.name}にかわされた。`);
+        this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
       return;

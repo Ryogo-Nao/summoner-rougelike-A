@@ -12,7 +12,7 @@ const seedParam = Number(new URLSearchParams(location.search).get('seed'));
 const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSeed();
 
 const state = new GameState(seed);
-state.addLog('ダンジョンに入った。');
+state.addLog('ダンジョンに入った');
 state.turnFirst = loadSettings().turnFirst;
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
@@ -60,11 +60,11 @@ function redraw(): void {
 }
 
 function askDescend(): void {
-  dialog.open('階段がある。降りますか？', '降りる', 'そのまま', () => {
+  dialog.open('階段を降りる？', '降りる', 'やめる', () => {
     state.descend();
     redraw();
     if (state.cleared) {
-      dialog.open('ダンジョンを踏破した！', 'もう一度', '閉じる', () => location.reload());
+      dialog.open('踏破した！', 'もう一度', '閉じる', () => location.reload());
     }
   });
 }
@@ -107,7 +107,7 @@ function openLogHistory(): void {
     if (entry.turn !== lastTurn) {
       const head = document.createElement('p');
       head.className = 'turn';
-      head.textContent = `${entry.turn}ターン目`;
+      head.textContent = `${entry.turn}T`;
       rows.push(head);
       lastTurn = entry.turn;
     }
@@ -143,7 +143,7 @@ function afterAction(): void {
     return;
   }
   if (state.dead) {
-    dialog.open(`B${state.floor}Fで力つきてしまった…`, 'もう一度', '閉じる', () => location.reload());
+    dialog.open(`B${state.floor}Fで力つきた…`, 'もう一度', '閉じる', () => location.reload());
   }
 }
 

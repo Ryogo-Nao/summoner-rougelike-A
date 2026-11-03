@@ -251,6 +251,11 @@ button {
 .sheet-row .name {
   font-weight: bold;
 }
+.sheet-row .sub,
+.sheet-note {
+  /* 文言に読点を付けないので、区切りたいところは改行する */
+  white-space: pre-line;
+}
 .sheet-row .sub {
   font-size: 12px;
   color: var(--muted);
