@@ -18,7 +18,7 @@ export interface Species {
   speed: Speed;
   /** 2マス先まで、まっすぐ攻撃が届く */
   reach?: number;
-  /** 動きがふらつく（半分の確率で、でたらめな方向に動く） */
+  /** 動きがふらつく（半分の確率で、でたらめな方向に動く。隣にいるときは、半分の確率で行動を失う） */
   erratic?: boolean;
   /** 壁をすり抜ける */
   phasing?: boolean;
