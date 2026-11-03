@@ -4,6 +4,8 @@ import { Tile } from '../game/map';
 /** 画面に映すマス数（要件 10.1） */
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
+/** マップの周りに空ける余白（px） */
+const MARGIN = 10;
 
 const COLORS = {
   wall: '#3a3450',
@@ -24,11 +26,11 @@ export class Renderer {
     this.ctx = ctx;
   }
 
-  /** 親要素に収まる最大の正方形にする */
+  /** 親要素に、周りの余白を残して収まる最大の正方形にする */
   resize(): void {
     const parent = this.canvas.parentElement;
     if (!parent) return;
-    const size = Math.min(parent.clientWidth, parent.clientHeight);
+    const size = Math.min(parent.clientWidth, parent.clientHeight) - MARGIN * 2;
     this.tileSize = Math.floor(size / VIEW_TILES);
     const px = this.tileSize * VIEW_TILES;
     const dpr = window.devicePixelRatio || 1;

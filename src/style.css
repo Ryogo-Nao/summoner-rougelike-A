@@ -93,7 +93,9 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 12px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 .ally-slot {
   height: 32px;
@@ -117,6 +119,7 @@ button {
   left: 50%;
   transform: translate(-50%, -50%);
   display: block;
+  border-radius: 6px;
 }
 
 /* ログ */
@@ -176,6 +179,10 @@ button {
   grid-template-columns: repeat(2, 72px);
   grid-auto-rows: 44px;
   gap: 6px;
+}
+#buttons button {
+  font-size: 14px;
+  white-space: nowrap;
 }
 #buttons .wide {
   grid-column: span 2;
