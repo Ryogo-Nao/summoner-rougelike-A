@@ -45,7 +45,7 @@ export interface ItemDef {
 export const ITEMS: Record<ItemKind, ItemDef> = {
   bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50 },
   bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100 },
-  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}\n仲間に投げるとその仲間を回復` },
+  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: `HP+${HERB_HEAL}　混乱と毒が治る\n仲間に投げるとその仲間を回復` },
   water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: `MP+${WATER_MP}` },
   blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい' },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
