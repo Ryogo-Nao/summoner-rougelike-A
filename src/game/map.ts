@@ -6,33 +6,52 @@ export const enum Tile {
   Stairs,
 }
 
+export interface Room {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export class GameMap {
   readonly width: number;
   readonly height: number;
+  readonly rooms: Room[];
   private readonly tiles: Tile[];
+  /** 各マスがどの部屋に属するか。通路と壁は -1 */
+  private readonly roomIds: Int16Array;
 
-  constructor(width: number, height: number, tiles: Tile[]) {
+  constructor(width: number, height: number, tiles: Tile[], rooms: Room[] = []) {
     this.width = width;
     this.height = height;
     this.tiles = tiles;
+    this.rooms = rooms;
+    this.roomIds = new Int16Array(width * height).fill(-1);
+    rooms.forEach((r, id) => {
+      for (let y = r.y; y < r.y + r.h; y++) {
+        for (let x = r.x; x < r.x + r.w; x++) this.roomIds[y * width + x] = id;
+      }
+    });
   }
 
-  /** '#'=壁 '.'=床 '>'=階段 の文字列配列から作る（ダンジョン生成ができるまでの仮） */
-  static fromStrings(rows: string[]): GameMap {
-    const width = Math.max(...rows.map((r) => r.length));
-    const tiles: Tile[] = [];
-    for (const row of rows) {
-      for (let x = 0; x < width; x++) {
-        const c = row[x] ?? '#';
-        tiles.push(c === '.' ? Tile.Floor : c === '>' ? Tile.Stairs : Tile.Wall);
-      }
-    }
-    return new GameMap(width, rows.length, tiles);
+  inBounds(x: number, y: number): boolean {
+    return x >= 0 && y >= 0 && x < this.width && y < this.height;
   }
 
   get(x: number, y: number): Tile {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return Tile.Wall;
+    if (!this.inBounds(x, y)) return Tile.Wall;
     return this.tiles[y * this.width + x];
+  }
+
+  set(x: number, y: number, tile: Tile): void {
+    if (this.inBounds(x, y)) this.tiles[y * this.width + x] = tile;
+  }
+
+  /** そのマスがある部屋。部屋の外なら undefined */
+  roomAt(x: number, y: number): Room | undefined {
+    if (!this.inBounds(x, y)) return undefined;
+    const id = this.roomIds[y * this.width + x];
+    return id >= 0 ? this.rooms[id] : undefined;
   }
 
   isWalkable(x: number, y: number): boolean {

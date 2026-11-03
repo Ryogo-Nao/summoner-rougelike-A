@@ -1,27 +1,18 @@
-import { GameMap } from './game/map';
+import { randomSeed } from './game/rng';
 import { GameState } from './game/state';
 import { Renderer } from './render/renderer';
+import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 
-// ダンジョン生成ができるまでの仮マップ
-const TEST_MAP = [
-  '##########################',
-  '#........#######.........#',
-  '#........#######.........#',
-  '#.................#####..#',
-  '#........#######..#####..#',
-  '#........#######.........#',
-  '####.######################',
-  '####.######################',
-  '####.######.......#########',
-  '####...............########',
-  '###########.....>..########',
-  '###########.......#########',
-  '##########################',
-];
+// ?seed=数字 を付けると同じダンジョンを再現できる（デバッグ用）
+const seedParam = Number(new URLSearchParams(location.search).get('seed'));
+const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSeed();
 
-const state = new GameState(GameMap.fromStrings(TEST_MAP), { x: 3, y: 2 });
+const state = new GameState(seed);
 state.addLog('ダンジョンに入った。');
+const dialog = new ConfirmDialog();
+// 開発中だけ、ブラウザのコンソールから状態を触れるようにする
+if (import.meta.env.DEV) Object.assign(window, { game: state });
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);
@@ -56,12 +47,33 @@ function redraw(): void {
   updateHud();
 }
 
+function askDescend(): void {
+  dialog.open('階段がある。降りますか？', '降りる', 'そのまま', () => {
+    state.descend();
+    redraw();
+    if (state.cleared) {
+      dialog.open('ダンジョンを踏破した！', 'もう一度', '閉じる', () => location.reload());
+    }
+  });
+}
+
+/** ダイアログが開いている間や踏破後は、パッドの入力を受け付けない */
+const acceptsInput = () => !dialog.isOpen() && !state.cleared;
+
 setupPad(document.getElementById('pad')!, {
   onMove(dir) {
-    state.tryMove(dir);
+    if (!acceptsInput()) return;
+    const moved = state.tryMove(dir);
     redraw();
+    if (moved && state.isOnStairs) askDescend();
   },
   onWait() {
+    if (!acceptsInput()) return;
+    // 階段の上で足踏みすると、降りるかどうかをもう一度聞く
+    if (state.isOnStairs) {
+      askDescend();
+      return;
+    }
     state.wait();
     redraw();
   },

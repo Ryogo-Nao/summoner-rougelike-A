@@ -192,3 +192,43 @@ button {
 #buttons .wide {
   grid-column: span 2;
 }
+
+/* 確認ダイアログ。操作部の上に出して、すぐ押せるようにする */
+#dialog {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px calc(env(safe-area-inset-bottom) + 200px);
+  background: rgba(8, 7, 14, 0.45);
+}
+#dialog[hidden] {
+  display: none;
+}
+.dialog-box {
+  width: 100%;
+  max-width: 360px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+.dialog-box p {
+  margin: 0 0 14px;
+}
+.dialog-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.dialog-buttons button {
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: var(--btn);
+}
+.dialog-buttons button:first-child {
+  background: var(--btn-active);
+}
