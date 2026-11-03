@@ -1,4 +1,4 @@
-import type { GameState } from '../game/state';
+import type { GameState, Popup } from '../game/state';
 import { Tile } from '../game/map';
 
 /** 画面に映すマス数（要件 10.1） */
@@ -18,8 +18,18 @@ const COLORS = {
   miniFloor: '#6f9dff',
   miniStairs: '#ffd84a',
   miniPlayer: '#ff4d3d',
+  miniMonster: '#ff5fd2',
+  hpBar: '#e5534b',
+  hpBarBg: 'rgba(0, 0, 0, 0.7)',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(0, 0, 0, 0.82)',
+};
+
+const POPUP_COLORS: Record<Popup['kind'], string> = {
+  damage: '#ffffff',
+  hurt: '#ff6b5e',
+  miss: '#b8b2cc',
+  info: '#ffd84a',
 };
 
 /** ミニマップの1マスの大きさ（px） */
@@ -110,10 +120,24 @@ export class Renderer {
       }
     }
 
+    const toScreen = (pos: { x: number; y: number }) => ({
+      x: px0 + (pos.x - player.pos.x) * ts,
+      y: py0 + (pos.y - player.pos.y) * ts,
+    });
+
+    for (const m of state.monsters) {
+      if (!state.isVisible(m.pos.x, m.pos.y)) continue;
+      const { x: sx, y: sy } = toScreen(m.pos);
+      ctx.fillText(m.species.emoji, sx + ts / 2, sy + ts / 2 + 1);
+      if (m.hp < m.maxHp) this.drawHpBar(sx, sy, m.hp / m.maxHp);
+    }
+
     const cx = px0 + ts / 2;
     const cy = py0 + ts / 2;
     ctx.fillText('🧙', cx, cy + 1);
     this.drawFacing(cx, cy, player.facing);
+
+    this.drawPopups(state, toScreen);
 
     if (this.minimapExpanded) {
       ctx.fillStyle = COLORS.expandedBg;
@@ -133,6 +157,35 @@ export class Renderer {
     const r = this.minimapRect;
     const m = MINI_HIT_MARGIN;
     return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
+  }
+
+  /** マスの下端に、残りHPの割合を細い棒で出す */
+  private drawHpBar(sx: number, sy: number, ratio: number): void {
+    const { ctx, tileSize: ts } = this;
+    const h = Math.max(3, Math.floor(ts * 0.1));
+    ctx.fillStyle = COLORS.hpBarBg;
+    ctx.fillRect(sx + 3, sy + ts - h - 1, ts - 6, h);
+    ctx.fillStyle = COLORS.hpBar;
+    ctx.fillRect(sx + 3, sy + ts - h - 1, Math.max(1, (ts - 6) * ratio), h);
+  }
+
+  /** ダメージなどの数字を、そのマスの上に出す。同じマスに重なるときは上にずらす */
+  private drawPopups(state: GameState, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }): void {
+    const { ctx, tileSize: ts } = this;
+    const stack = new Map<string, number>();
+    ctx.font = `bold ${Math.floor(ts * 0.42)}px -apple-system, sans-serif`;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000';
+    for (const popup of state.popups) {
+      const key = `${popup.pos.x},${popup.pos.y}`;
+      const n = stack.get(key) ?? 0;
+      stack.set(key, n + 1);
+      const { x, y } = toScreen(popup.pos);
+      const ty = y + ts * 0.12 - n * ts * 0.4;
+      ctx.fillStyle = POPUP_COLORS[popup.kind];
+      ctx.strokeText(popup.text, x + ts / 2, ty);
+      ctx.fillText(popup.text, x + ts / 2, ty);
+    }
   }
 
   /** 向いている方向に小さな印を出す */
@@ -167,6 +220,10 @@ export class Renderer {
         ctx.fillStyle = t === Tile.Stairs ? COLORS.miniStairs : COLORS.miniFloor;
         ctx.fillRect(left + x * tile, top + y * tile, tile, tile);
       }
+    }
+    ctx.fillStyle = COLORS.miniMonster;
+    for (const m of state.monsters) {
+      if (state.isVisible(m.pos.x, m.pos.y)) ctx.fillRect(left + m.pos.x * tile, top + m.pos.y * tile, tile, tile);
     }
     // 自分の印は、小さい地図では見落とさないよう1マスより大きくする
     const grow = tile <= 2 ? 1 : 0;

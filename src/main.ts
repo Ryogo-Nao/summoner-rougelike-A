@@ -82,15 +82,40 @@ document.addEventListener(
   { passive: false },
 );
 
-/** ダイアログが開いている間や踏破後は、パッドの入力を受け付けない */
-const acceptsInput = () => !dialog.isOpen() && !state.cleared;
+/** ダイアログが開いている間や、踏破・力つきた後は、入力を受け付けない */
+const acceptsInput = () => !dialog.isOpen() && !state.cleared && !state.dead;
+
+/** 行動のあとに、力つきていたら知らせる */
+function afterAction(): void {
+  redraw();
+  if (state.dead) {
+    dialog.open(`B${state.floor}Fで力つきてしまった…`, 'もう一度', '閉じる', () => location.reload());
+  }
+}
+
+/** 右側のボタン。touchstart を止めているので click ではなく pointerdown で受ける */
+function onButton(id: string, handler: () => void): void {
+  const button = document.getElementById(id)!;
+  button.addEventListener('pointerdown', () => {
+    button.classList.add('pressed');
+    if (acceptsInput()) handler();
+  });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+    button.addEventListener(type, () => button.classList.remove('pressed'));
+  }
+}
+
+onButton('btn-attack', () => {
+  state.attack();
+  afterAction();
+});
 
 setupPad(document.getElementById('pad')!, {
   onMove(dir) {
     if (!acceptsInput()) return;
     const moved = state.tryMove(dir);
-    redraw();
-    if (moved && state.isOnStairs) askDescend();
+    afterAction();
+    if (moved && !state.dead && state.isOnStairs) askDescend();
   },
   onWait() {
     if (!acceptsInput()) return;
@@ -100,7 +125,7 @@ setupPad(document.getElementById('pad')!, {
       return;
     }
     state.wait();
-    redraw();
+    afterAction();
   },
 });
 

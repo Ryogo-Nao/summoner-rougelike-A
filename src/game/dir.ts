@@ -20,3 +20,16 @@ export const DIR_VECTORS: readonly Pos[] = [
 export function isDiagonal(dir: Dir): boolean {
   return dir % 2 === 1;
 }
+
+/** (dx, dy) の符号から向きを求める。どちらも0なら null */
+export function dirFromDelta(dx: number, dy: number): Dir | null {
+  const sx = Math.sign(dx);
+  const sy = Math.sign(dy);
+  const i = DIR_VECTORS.findIndex((v) => v.x === sx && v.y === sy);
+  return i >= 0 ? (i as Dir) : null;
+}
+
+/** 縦横斜めの歩数（チェビシェフ距離） */
+export function distance(a: Pos, b: Pos): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}

@@ -133,7 +133,7 @@ button {
 
 /* ログ */
 #log {
-  height: 54px;
+  height: 62px;
   padding: 4px 12px;
   font-size: 13px;
   line-height: 1.35;
@@ -181,7 +181,7 @@ button {
   color: var(--muted);
 }
 #pad button.pressed,
-#buttons button:active {
+#buttons button.pressed {
   background: var(--btn-active);
 }
 /* パッドと同じ高さに3段で並べる */

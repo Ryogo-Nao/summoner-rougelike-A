@@ -1,0 +1,24 @@
+import type { Rng } from './rng';
+
+/** 通常攻撃の命中率（balance.md 3.2） */
+export const HIT_RATE = 0.9;
+
+/** ダメージ = 攻撃力 × 16 ÷ (16 + 防御力) × 乱数(0.88〜1.12)。四捨五入、最低1（balance.md 3.1） */
+export function rollDamage(rng: Rng, atk: number, def: number): number {
+  const base = (atk * 16) / (16 + def);
+  const spread = 0.88 + rng.next() * 0.24;
+  return Math.max(1, Math.round(base * spread));
+}
+
+/** 次のレベルに必要な累計経験値（balance.md 1.3）。index 0 が Lv2 */
+const EXP_TABLE = [10, 30, 60, 100, 150, 220, 300, 400, 520, 660];
+
+/** 累計経験値 exp のときのレベル */
+export function levelForExp(exp: number): number {
+  let level = 1;
+  for (const need of EXP_TABLE) {
+    if (exp >= need) level++;
+    else break;
+  }
+  return level;
+}
