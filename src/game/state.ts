@@ -177,8 +177,6 @@ export class GameState {
         this.addLog(`あなたの攻撃 → ${target.species.name}にかわされた。`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
-    } else {
-      this.addLog('あなたの攻撃 → 空振りした。');
     }
     this.endTurn();
   }
