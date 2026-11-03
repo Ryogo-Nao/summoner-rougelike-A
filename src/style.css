@@ -93,9 +93,8 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  padding: 6px 12px 8px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  width: 100%;
+  padding: 0 12px;
 }
 .ally-slot {
   height: 32px;
@@ -106,20 +105,24 @@ button {
   color: var(--muted);
 }
 
-/* マップ */
-#map-wrap {
-  position: relative;
+/* 仲間の枠とマップ。マップの大きさは main.ts で決める */
+#field {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-/* キャンバスの大きさがレイアウトに影響しないよう、絶対配置で中央に置く */
+#allies-area {
+  flex: 1;
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
 #map {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  flex: none;
   display: block;
-  border-radius: 6px;
 }
 
 /* ログ */

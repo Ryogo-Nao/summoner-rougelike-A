@@ -25,13 +25,15 @@
         <div class="gauge-row"><span class="label">満腹</span><div class="gauge food"><i></i></div><span class="value" id="food-text"></span></div>
       </header>
 
-      <section id="allies">
-        <button class="ally-slot" data-slot="0">－</button>
-        <button class="ally-slot" data-slot="1">－</button>
-        <button class="ally-slot" data-slot="2">－</button>
-      </section>
-
-      <main id="map-wrap">
+      <main id="field">
+        <!-- マップの上に余った高さの中央に、仲間の枠を置く -->
+        <div id="allies-area">
+          <section id="allies">
+            <button class="ally-slot" data-slot="0">－</button>
+            <button class="ally-slot" data-slot="1">－</button>
+            <button class="ally-slot" data-slot="2">－</button>
+          </section>
+        </div>
         <canvas id="map"></canvas>
       </main>
 

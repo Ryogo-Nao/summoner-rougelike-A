@@ -67,9 +67,17 @@ setupPad(document.getElementById('pad')!, {
   },
 });
 
-window.addEventListener('resize', () => {
-  renderer.resize();
+/** 仲間の枠の上下に最低限空ける隙間（px） */
+const ALLIES_MIN_GAP = 6;
+
+/** マップは幅いっぱいを基本にし、高さが足りないときだけ縮める */
+function layout(): void {
+  const field = document.getElementById('field')!;
+  const allies = document.getElementById('allies')!;
+  const maxHeight = field.clientHeight - allies.offsetHeight - ALLIES_MIN_GAP * 2;
+  renderer.resize(Math.min(field.clientWidth, maxHeight));
   redraw();
-});
-renderer.resize();
-redraw();
+}
+
+window.addEventListener('resize', layout);
+layout();
