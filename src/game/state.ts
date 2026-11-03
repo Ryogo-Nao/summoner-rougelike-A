@@ -579,7 +579,9 @@ export class GameState {
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
     this.slowRest = !this.slowRest;
-    for (const a of [...this.allies]) {
+    // 主人公に近い仲間から動く。前の仲間が空けたマスに、後ろの仲間が続けて入れるようにする
+    const allies = [...this.allies].sort((x, y) => distance(x.pos, this.player.pos) - distance(y.pos, this.player.pos));
+    for (const a of allies) {
       for (let i = 0; i < this.actionsThisTurn(a.card.species); i++) this.allyAct(a);
     }
     for (const m of [...this.monsters]) {
@@ -847,8 +849,8 @@ export class GameState {
     // 隣にいても、壁の角で斜めに進めないなら離れているのと同じ。曲がり角では主人公のいたマスに入る
     const p = this.player.pos;
     if (this.canHitAdjacent(species, a.pos, p)) return;
-    let dir = this.stepToward(species, a.pos, p);
-    if (dir === null || !this.canMoveTo(species, a.pos, dir)) return;
+    let dir = this.followStep(a, p);
+    if (dir === null) return;
     if (this.nextToMonster(a.pos, dir)) {
       // 魔物の隣に入らずに、主人公へ同じだけ近づける道があれば、そちらを選ぶ
       const v = DIR_VECTORS[dir];
@@ -861,6 +863,31 @@ export class GameState {
       if (safer !== undefined) dir = safer;
     }
     this.moveAlly(a, dir);
+  }
+
+  /**
+   * 主人公についていく1歩。いちばん近い道の1歩目が空いていればそこへ進む。
+   * 他の仲間に塞がれていたら、主人公に近づける空いたマスへ進み、なければ待つ。
+   * 塞がれたからといって遠回りはしない（通路で前の仲間が詰まっているだけなので、次のターンには空く）
+   */
+  private followStep(a: Ally, goal: Pos): Dir | null {
+    const species = a.card.species;
+    const { width, height } = this.map;
+    const direct = firstStepToward(width, height, a.pos, goal, (at, d) => this.canPass(species, at, d));
+    if (direct === null) return null;
+    if (this.canMoveTo(species, a.pos, direct)) return direct;
+    const now = distance(a.pos, goal);
+    let best: Dir | null = null;
+    let bestDist = now;
+    for (const d of [0, 1, 2, 3, 4, 5, 6, 7] as Dir[]) {
+      if (!this.canMoveTo(species, a.pos, d)) continue;
+      const dist = distance(this.ahead(a.pos, d), goal);
+      if (dist < bestDist) {
+        best = d;
+        bestDist = dist;
+      }
+    }
+    return best;
   }
 
   /** from から dir へ1歩進んだマスが、魔物の隣か */
