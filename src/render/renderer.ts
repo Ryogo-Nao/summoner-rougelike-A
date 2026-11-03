@@ -1,4 +1,5 @@
 import type { GameState, Popup } from '../game/state';
+import { isPartner } from '../game/cards';
 import { Tile } from '../game/map';
 
 /** 画面に映すマス数（要件 10.1） */
@@ -20,6 +21,8 @@ const COLORS = {
   miniPlayer: '#ff4d3d',
   miniMonster: '#ff5fd2',
   hpBar: '#e5534b',
+  allyHpBar: '#4fd18b',
+  miniAlly: '#4fd18b',
   hpBarBg: 'rgba(0, 0, 0, 0.7)',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(0, 0, 0, 0.82)',
@@ -129,7 +132,19 @@ export class Renderer {
       if (!state.isVisible(m.pos.x, m.pos.y)) continue;
       const { x: sx, y: sy } = toScreen(m.pos);
       ctx.fillText(m.species.emoji, sx + ts / 2, sy + ts / 2 + 1);
-      if (m.hp < m.maxHp) this.drawHpBar(sx, sy, m.hp / m.maxHp);
+      if (m.hp < m.maxHp) this.drawHpBar(sx, sy, m.hp / m.maxHp, COLORS.hpBar);
+    }
+
+    // 仲間は敵と見分けやすいよう、足もとに緑のHPの棒をいつも出す
+    for (const a of state.allies) {
+      const { x: sx, y: sy } = toScreen(a.pos);
+      ctx.fillText(a.card.species.emoji, sx + ts / 2, sy + ts / 2 + 1);
+      if (isPartner(a.card)) {
+        ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+        ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);
+        ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      }
+      this.drawHpBar(sx, sy, a.card.hp / a.card.maxHp, COLORS.allyHpBar);
     }
 
     const cx = px0 + ts / 2;
@@ -160,12 +175,12 @@ export class Renderer {
   }
 
   /** マスの下端に、残りHPの割合を細い棒で出す */
-  private drawHpBar(sx: number, sy: number, ratio: number): void {
+  private drawHpBar(sx: number, sy: number, ratio: number, color: string): void {
     const { ctx, tileSize: ts } = this;
     const h = Math.max(3, Math.floor(ts * 0.1));
     ctx.fillStyle = COLORS.hpBarBg;
     ctx.fillRect(sx + 3, sy + ts - h - 1, ts - 6, h);
-    ctx.fillStyle = COLORS.hpBar;
+    ctx.fillStyle = color;
     ctx.fillRect(sx + 3, sy + ts - h - 1, Math.max(1, (ts - 6) * ratio), h);
   }
 
@@ -225,6 +240,8 @@ export class Renderer {
     for (const m of state.monsters) {
       if (state.isVisible(m.pos.x, m.pos.y)) ctx.fillRect(left + m.pos.x * tile, top + m.pos.y * tile, tile, tile);
     }
+    ctx.fillStyle = COLORS.miniAlly;
+    for (const a of state.allies) ctx.fillRect(left + a.pos.x * tile, top + a.pos.y * tile, tile, tile);
     // 自分の印は、小さい地図では見落とさないよう1マスより大きくする
     const grow = tile <= 2 ? 1 : 0;
     ctx.fillStyle = COLORS.miniPlayer;

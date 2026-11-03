@@ -55,12 +55,22 @@
       </footer>
       <!-- ログをタップすると開く、これまでのログ -->
       <div id="log-history" hidden>
-        <div class="log-history-box">
-          <div class="log-history-head">
+        <div class="sheet-box">
+          <div class="sheet-head">
             <span>ログ</span>
             <button id="log-close">閉じる</button>
           </div>
           <div id="log-history-list"></div>
+        </div>
+      </div>
+      <!-- カード・魔法などの一覧。指の届く下側に出す -->
+      <div id="sheet" hidden>
+        <div class="sheet-box">
+          <div class="sheet-head">
+            <span id="sheet-title"></span>
+            <button id="sheet-close">閉じる</button>
+          </div>
+          <div id="sheet-body"></div>
         </div>
       </div>
       <div id="dialog" hidden>

@@ -3,6 +3,8 @@ import { GameState } from './game/state';
 import { Renderer } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
+import { cardIcon, openCardSheet, openMagicSheet, openSwapSheet } from './ui/screens';
+import { Sheet } from './ui/sheet';
 
 // ?seed=数字 を付けると同じダンジョンを再現できる（デバッグ用）
 const seedParam = Number(new URLSearchParams(location.search).get('seed'));
@@ -11,6 +13,7 @@ const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSe
 const state = new GameState(seed);
 state.addLog('ダンジョンに入った。');
 const dialog = new ConfirmDialog(() => pad.release());
+const sheet = new Sheet(() => pad.release());
 // 開発中だけ、ブラウザのコンソールから状態を触れるようにする
 if (import.meta.env.DEV) Object.assign(window, { game: state });
 
@@ -31,6 +34,13 @@ function updateHud(): void {
   setGauge('.gauge.hp', 'hp-text', p.hp, p.maxHp, `${p.hp}/${p.maxHp}`);
   setGauge('.gauge.mp', 'mp-text', p.mp, p.maxMp, `${p.mp}/${p.maxMp}`);
   setGauge('.gauge.food', 'food-text', p.food, p.maxFood, `${p.food}%`);
+
+  // 仲間の枠には、召喚している仲間とそのHPを出す
+  document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
+    const a = state.allies[i];
+    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '－';
+    slot.classList.toggle('filled', a !== undefined);
+  });
 
   const log = document.getElementById('log')!;
   log.replaceChildren(
@@ -78,7 +88,7 @@ document.addEventListener(
   'touchstart',
   (e) => {
     // 確認ダイアログとログの一覧は、click やスクロールを使うので止めない
-    if (!(e.target instanceof Element && e.target.closest('#dialog, #log-history'))) e.preventDefault();
+    if (!(e.target instanceof Element && e.target.closest('#dialog, #log-history, #sheet'))) e.preventDefault();
   },
   { passive: false },
 );
@@ -109,7 +119,7 @@ function openLogHistory(): void {
 }
 
 document.getElementById('log')!.addEventListener('pointerdown', () => {
-  if (!dialog.isOpen()) openLogHistory();
+  if (!dialog.isOpen() && !sheet.isOpen()) openLogHistory();
 });
 document.getElementById('log-close')!.addEventListener('click', () => {
   logHistory.hidden = true;
@@ -120,11 +130,16 @@ logHistory.addEventListener('click', (e) => {
 });
 
 /** ダイアログやログの一覧が開いている間や、踏破・力つきた後は、入力を受け付けない */
-const acceptsInput = () => !dialog.isOpen() && logHistory.hidden && !state.cleared && !state.dead;
+const acceptsInput = () =>
+  !dialog.isOpen() && !sheet.isOpen() && logHistory.hidden && !state.cleared && !state.dead;
 
-/** 行動のあとに、力つきていたら知らせる */
+/** 行動のあとに、カードがあふれていれば保管庫へ送るカードを選ばせ、力つきていたら知らせる */
 function afterAction(): void {
   redraw();
+  if (state.pendingCard) {
+    openSwapSheet(state, sheet, afterAction);
+    return;
+  }
   if (state.dead) {
     dialog.open(`B${state.floor}Fで力つきてしまった…`, 'もう一度', '閉じる', () => location.reload());
   }
@@ -145,6 +160,14 @@ function onButton(id: string, handler: () => void): void {
 onButton('btn-attack', () => {
   state.attack();
   afterAction();
+});
+onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
+onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
+// 仲間の枠をタップしてもカード画面を開く。指示（ついてくる・待機など）はあとで足す
+document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot) => {
+  slot.addEventListener('pointerdown', () => {
+    if (acceptsInput()) openCardSheet(state, sheet, afterAction);
+  });
 });
 
 const pad = setupPad(document.getElementById('pad')!, {

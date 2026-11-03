@@ -1,8 +1,22 @@
+import {
+  ALLY_STAIRS_HEAL,
+  HAND_LIMIT,
+  IZUTSUCHI,
+  LIGHTNING_CHANCE,
+  SUMMON_LIMIT,
+  captureChance,
+  createCard,
+  dropChance,
+  growCard,
+  isPartner,
+  type Ally,
+  type Card,
+} from './cards';
 import { HIT_RATE, levelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { GameMap, Tile, type Room } from './map';
-import { createMonster, speciesForFloor, type Monster } from './monsters';
+import { createMonster, speciesForFloor, type Monster, type Species } from './monsters';
 import { firstStepToward } from './path';
 import { Rng } from './rng';
 
@@ -13,6 +27,17 @@ const INITIAL_MONSTERS: [number, number] = [5, 7];
 const SPAWN_INTERVAL = 40;
 /** HPが全回復するまでのターン数（balance.md 1.4） */
 const REGEN_TURNS = 150;
+
+/** 魔法（balance.md 2.1） */
+export const SPELLS = {
+  fire: { name: '火の魔法', mp: 4 },
+  thunder: { name: '雷の魔法', mp: 5 },
+} as const;
+export type SpellId = keyof typeof SPELLS;
+/** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
+const LINE_RANGE = 10;
+/** 初めて遊ぶときに持っている白紙カードの枚数（balance.md 8章） */
+const START_BLANK_CARDS = 2;
 
 /** 残しておくログの行数 */
 const LOG_LIMIT = 100;
@@ -50,6 +75,15 @@ export class GameState {
   map!: GameMap;
   player: Player;
   monsters: Monster[] = [];
+  /** 手元のカード（最大5枚）と、ダンジョンの外の保管庫 */
+  cards: Card[] = [createCard(IZUTSUCHI, false)];
+  storage: Card[] = [];
+  /** 召喚している仲間 */
+  allies: Ally[] = [];
+  /** 白紙カードの枚数。バッグを作ったら、バッグのアイテムに移す */
+  blankCards = START_BLANK_CARDS;
+  /** 手元がいっぱいのときに手に入れたカード。保管庫へ送るカードを選ぶまで、ここで待つ */
+  pendingCard: Card | null = null;
   popups: Popup[] = [];
   floor = 1;
   turn = 0;
@@ -90,6 +124,14 @@ export class GameState {
     this.player.pos = start;
     this.monsters = [];
     this.popups = [];
+    // 召喚している仲間は、主人公のまわりに一緒に降りてくる
+    const allies = this.allies;
+    this.allies = [];
+    for (const a of allies) {
+      const pos = this.freeSpotNear(start);
+      if (pos) this.allies.push({ ...a, pos });
+      else a.card.status = 'ready';
+    }
     this.explored = new Uint8Array(map.width * map.height);
     this.visible = new Uint8Array(map.width * map.height);
 
@@ -126,16 +168,32 @@ export class GameState {
     return this.monsters.find((m) => m.pos.x === x && m.pos.y === y);
   }
 
-  private isOccupied(x: number, y: number): boolean {
-    const p = this.player.pos;
-    return (p.x === x && p.y === y) || this.monsterAt(x, y) !== undefined;
+  allyAt(x: number, y: number): Ally | undefined {
+    return this.allies.find((a) => a.pos.x === x && a.pos.y === y);
   }
 
-  // ---- 主人公の行動。行動したら true を返し、そのあと魔物が動く ----
+  private isOccupied(x: number, y: number): boolean {
+    const p = this.player.pos;
+    return (p.x === x && p.y === y) || this.monsterAt(x, y) !== undefined || this.allyAt(x, y) !== undefined;
+  }
+
+  /** at のまわり8マスのうち、歩けて空いているマス。主人公の向いている方向から順に探す */
+  private freeSpotNear(at: Pos): Pos | null {
+    for (let i = 0; i < 8; i++) {
+      const dir = ((this.player.facing + i) % 8) as Dir;
+      const v = DIR_VECTORS[dir];
+      const x = at.x + v.x;
+      const y = at.y + v.y;
+      if (this.map.canStep(at, dir) && !this.isOccupied(x, y)) return { x, y };
+    }
+    return null;
+  }
+
+  // ---- 主人公の行動。行動すると、そのあと仲間と魔物が動く ----
 
   /**
    * パッドの方向を押したとき。今の向きと違えば振り向くだけで、ターンは使わない。
-   * 同じ向きなら1マス進み、魔物がいれば攻撃する。
+   * 同じ向きなら1マス進み、魔物がいれば攻撃する。仲間がいれば場所を入れ替わる。
    * 進めたら 'moved'、攻撃したら 'attacked'、それ以外は 'none'
    */
   tryMove(dir: Dir): 'moved' | 'attacked' | 'none' {
@@ -151,7 +209,10 @@ export class GameState {
     }
     if (!this.map.canStep(p.pos, dir)) return 'none';
     this.beginAction();
-    p.pos = { x: p.pos.x + v.x, y: p.pos.y + v.y };
+    const to = { x: p.pos.x + v.x, y: p.pos.y + v.y };
+    const ally = this.allyAt(to.x, to.y);
+    if (ally) ally.pos = { ...p.pos };
+    p.pos = to;
     this.endTurn();
     return 'moved';
   }
@@ -171,8 +232,7 @@ export class GameState {
     const reachable = !isDiagonal(p.facing) || this.map.canStep(p.pos, p.facing);
     if (target && reachable) {
       if (this.rng.chance(HIT_RATE)) {
-        const dmg = rollDamage(this.rng, p.atk, target.species.def);
-        this.damageMonster(target, dmg);
+        this.damageMonster(target, rollDamage(this.rng, p.atk, target.species.def), null, '攻撃');
       } else {
         this.addLog(`あなたの攻撃 → ${target.species.name}にかわされた。`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
@@ -181,20 +241,28 @@ export class GameState {
     this.endTurn();
   }
 
-  private damageMonster(m: Monster, dmg: number): void {
+  /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前 */
+  private damageMonster(m: Monster, dmg: number, by: Ally | null, how: string): void {
     m.hp -= dmg;
     this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage' });
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
-    if (m.hp > 0) {
-      this.addLog(`あなたの攻撃 → ${m.species.name}に${dmg}のダメージ。`);
-      return;
-    }
+    this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}のダメージ。`);
+    if (m.hp > 0) return;
     this.monsters = this.monsters.filter((x) => x !== m);
-    this.addLog(`あなたの攻撃 → ${m.species.name}に${dmg}のダメージ。`);
     this.addLog(`${m.species.name}をたおした。経験値${m.species.exp}を得た。`);
-    // 仲間を作ったら、経験値を山分けする（balance.md 4.3）
-    this.gainExp(m.species.exp);
+    this.shareExp(m.species.exp, by);
+    if (this.rng.chance(dropChance(m.species))) {
+      this.addLog(`${m.species.name}がカードを落とした。`);
+      this.addCard(createCard(m.species, true));
+    }
+  }
+
+  /** 経験値を主人公と召喚中の仲間で山分けし、とどめを刺した者は1.5倍もらう（balance.md 4.3） */
+  private shareExp(total: number, killer: Ally | null): void {
+    const share = total / (1 + this.allies.length);
+    this.gainExp(killer === null ? share * 1.5 : share);
+    for (const a of [...this.allies]) this.gainAllyExp(a, a === killer ? share * 1.5 : share);
   }
 
   private gainExp(amount: number): void {
@@ -214,6 +282,140 @@ export class GameState {
     }
   }
 
+  private gainAllyExp(a: Ally, amount: number): void {
+    const card = a.card;
+    card.exp += amount;
+    const next = levelForExp(card.exp);
+    while (card.level < next) {
+      growCard(card);
+      this.addLog(`${card.species.name}のレベルが${card.level}に上がった！`);
+      this.popups.push({ pos: a.pos, text: 'Lv UP', kind: 'info' });
+    }
+  }
+
+  // ---- カード ----
+
+  /** 召喚できないときは、その理由を返す */
+  summonProblem(card: Card): string | null {
+    if (card.status === 'dying') return '瀕死のカードは、このダンジョンでは召喚できない。';
+    if (card.status === 'summoned') return 'すでに召喚している。';
+    if (this.allies.length >= SUMMON_LIMIT) return `同時に召喚できるのは${SUMMON_LIMIT}体まで。`;
+    if (this.player.mp < card.species.cost) return 'MPが足りない。';
+    if (!this.freeSpotNear(this.player.pos)) return 'まわりに空いている場所がない。';
+    return null;
+  }
+
+  /** カードの魔物を、主人公の隣に呼び出す。MPを使い、1ターンかかる */
+  summon(card: Card): void {
+    if (this.summonProblem(card)) return;
+    this.beginAction();
+    this.player.mp -= card.species.cost;
+    card.status = 'summoned';
+    this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing });
+    this.addLog(`あなたは${card.species.name}を召喚した。`);
+    this.endTurn();
+  }
+
+  /** 仲間をカードに戻す。MPは使わないが、1ターンかかる */
+  recall(card: Card): void {
+    if (card.status !== 'summoned') return;
+    this.beginAction();
+    this.dismissAlly(card);
+    this.addLog(`あなたは${card.species.name}をカードに戻した。`);
+    this.endTurn();
+  }
+
+  private dismissAlly(card: Card): void {
+    this.allies = this.allies.filter((a) => a.card !== card);
+    if (card.status === 'summoned') card.status = 'ready';
+  }
+
+  /** 手元に加える。いっぱいなら、保管庫へ送るカードを選ぶまで pendingCard で待つ */
+  private addCard(card: Card): void {
+    if (this.cards.length < HAND_LIMIT) {
+      this.cards.push(card);
+      this.addLog(`${card.species.name}のカードを手に入れた。`);
+      return;
+    }
+    this.pendingCard = card;
+    this.addLog(`${card.species.name}のカードを手に入れた。手元がいっぱいなので、保管庫へ送るカードを選ぶ。`);
+  }
+
+  /** pendingCard があるとき、手元の5枚と新しい1枚のうち index のカードを保管庫へ送る。ターンは使わない */
+  sendToStorage(index: number): void {
+    const pending = this.pendingCard;
+    if (!pending) return;
+    const all = [...this.cards, pending];
+    const chosen = all[index];
+    if (!chosen) return;
+    this.dismissAlly(chosen);
+    this.storage.push(chosen);
+    this.cards = all.filter((c) => c !== chosen);
+    this.pendingCard = null;
+    this.addLog(`${chosen.species.name}のカードを保管庫へ送った。`);
+  }
+
+  /** 向いている方向に白紙カードを投げ、最初に当たった魔物の封印を試みる。1ターンかかる */
+  throwBlankCard(): void {
+    if (this.blankCards <= 0) return;
+    this.beginAction();
+    this.blankCards--;
+    const target = this.traceLine();
+    if (!target) {
+      this.addLog('あなたは白紙カードを投げた → 何にも当たらなかった。');
+    } else if (this.rng.chance(captureChance(target.species.capture, target.hp / target.maxHp))) {
+      this.monsters = this.monsters.filter((m) => m !== target);
+      this.popups.push({ pos: target.pos, text: '封印', kind: 'info' });
+      this.addLog(`あなたは白紙カードを投げた → ${target.species.name}を封印した！`);
+      this.addCard(createCard(target.species, true));
+    } else {
+      target.lastSeen = { ...this.player.pos };
+      this.popups.push({ pos: target.pos, text: '失敗', kind: 'miss' });
+      this.addLog(`あなたは白紙カードを投げた → ${target.species.name}の封印に失敗した。`);
+    }
+    this.endTurn();
+  }
+
+  /** 主人公の向いている方向にまっすぐ進み、最初に当たる魔物。仲間はすり抜け、壁で止まる */
+  private traceLine(): Monster | undefined {
+    let at = this.player.pos;
+    const dir = this.player.facing;
+    for (let i = 0; i < LINE_RANGE; i++) {
+      if (!this.map.canStep(at, dir)) return undefined;
+      const v = DIR_VECTORS[dir];
+      at = { x: at.x + v.x, y: at.y + v.y };
+      const m = this.monsterAt(at.x, at.y);
+      if (m) return m;
+    }
+    return undefined;
+  }
+
+  // ---- 魔法 ----
+
+  /** いま使える魔法。雷の魔法はイヅツチを召喚している間だけ */
+  availableSpells(): SpellId[] {
+    const spells: SpellId[] = ['fire'];
+    if (this.allies.some((a) => isPartner(a.card))) spells.push('thunder');
+    return spells;
+  }
+
+  /** 魔法は必ず当たる。火は向いている方向の最初の魔物、雷はまわり8マスの魔物すべて */
+  cast(spell: SpellId): void {
+    const p = this.player;
+    const { name, mp } = SPELLS[spell];
+    if (p.mp < mp || !this.availableSpells().includes(spell)) return;
+    this.beginAction();
+    p.mp -= mp;
+    const targets =
+      spell === 'fire'
+        ? [this.traceLine()].filter((m) => m !== undefined)
+        : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
+    if (targets.length === 0) this.addLog(`あなたの${name} → 何にも当たらなかった。`);
+    const dmg = spell === 'fire' ? 10 + p.level * 2 : 6 + p.level;
+    for (const m of targets) this.damageMonster(m, dmg, null, name);
+    this.endTurn();
+  }
+
   /** 階段を降りる。最下層の階段なら踏破 */
   descend(): void {
     if (this.floor >= MAX_FLOOR) {
@@ -222,6 +424,9 @@ export class GameState {
       return;
     }
     this.floor++;
+    for (const a of this.allies) {
+      a.card.hp = Math.min(a.card.maxHp, a.card.hp + Math.ceil(a.card.maxHp * ALLY_STAIRS_HEAL));
+    }
     this.enterFloor();
     this.addLog(`B${this.floor}Fに降りた。`);
   }
@@ -262,20 +467,29 @@ export class GameState {
     this.popups = [];
   }
 
+  /** 主人公のあと、仲間、魔物の順に動く */
   private endTurn(): void {
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
     this.slowRest = !this.slowRest;
+    for (const a of [...this.allies]) {
+      for (let i = 0; i < this.actionsThisTurn(a.card.species); i++) this.allyAct(a);
+    }
     for (const m of [...this.monsters]) {
       if (this.dead) break;
-      const actions = m.species.speed === 'fast' ? 2 : m.species.speed === 'slow' && this.slowRest ? 0 : 1;
-      for (let i = 0; i < actions && !this.dead; i++) this.monsterAct(m);
+      for (let i = 0; i < this.actionsThisTurn(m.species) && !this.dead; i++) this.monsterAct(m);
     }
     this.regenerate();
     if (this.turn % SPAWN_INTERVAL === 0) this.spawnOutOfSight();
     this.updateVisibility();
   }
 
+  private actionsThisTurn(species: Species): number {
+    if (species.speed === 'fast') return 2;
+    return species.speed === 'slow' && this.slowRest ? 0 : 1;
+  }
+
+  /** 主人公だけが自然回復する。仲間は回復しない */
   private regenerate(): void {
     const p = this.player;
     if (this.dead || p.hp >= p.maxHp) {
@@ -295,11 +509,9 @@ export class GameState {
     if (rooms.length > 0) this.spawnMonster(this.rng.pick(rooms));
   }
 
-  // ---- 魔物の行動 ----
-
-  /** 魔物がそのマスからその向きに進めるか。塞がっているかは別に見る */
-  private monsterCanPass(m: Monster, at: Pos, dir: Dir): boolean {
-    if (!m.species.phasing) return this.map.canStep(at, dir);
+  /** 魔物（仲間も含む）がそのマスからその向きに進めるか。塞がっているかは別に見る */
+  private canPass(species: Species, at: Pos, dir: Dir): boolean {
+    if (!species.phasing) return this.map.canStep(at, dir);
     // 壁抜けの魔物も、マップの外周より外には出ない
     const v = DIR_VECTORS[dir];
     const x = at.x + v.x;
@@ -307,26 +519,54 @@ export class GameState {
     return x > 0 && y > 0 && x < this.map.width - 1 && y < this.map.height - 1;
   }
 
-  /** 魔物が今いる場所から主人公を攻撃できる向き。届かなければ null */
-  private attackDir(m: Monster): Dir | null {
-    const p = this.player.pos;
-    const dx = p.x - m.pos.x;
-    const dy = p.y - m.pos.y;
-    const dist = distance(m.pos, p);
+  /** from の隣にいて、角に邪魔されずに攻撃できる相手か */
+  private canHitAdjacent(species: Species, from: Pos, to: Pos): boolean {
+    const dir = dirFromDelta(to.x - from.x, to.y - from.y);
+    return distance(from, to) === 1 && dir !== null && this.canPass(species, from, dir);
+  }
+
+  /** from から to がまっすぐ dist マス以内にあり、間のマスが空いているか */
+  private isClearLine(from: Pos, to: Pos, maxDist: number): boolean {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = distance(from, to);
     const dir = dirFromDelta(dx, dy);
-    if (dir === null) return null;
-    if (dist === 1) return this.monsterCanPass(m, m.pos, dir) ? dir : null;
-    // 舌などで、まっすぐ並んだ数マス先まで届く
     const straight = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
-    if (!m.species.reach || dist > m.species.reach || !straight) return null;
-    let at = m.pos;
+    if (!straight || dir === null || dist > maxDist) return false;
+    let at = from;
     for (let i = 0; i < dist; i++) {
-      if (!this.map.canStep(at, dir)) return null;
+      if (!this.map.canStep(at, dir)) return false;
       const v = DIR_VECTORS[dir];
       at = { x: at.x + v.x, y: at.y + v.y };
-      if (i < dist - 1 && this.isOccupied(at.x, at.y)) return null;
+      if (i < dist - 1 && this.isOccupied(at.x, at.y)) return false;
     }
-    return dir;
+    return true;
+  }
+
+  /** 他の魔物や仲間をよけて goal へ向かう1歩。塞がれていれば、よけない道で空くのを待つ */
+  private stepToward(species: Species, from: Pos, goal: Pos): Dir | null {
+    const { width, height } = this.map;
+    return (
+      firstStepToward(width, height, from, goal, (at, d, isGoal) => {
+        if (!this.canPass(species, at, d)) return false;
+        const v = DIR_VECTORS[d];
+        return isGoal || !this.isOccupied(at.x + v.x, at.y + v.y);
+      }) ?? firstStepToward(width, height, from, goal, (at, d) => this.canPass(species, at, d))
+    );
+  }
+
+  private canMoveTo(species: Species, from: Pos, dir: Dir): boolean {
+    const v = DIR_VECTORS[dir];
+    return this.canPass(species, from, dir) && !this.isOccupied(from.x + v.x, from.y + v.y);
+  }
+
+  // ---- 魔物の行動 ----
+
+  /** 魔物が今いる場所から主人公を攻撃できるか。舌などで数マス先まで届く魔物もいる */
+  private canAttackPlayer(m: Monster): boolean {
+    const p = this.player.pos;
+    if (distance(m.pos, p) === 1) return this.canHitAdjacent(m.species, m.pos, p);
+    return m.species.reach !== undefined && this.isClearLine(m.pos, p, m.species.reach);
   }
 
   private monsterAct(m: Monster): void {
@@ -334,20 +574,24 @@ export class GameState {
     const p = this.player.pos;
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
 
-    const atk = m.lastSeen ? this.attackDir(m) : null;
-    if (atk !== null) {
-      m.facing = atk;
+    // 主人公に届けば主人公を、届かなくても隣に仲間がいれば仲間を攻撃する
+    const attackPlayer = m.lastSeen !== null && this.canAttackPlayer(m);
+    const allyTarget = attackPlayer ? undefined : this.allies.find((a) => this.canHitAdjacent(m.species, m.pos, a.pos));
+    if (attackPlayer || allyTarget) {
+      const target = allyTarget?.pos ?? p;
+      m.facing = dirFromDelta(target.x - m.pos.x, target.y - m.pos.y) ?? m.facing;
       // ふらつく魔物は、隣にいても半分の確率でその行動を失う
       if (m.species.erratic && this.rng.chance(0.5)) {
         this.logIfNear(m.pos, `${m.species.name}はふらついた。`);
         return;
       }
-      this.monsterAttack(m);
+      if (allyTarget) this.monsterAttackAlly(m, allyTarget);
+      else this.monsterAttack(m);
       return;
     }
 
     if (m.species.erratic && this.rng.chance(0.5)) {
-      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMonsterMove(m, d));
+      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
       this.logIfNear(m.pos, `${m.species.name}はふらふらと飛び回った。`);
       if (dirs.length > 0) this.moveMonster(m, this.rng.pick(dirs));
       return;
@@ -359,17 +603,9 @@ export class GameState {
       m.wanderTarget = randomFreePointIn(this.rng, this.map, this.rng.pick(this.map.rooms));
     }
     const goal = m.lastSeen ?? m.wanderTarget!;
+    const dir = this.stepToward(m.species, m.pos, goal);
 
-    const { width, height } = this.map;
-    // まず他の魔物をよけた道を探し、なければ魔物を無視した道で、空くのを待つ
-    const dir =
-      firstStepToward(width, height, m.pos, goal, (at, d, isGoal) => {
-        if (!this.monsterCanPass(m, at, d)) return false;
-        const v = DIR_VECTORS[d];
-        return isGoal || !this.isOccupied(at.x + v.x, at.y + v.y);
-      }) ?? firstStepToward(width, height, m.pos, goal, (at, d) => this.monsterCanPass(m, at, d));
-
-    if (dir !== null && this.canMonsterMove(m, dir)) {
+    if (dir !== null && this.canMoveTo(m.species, m.pos, dir)) {
       this.moveMonster(m, dir);
     } else if (dir === null) {
       // たどり着けない場所なら、別の行き先を選び直す
@@ -379,11 +615,6 @@ export class GameState {
       // うろついている途中で道を塞がれたら、魔物どうしで譲り合えるよう行き先を変える
       m.wanderTarget = null;
     }
-  }
-
-  private canMonsterMove(m: Monster, dir: Dir): boolean {
-    const v = DIR_VECTORS[dir];
-    return this.monsterCanPass(m, m.pos, dir) && !this.isOccupied(m.pos.x + v.x, m.pos.y + v.y);
   }
 
   private moveMonster(m: Monster, dir: Dir): void {
@@ -425,5 +656,70 @@ export class GameState {
       this.dead = true;
       this.addLog('あなたは力つきてしまった…');
     }
+  }
+
+  private monsterAttackAlly(m: Monster, a: Ally): void {
+    const name = a.card.species.name;
+    if (!this.rng.chance(HIT_RATE)) {
+      this.addLog(`${m.species.name}の攻撃 → ${name}はかわした。`);
+      this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
+      return;
+    }
+    const dmg = rollDamage(this.rng, m.species.atk, a.card.def);
+    a.card.hp = Math.max(0, a.card.hp - dmg);
+    this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}のダメージ。`);
+    this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
+    if (a.card.hp === 0) {
+      this.allies = this.allies.filter((x) => x !== a);
+      a.card.status = 'dying';
+      this.addLog(`${name}は瀕死になり、カードに戻った。`);
+    }
+  }
+
+  // ---- 仲間の行動（ついてくる） ----
+
+  /**
+   * 1. 隣に魔物がいれば、HPがいちばん少ない魔物を攻撃する
+   * 2. イヅツチは、まっすぐ2マス先の魔物に、ときどき「いかずち」を飛ばす（必ず当たる）
+   * 3. 近くに見えている魔物がいれば近づく。いなければ主人公についていく
+   */
+  private allyAct(a: Ally): void {
+    if (!this.allies.includes(a)) return;
+    const species = a.card.species;
+    const adjacent = this.monsters
+      .filter((m) => this.canHitAdjacent(species, a.pos, m.pos))
+      .sort((x, y) => x.hp - y.hp);
+    if (adjacent.length > 0) {
+      if (species.erratic && this.rng.chance(0.5)) return;
+      const target = adjacent[0];
+      a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
+      if (this.rng.chance(HIT_RATE)) {
+        this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
+      } else {
+        this.addLog(`${species.name}の攻撃 → ${target.species.name}にかわされた。`);
+        this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
+      }
+      return;
+    }
+
+    if (isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
+      const target = this.monsters.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
+      if (target) {
+        this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, 'いかずち');
+        return;
+      }
+    }
+
+    const p = this.player.pos;
+    const enemy = this.monsters
+      .filter((m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) <= 4)
+      .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
+    const goal = enemy?.pos ?? (distance(a.pos, p) > 1 ? p : null);
+    if (!goal) return;
+    const dir = this.stepToward(species, a.pos, goal);
+    if (dir === null || !this.canMoveTo(species, a.pos, dir)) return;
+    const v = DIR_VECTORS[dir];
+    a.facing = dir;
+    a.pos = { x: a.pos.x + v.x, y: a.pos.y + v.y };
   }
 }

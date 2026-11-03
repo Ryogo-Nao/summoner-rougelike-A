@@ -160,7 +160,7 @@ button {
 #log-history[hidden] {
   display: none;
 }
-.log-history-box {
+.sheet-box {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -170,7 +170,7 @@ button {
   background: var(--panel);
   overflow: hidden;
 }
-.log-history-head {
+.sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -178,7 +178,7 @@ button {
   border-bottom: 1px solid var(--line);
   font-weight: bold;
 }
-.log-history-head button {
+.sheet-head button {
   height: 40px;
   padding: 0 18px;
   border: none;
@@ -201,6 +201,78 @@ button {
   margin-top: 6px;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* カード・魔法などの一覧 */
+#sheet {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  background: rgba(8, 7, 14, 0.6);
+}
+#sheet[hidden] {
+  display: none;
+}
+#sheet .sheet-box {
+  max-height: 100%;
+}
+#sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 10px 12px;
+}
+.sheet-note {
+  margin: 6px 4px 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sheet-row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-row:last-child {
+  border-bottom: none;
+}
+.sheet-row.dim {
+  opacity: 0.45;
+}
+.sheet-row .icon {
+  font-size: 24px;
+  text-align: center;
+  white-space: nowrap;
+}
+.sheet-row .name {
+  font-weight: bold;
+}
+.sheet-row .sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sheet-row button,
+.sheet-wide {
+  min-width: 84px;
+  height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--btn-active);
+  font-size: 15px;
+}
+.sheet-row button:disabled,
+.sheet-wide:disabled {
+  background: var(--btn);
+  color: var(--muted);
+}
+.sheet-wide {
+  width: 100%;
+  margin-top: 10px;
 }
 
 /* 操作部。画面の幅に合わせて大きくする */
@@ -294,4 +366,8 @@ button {
 }
 .dialog-buttons button:first-child {
   background: var(--btn-active);
+}
+.ally-slot.filled {
+  color: var(--text);
+  border-color: #3f7a5c;
 }
