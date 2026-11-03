@@ -531,19 +531,34 @@ export class GameState {
     return this.player.weapon === item || this.player.shield === item;
   }
 
-  /** 使えない理由。使えるなら null */
+  /** 使えない理由。使えるなら null。足もとの装備はバッグに入れてから装備する */
   useProblem(item: Item): string | null {
-    const spell = ITEMS[item.kind].spell;
-    if (spell && this.learned.has(spell)) return `${SPELLS[spell].name}はもう覚えている`;
+    const def = ITEMS[item.kind];
+    if (def.spell && this.learned.has(def.spell)) return `${SPELLS[def.spell].name}はもう覚えている`;
+    if (def.slot && !this.bag.includes(item) && this.bag.length >= BAG_LIMIT) return 'バッグがいっぱいで装備できない';
     return null;
   }
 
-  /** アイテムを使う（食べる・飲む・読む・装備する・外す）。1ターンかかる */
+  /** バッグか足もとにあるアイテムか */
+  private isAtHand(item: Item): boolean {
+    return this.bag.includes(item) || this.itemUnderfoot() === item;
+  }
+
+  /** アイテムを使う（食べる・飲む・読む・装備する・外す）。足もとのアイテムも使える。1ターンかかる */
   useItem(item: Item): void {
-    if (!this.bag.includes(item) || this.useLabel(item) === null || this.useProblem(item)) return;
+    if (!this.isAtHand(item) || this.useLabel(item) === null || this.useProblem(item)) return;
     const p = this.player;
     const def = ITEMS[item.kind];
     this.beginAction();
+    if (def.slot && !this.bag.includes(item)) {
+      // 足もとの装備は拾って装備する
+      this.release(item);
+      this.bag.push(item);
+      p[def.slot] = item;
+      this.addLog(`${def.name}を拾って装備した`);
+      this.endTurn();
+      return;
+    }
     if (def.slot) {
       const key = def.slot === 'weapon' ? 'weapon' : 'shield';
       if (p[key] === item) {
@@ -556,7 +571,7 @@ export class GameState {
       this.endTurn();
       return;
     }
-    this.removeFromBag(item);
+    this.release(item);
     if (def.food) {
       p.food = Math.min(p.maxFood, p.food + def.food);
       this.addLog(`${def.name}を食べた`);
@@ -635,11 +650,11 @@ export class GameState {
    * それ以外は魔物に小さなダメージを与える。何にも当たらなければ、止まったところに落ちる
    */
   throwItem(item: Item): void {
-    if (!this.bag.includes(item)) return;
+    if (!this.isAtHand(item)) return;
     const p = this.player;
     const { name } = ITEMS[item.kind];
     this.beginAction();
-    this.removeFromBag(item);
+    this.release(item);
     const { monster, ally, landing } = this.traceThrow(item.kind === 'herb');
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (item.kind === 'blank' && monster) {
@@ -679,6 +694,12 @@ export class GameState {
     }
     this.floorItems.push({ item, pos: spot });
     this.addLog(item.kind === 'blank' ? '白紙カードは外れた' : `${name}は床に落ちた`);
+  }
+
+  /** バッグか足もとから取り出す */
+  private release(item: Item): void {
+    if (this.bag.includes(item)) this.removeFromBag(item);
+    else this.floorItems = this.floorItems.filter((f) => f.item !== item);
   }
 
   private removeFromBag(item: Item): void {

@@ -113,8 +113,8 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
 }
 
 /**
- * 足もとのアイテム。足踏みしたときに開く。詳しい説明を見て、拾うか、バッグのアイテムと入れ替えるかを選ぶ。
- * 拾う・入れ替えるは1ターン。足踏みすることもできる
+ * 足もとのアイテム。足踏みしたときに開く。詳しい説明を見て、使う・投げる・拾う・バッグのアイテムと入れ替えるを選ぶ。
+ * どれも1ターン。足踏みすることもできる
  */
 export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const item = state.itemUnderfoot();
@@ -128,6 +128,12 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
   const buttons = document.createElement('div');
   const preview = state.equipPreview(item);
   if (preview) buttons.append(statChange(preview, '装備すると'));
+  const label = state.useLabel(item);
+  if (label) {
+    const problem = state.useProblem(item);
+    buttons.append(wideButton(problem ?? label, problem !== null, act(() => state.useItem(item))));
+  }
+  buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
   const full = state.bag.length >= BAG_LIMIT;
   buttons.append(wideButton(full ? 'バッグがいっぱいで拾えない' : '拾う', full, act(() => state.pickUpHere())));
   buttons.append(
