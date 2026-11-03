@@ -3,7 +3,8 @@ import { GameState } from './game/state';
 import { Renderer } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
-import { cardIcon, openCardSheet, openMagicSheet, openSwapSheet } from './ui/screens';
+import { cardIcon, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
 
 // ?seed=数字 を付けると同じダンジョンを再現できる（デバッグ用）
@@ -12,6 +13,7 @@ const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSe
 
 const state = new GameState(seed);
 state.addLog('ダンジョンに入った。');
+state.turnFirst = loadSettings().turnFirst;
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
 // 開発中だけ、ブラウザのコンソールから状態を触れるようにする
@@ -35,10 +37,10 @@ function updateHud(): void {
   setGauge('.gauge.mp', 'mp-text', p.mp, p.maxMp, `${p.mp}/${p.maxMp}`);
   setGauge('.gauge.food', 'food-text', p.food, p.maxFood, `${p.food}%`);
 
-  // 仲間の枠には、召喚している仲間とそのHPを出す
+  // 仲間の枠には、召喚している仲間とそのHPを出す。空いている枠は、押すと召喚できることを示す
   document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
     const a = state.allies[i];
-    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '－';
+    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '魔物を召喚する';
     slot.classList.toggle('filled', a !== undefined);
   });
 
@@ -163,6 +165,9 @@ onButton('btn-attack', () => {
 });
 onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
+onButton('btn-menu', () =>
+  openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst })),
+);
 // 仲間の枠をタップしてもカード画面を開く。指示（ついてくる・待機など）はあとで足す
 document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot) => {
   slot.addEventListener('pointerdown', () => {

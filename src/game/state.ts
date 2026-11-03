@@ -94,6 +94,10 @@ export class GameState {
   visible!: Uint8Array;
   cleared = false;
   dead = false;
+  /** 1回目のタップで振り向くか。オフなら、押した方向へすぐ進む（メニューで切り替える） */
+  turnFirst = true;
+  /** 離れたところから主人公を攻撃してきた魔物。仲間はこの魔物には自分から近づく */
+  private provoker: Monster | null = null;
   /** HP回復の端数の持ち越し */
   private regenCarry = 0;
   /** 鈍足の魔物が休むターンかどうか */
@@ -124,6 +128,7 @@ export class GameState {
     this.player.pos = start;
     this.monsters = [];
     this.popups = [];
+    this.provoker = null;
     // 召喚している仲間は、主人公のまわりに一緒に降りてくる
     const allies = this.allies;
     this.allies = [];
@@ -192,21 +197,19 @@ export class GameState {
   // ---- 主人公の行動。行動すると、そのあと仲間と魔物が動く ----
 
   /**
-   * パッドの方向を押したとき。今の向きと違えば振り向くだけで、ターンは使わない。
-   * 同じ向きなら1マス進み、魔物がいれば攻撃する。仲間がいれば場所を入れ替わる。
-   * 進めたら 'moved'、攻撃したら 'attacked'、それ以外は 'none'
+   * パッドの方向を押したとき。turnFirst なら、今の向きと違えば振り向くだけで、ターンは使わない。
+   * 進む先に魔物がいれば、その方を向くだけで攻撃はしない（攻撃は［攻撃］ボタンで）。
+   * 仲間がいれば場所を入れ替わる。進めたら 'moved'、それ以外は 'none'
    */
-  tryMove(dir: Dir): 'moved' | 'attacked' | 'none' {
+  tryMove(dir: Dir): 'moved' | 'none' {
     const p = this.player;
-    if (p.facing !== dir) {
+    if (this.turnFirst && p.facing !== dir) {
       p.facing = dir;
       return 'none';
     }
+    p.facing = dir;
     const v = DIR_VECTORS[dir];
-    if (this.monsterAt(p.pos.x + v.x, p.pos.y + v.y)) {
-      this.attack();
-      return 'attacked';
-    }
+    if (this.monsterAt(p.pos.x + v.x, p.pos.y + v.y)) return 'none';
     if (!this.map.canStep(p.pos, dir)) return 'none';
     this.beginAction();
     const to = { x: p.pos.x + v.x, y: p.pos.y + v.y };
@@ -642,7 +645,10 @@ export class GameState {
   private monsterAttack(m: Monster): void {
     const p = this.player;
     // 2マス先から届くのは今はベロッグの舌だけ。ログで普通の攻撃と見分けられるようにする
-    const how = distance(m.pos, p.pos) > 1 ? '舌の攻撃' : '攻撃';
+    const ranged = distance(m.pos, p.pos) > 1;
+    const how = ranged ? '舌の攻撃' : '攻撃';
+    // 離れたところから攻撃してきた魔物には、仲間が近づいて戦う
+    if (ranged) this.provoker = m;
     if (!this.rng.chance(HIT_RATE)) {
       this.addLog(`${m.species.name}の${how} → あなたはかわした。`);
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
@@ -681,7 +687,8 @@ export class GameState {
   /**
    * 1. 隣に魔物がいれば、HPがいちばん少ない魔物を攻撃する
    * 2. イヅツチは、まっすぐ2マス先の魔物に、ときどき「いかずち」を飛ばす（必ず当たる）
-   * 3. 近くに見えている魔物がいれば近づく。いなければ主人公についていく
+   * 3. 離れたところから主人公を攻撃してきた魔物が見えていれば、近づく
+   * 4. それ以外は主人公についていく。自分から魔物には近づかず、なるべく魔物の隣に入らない
    */
   private allyAct(a: Ally): void {
     if (!this.allies.includes(a)) return;
@@ -710,14 +717,43 @@ export class GameState {
       }
     }
 
+    const provoker = this.provoker;
+    if (provoker && (!this.monsters.includes(provoker) || !this.isVisible(provoker.pos.x, provoker.pos.y))) {
+      this.provoker = null;
+    }
+    if (this.provoker) {
+      const dir = this.stepToward(species, a.pos, this.provoker.pos);
+      if (dir !== null && this.canMoveTo(species, a.pos, dir)) this.moveAlly(a, dir);
+      return;
+    }
+
+    // 隣にいても、壁の角で斜めに進めないなら離れているのと同じ。曲がり角では主人公のいたマスに入る
     const p = this.player.pos;
-    const enemy = this.monsters
-      .filter((m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) <= 4)
-      .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
-    const goal = enemy?.pos ?? (distance(a.pos, p) > 1 ? p : null);
-    if (!goal) return;
-    const dir = this.stepToward(species, a.pos, goal);
+    if (this.canHitAdjacent(species, a.pos, p)) return;
+    let dir = this.stepToward(species, a.pos, p);
     if (dir === null || !this.canMoveTo(species, a.pos, dir)) return;
+    if (this.nextToMonster(a.pos, dir)) {
+      // 魔物の隣に入らずに、主人公へ同じだけ近づける道があれば、そちらを選ぶ
+      const v = DIR_VECTORS[dir];
+      const best = distance({ x: a.pos.x + v.x, y: a.pos.y + v.y }, p);
+      const safer = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).find((d) => {
+        if (!this.canMoveTo(species, a.pos, d) || this.nextToMonster(a.pos, d)) return false;
+        const w = DIR_VECTORS[d];
+        return distance({ x: a.pos.x + w.x, y: a.pos.y + w.y }, p) <= best;
+      });
+      if (safer !== undefined) dir = safer;
+    }
+    this.moveAlly(a, dir);
+  }
+
+  /** from から dir へ1歩進んだマスが、魔物の隣か */
+  private nextToMonster(from: Pos, dir: Dir): boolean {
+    const v = DIR_VECTORS[dir];
+    const to = { x: from.x + v.x, y: from.y + v.y };
+    return this.monsters.some((m) => distance(m.pos, to) === 1);
+  }
+
+  private moveAlly(a: Ally, dir: Dir): void {
     const v = DIR_VECTORS[dir];
     a.facing = dir;
     a.pos = { x: a.pos.x + v.x, y: a.pos.y + v.y };

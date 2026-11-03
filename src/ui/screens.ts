@@ -82,6 +82,28 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
 }
 
+/** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
+export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => void): void {
+  const rows: SheetRow[] = [
+    {
+      icon: '↻',
+      name: '1回目のタップで振り向く',
+      sub: state.turnFirst
+        ? 'オン：違う方向を押すと、まず振り向く（ターンは使わない）。もう一度押すと進む'
+        : 'オフ：押した方向へすぐ進む',
+      button: {
+        label: state.turnFirst ? 'オン' : 'オフ',
+        onClick: () => {
+          state.turnFirst = !state.turnFirst;
+          onChange();
+          openMenuSheet(state, sheet, onChange);
+        },
+      },
+    },
+  ];
+  sheet.open('メニュー', rows, { note: '魔物のいる方向を押しても、向きを変えるだけで攻撃はしない。攻撃は［攻撃］ボタンで。' });
+}
+
 /** 手元がいっぱいのときに新しいカードを手に入れたら、保管庫へ送る1枚を選ぶまで閉じない */
 export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const pending = state.pendingCard;
