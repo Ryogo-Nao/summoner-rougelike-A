@@ -58,6 +58,14 @@ export class GameMap {
     return this.get(x, y) !== Tile.Wall;
   }
 
+  /** 部屋のマスのうち、通路と接している出入口。ここには物を置かない */
+  isEntrance(x: number, y: number): boolean {
+    if (!this.roomAt(x, y)) return false;
+    return [DIR_VECTORS[0], DIR_VECTORS[2], DIR_VECTORS[4], DIR_VECTORS[6]].some(
+      (v) => this.isWalkable(x + v.x, y + v.y) && !this.roomAt(x + v.x, y + v.y),
+    );
+  }
+
   /** 斜め移動は、両隣のどちらかが壁なら角を抜けられない */
   canStep(from: Pos, dir: Dir): boolean {
     const v = DIR_VECTORS[dir];

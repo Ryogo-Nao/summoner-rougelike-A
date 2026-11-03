@@ -144,13 +144,14 @@ button {
   color: var(--muted);
 }
 
-/* 操作部 */
+/* 操作部。画面の幅に合わせて大きくする */
 #controls {
+  --pad-cell: clamp(52px, 15.5vw, 70px);
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px 12px;
+  align-items: stretch;
+  gap: 10px;
+  padding: 8px 12px 6px;
 }
 /* 設定でパッドを右にしたとき */
 #controls.pad-right {
@@ -158,35 +159,38 @@ button {
 }
 #pad {
   display: grid;
-  grid-template-columns: repeat(3, 52px);
-  grid-template-rows: repeat(3, 52px);
-  gap: 4px;
+  grid-template-columns: repeat(3, var(--pad-cell));
+  grid-template-rows: repeat(3, var(--pad-cell));
+  gap: 5px;
 }
 #pad button,
 #buttons button {
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--btn);
 }
 #pad button {
-  font-size: 20px;
+  font-size: 26px;
 }
 #pad button.center {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
 }
 #pad button.pressed,
 #buttons button:active {
   background: var(--btn-active);
 }
+/* パッドと同じ高さに3段で並べる */
 #buttons {
+  flex: 1;
+  max-width: 220px;
   display: grid;
-  grid-template-columns: repeat(2, 72px);
-  grid-auto-rows: 44px;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   gap: 6px;
 }
 #buttons button {
-  font-size: 14px;
+  font-size: 16px;
   white-space: nowrap;
 }
 #buttons .wide {
@@ -200,7 +204,7 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0 16px calc(env(safe-area-inset-bottom) + 200px);
+  padding: 0 16px calc(env(safe-area-inset-bottom) + 240px);
   background: rgba(8, 7, 14, 0.45);
 }
 #dialog[hidden] {

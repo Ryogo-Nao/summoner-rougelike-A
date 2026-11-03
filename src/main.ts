@@ -57,6 +57,20 @@ function askDescend(): void {
   });
 }
 
+// ミニマップをタップすると拡大し、拡大中はマップのどこをタップしても元に戻す。
+// 拡大したままでも歩ける
+canvas.addEventListener('pointerdown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  if (renderer.minimapExpanded) {
+    renderer.minimapExpanded = false;
+  } else if (renderer.hitsMinimap(e.clientX - rect.left, e.clientY - rect.top)) {
+    renderer.minimapExpanded = true;
+  } else {
+    return;
+  }
+  redraw();
+});
+
 /** ダイアログが開いている間や踏破後は、パッドの入力を受け付けない */
 const acceptsInput = () => !dialog.isOpen() && !state.cleared;
 

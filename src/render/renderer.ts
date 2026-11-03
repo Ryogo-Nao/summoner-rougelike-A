@@ -12,19 +12,35 @@ const COLORS = {
   outside: '#0c0b12',
   /** 見たことはあるが今は見えていないマスに重ねる色 */
   memory: 'rgba(8, 7, 14, 0.55)',
-  miniBg: 'rgba(8, 7, 14, 0.55)',
-  miniFloor: 'rgba(200, 192, 230, 0.55)',
-  miniStairs: '#f0d27a',
-  miniPlayer: '#ff6b5e',
+  /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
+  miniBg: 'rgba(0, 0, 0, 0.72)',
+  miniBorder: 'rgba(255, 255, 255, 0.25)',
+  miniFloor: '#6f9dff',
+  miniStairs: '#ffd84a',
+  miniPlayer: '#ff4d3d',
+  /** 拡大したミニマップの後ろに敷く色 */
+  expandedBg: 'rgba(0, 0, 0, 0.82)',
 };
 
 /** ミニマップの1マスの大きさ（px） */
 const MINI_TILE = 2;
+/** ミニマップをタップしやすいよう、当たり判定を周りに広げる幅（px） */
+const MINI_HIT_MARGIN = 12;
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private tileSize = 32;
+  /** true のとき、ミニマップを画面いっぱいに広げて表示する */
+  minimapExpanded = false;
+  private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -92,7 +108,25 @@ export class Renderer {
     ctx.fillText('🧙', cx, cy + 1);
     this.drawFacing(cx, cy, player.facing);
 
-    this.drawMinimap(state);
+    if (this.minimapExpanded) {
+      ctx.fillStyle = COLORS.expandedBg;
+      ctx.fillRect(0, 0, ts * VIEW_TILES, ts * VIEW_TILES);
+      const view = ts * VIEW_TILES;
+      const tile = Math.floor((view - 16) / Math.max(state.map.width, state.map.height));
+      const w = state.map.width * tile;
+      const h = state.map.height * tile;
+      this.drawMinimap(state, tile, (view - w) / 2, (view - h) / 2);
+    } else {
+      const w = state.map.width * MINI_TILE;
+      this.drawMinimap(state, MINI_TILE, ts * VIEW_TILES - w - 4, 4);
+    }
+  }
+
+  /** 画面上の点（CSS px、キャンバスの左上が原点）が小さいミニマップの上にあるか */
+  hitsMinimap(x: number, y: number): boolean {
+    const r = this.minimapRect;
+    const m = MINI_HIT_MARGIN;
+    return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
   }
 
   /** 向いている方向に小さな印を出す */
@@ -106,27 +140,31 @@ export class Renderer {
     ctx.fill();
   }
 
-  /** 右上に、歩いたところだけのミニマップを重ねる */
-  private drawMinimap(state: GameState): void {
+  /** 歩いたところだけのミニマップを、1マス tile px で (left, top) から描く */
+  private drawMinimap(state: GameState, tile: number, left: number, top: number): void {
     const { ctx } = this;
     const { map, player } = state;
-    const w = map.width * MINI_TILE;
-    const h = map.height * MINI_TILE;
-    const left = this.tileSize * VIEW_TILES - w - 4;
-    const top = 4;
+    const w = map.width * tile;
+    const h = map.height * tile;
+    if (!this.minimapExpanded) this.minimapRect = { x: left, y: top, w, h };
 
     ctx.fillStyle = COLORS.miniBg;
     ctx.fillRect(left - 2, top - 2, w + 4, h + 4);
+    ctx.strokeStyle = COLORS.miniBorder;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(left - 2.5, top - 2.5, w + 5, h + 5);
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (!state.isExplored(x, y)) continue;
-        const tile = map.get(x, y);
-        if (tile === Tile.Wall) continue;
-        ctx.fillStyle = tile === Tile.Stairs ? COLORS.miniStairs : COLORS.miniFloor;
-        ctx.fillRect(left + x * MINI_TILE, top + y * MINI_TILE, MINI_TILE, MINI_TILE);
+        const t = map.get(x, y);
+        if (t === Tile.Wall) continue;
+        ctx.fillStyle = t === Tile.Stairs ? COLORS.miniStairs : COLORS.miniFloor;
+        ctx.fillRect(left + x * tile, top + y * tile, tile, tile);
       }
     }
+    // 自分の印は、小さい地図では見落とさないよう1マスより大きくする
+    const grow = tile <= 2 ? 1 : 0;
     ctx.fillStyle = COLORS.miniPlayer;
-    ctx.fillRect(left + player.pos.x * MINI_TILE - 1, top + player.pos.y * MINI_TILE - 1, MINI_TILE + 2, MINI_TILE + 2);
+    ctx.fillRect(left + player.pos.x * tile - grow, top + player.pos.y * tile - grow, tile + grow * 2, tile + grow * 2);
   }
 }

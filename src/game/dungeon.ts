@@ -3,14 +3,16 @@ import { GameMap, Tile, type Room } from './map';
 import type { Rng } from './rng';
 
 /** balance.md 7章 */
-const MAP_WIDTH = 40;
-const MAP_HEIGHT = 28;
-const GRID_COLS = 3;
+const MAP_WIDTH = 44;
+const MAP_HEIGHT = 30;
+const GRID_COLS = 4;
 const GRID_ROWS = 3;
-const MIN_ROOMS = 5;
-const MAX_ROOMS = 8;
+const MIN_ROOMS = 7;
+const MAX_ROOMS = 10;
 /** 全域木とは別に通路を足して、ループを作る確率 */
-const EXTRA_LINK_CHANCE = 0.2;
+const EXTRA_LINK_CHANCE = 0.35;
+/** 通路が1本しかない部屋に、もう1本通路を足す確率 */
+const SECOND_EXIT_CHANCE = 0.75;
 
 export interface Floor {
   map: GameMap;
@@ -26,8 +28,9 @@ interface Node {
 
 /**
  * 区画分割でフロアを作る。
- * 3×3の区画のうち5〜8個に部屋を置き、残りは通路の中継点にする。
- * 隣り合う区画を全域木でつなぐので、全マスが必ずつながる。
+ * 4×3の区画のうち7〜10個に部屋を置き、残りは通路の中継点にする。
+ * 部屋を区画いっぱい近くまで広げて、通路を短くする。
+ * 区画どうしは全域木でつなぐので、全マスが必ずつながる。そのうえで通路を足して回り道を作る。
  */
 export function generateFloor(rng: Rng): Floor {
   const tiles: Tile[] = new Array(MAP_WIDTH * MAP_HEIGHT).fill(Tile.Wall);
@@ -40,20 +43,22 @@ export function generateFloor(rng: Rng): Floor {
   const roomCount = rng.int(MIN_ROOMS, MAX_ROOMS);
   const roomCells = new Set(rng.shuffle([...Array(GRID_COLS * GRID_ROWS).keys()]).slice(0, roomCount));
 
+  // 区画の左上は1マス、右下は2マス空ける。隣の部屋とは壁が3マス以上離れ、
+  // その間で通路を曲げられる
   const nodes: Node[] = [];
   for (let cy = 0; cy < GRID_ROWS; cy++) {
     for (let cx = 0; cx < GRID_COLS; cx++) {
       const x0 = cx * cellW;
       const y0 = cy * cellH;
       if (roomCells.has(cy * GRID_COLS + cx)) {
-        const w = rng.int(4, cellW - 4);
-        const h = rng.int(3, cellH - 4);
-        const x = x0 + rng.int(2, cellW - w - 2);
-        const y = y0 + rng.int(2, cellH - h - 2);
+        const w = rng.int(5, cellW - 3);
+        const h = rng.int(4, cellH - 3);
+        const x = x0 + rng.int(1, cellW - w - 2);
+        const y = y0 + rng.int(1, cellH - h - 2);
         nodes.push({ rect: { x, y, w, h }, isRoom: true });
       } else {
-        const x = x0 + rng.int(2, cellW - 3);
-        const y = y0 + rng.int(2, cellH - 3);
+        const x = x0 + rng.int(2, cellW - 4);
+        const y = y0 + rng.int(2, cellH - 4);
         nodes.push({ rect: { x, y, w: 1, h: 1 }, isRoom: false });
       }
     }
@@ -65,7 +70,7 @@ export function generateFloor(rng: Rng): Floor {
     }
   }
 
-  for (const [a, b] of pickLinks(rng)) {
+  for (const [a, b] of pickLinks(rng, nodes)) {
     const horizontal = Math.floor(a / GRID_COLS) === Math.floor(b / GRID_COLS);
     digCorridor(rng, nodes[a], nodes[b], horizontal, carve);
   }
@@ -74,56 +79,55 @@ export function generateFloor(rng: Rng): Floor {
   const map = new GameMap(MAP_WIDTH, MAP_HEIGHT, tiles, rooms);
 
   const [startRoom, stairsRoom] = rng.shuffle([...rooms]);
-  const stairs = randomPointIn(rng, stairsRoom);
+  const stairs = randomFreePointIn(rng, map, stairsRoom);
   map.set(stairs.x, stairs.y, Tile.Stairs);
-  let start = randomPointIn(rng, startRoom);
-  if (start.x === stairs.x && start.y === stairs.y) start = randomPointIn(rng, startRoom);
+  const start = randomFreePointIn(rng, map, startRoom);
 
   return { map, start, stairs };
 }
 
-/** 区画同士のつなぎ方。全域木（ランダムなDFS）＋いくつかの追加辺。各組は [小さい番号, 大きい番号] */
-function pickLinks(rng: Rng): [number, number][] {
-  const index = (cx: number, cy: number) => cy * GRID_COLS + cx;
-  const neighbors = (i: number): number[] => {
-    const cx = i % GRID_COLS;
-    const cy = Math.floor(i / GRID_COLS);
-    const result: number[] = [];
-    if (cx > 0) result.push(index(cx - 1, cy));
-    if (cx < GRID_COLS - 1) result.push(index(cx + 1, cy));
-    if (cy > 0) result.push(index(cx, cy - 1));
-    if (cy < GRID_ROWS - 1) result.push(index(cx, cy + 1));
-    return result;
-  };
-
-  const links: [number, number][] = [];
-  const linked = new Set<string>();
-  const addLink = (a: number, b: number) => {
-    const pair: [number, number] = a < b ? [a, b] : [b, a];
-    const key = `${pair[0]}-${pair[1]}`;
-    if (linked.has(key)) return;
-    linked.add(key);
-    links.push(pair);
-  };
-
-  const visited = new Set<number>();
-  const visit = (i: number) => {
-    visited.add(i);
-    for (const n of rng.shuffle(neighbors(i))) {
-      if (!visited.has(n)) {
-        addLink(i, n);
-        visit(n);
-      }
-    }
-  };
-  visit(rng.int(0, GRID_COLS * GRID_ROWS - 1));
-
-  for (let i = 0; i < GRID_COLS * GRID_ROWS; i++) {
-    for (const n of neighbors(i)) {
-      if (n > i && rng.chance(EXTRA_LINK_CHANCE)) addLink(i, n);
-    }
+/**
+ * 区画同士のつなぎ方。各組は [小さい番号, 大きい番号]。
+ * 1. 辺をランダムに並べて全域木を作る（深さ優先より枝分かれが多く、一本道になりにくい）
+ * 2. 中継点は行き止まりにしない。部屋も多くは出口を2つ以上にする
+ * 3. 残りの辺もいくつか足してループを作る
+ */
+function pickLinks(rng: Rng, nodes: Node[]): [number, number][] {
+  const count = GRID_COLS * GRID_ROWS;
+  const edges: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    if (i % GRID_COLS < GRID_COLS - 1) edges.push([i, i + 1]);
+    if (i + GRID_COLS < count) edges.push([i, i + GRID_COLS]);
   }
-  return links;
+
+  const parent = [...Array(count).keys()];
+  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  const used = new Set<[number, number]>();
+  const degree = new Array<number>(count).fill(0);
+  const use = (e: [number, number]) => {
+    used.add(e);
+    degree[e[0]]++;
+    degree[e[1]]++;
+  };
+
+  for (const e of rng.shuffle([...edges])) {
+    const [ra, rb] = [root(e[0]), root(e[1])];
+    if (ra === rb) continue;
+    parent[ra] = rb;
+    use(e);
+  }
+
+  for (let i = 0; i < count; i++) {
+    if (degree[i] >= 2) continue;
+    if (nodes[i].isRoom && !rng.chance(SECOND_EXIT_CHANCE)) continue;
+    const spare = edges.filter((e) => !used.has(e) && (e[0] === i || e[1] === i));
+    if (spare.length > 0) use(rng.pick(spare));
+  }
+
+  for (const e of edges) {
+    if (!used.has(e) && rng.chance(EXTRA_LINK_CHANCE)) use(e);
+  }
+  return edges.filter((e) => used.has(e));
 }
 
 /**
@@ -156,6 +160,13 @@ function digCorridor(rng: Rng, from: Node, to: Node, horizontal: boolean, carve:
   }
 }
 
-function randomPointIn(rng: Rng, room: Room): Pos {
-  return { x: rng.int(room.x, room.x + room.w - 1), y: rng.int(room.y, room.y + room.h - 1) };
+/** 部屋の中で、出入口でも階段でもないマスを選ぶ */
+export function randomFreePointIn(rng: Rng, map: GameMap, room: Room): Pos {
+  const free: Pos[] = [];
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (map.get(x, y) === Tile.Floor && !map.isEntrance(x, y)) free.push({ x, y });
+    }
+  }
+  return rng.pick(free);
 }
