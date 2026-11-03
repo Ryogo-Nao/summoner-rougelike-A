@@ -89,7 +89,17 @@ export interface Ally {
   pos: Pos;
   facing: Dir;
   order: AllyOrder;
+  /** 混乱・毒の残りターン。カードに戻すと治る */
+  ailments: Ailments;
 }
+
+/** 混乱と毒の残りターン（balance.md 3.5）。0 ならかかっていない */
+export interface Ailments {
+  confused: number;
+  poisoned: number;
+}
+
+export const noAilments = (): Ailments => ({ confused: 0, poisoned: 0 });
 
 let nextCardId = 1;
 

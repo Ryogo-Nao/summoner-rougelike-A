@@ -60,6 +60,12 @@ button {
   margin-bottom: 2px;
   font-weight: bold;
 }
+/* 状態異常と魔法の残りターン */
+#effects {
+  font-size: 12px;
+  font-weight: normal;
+  white-space: nowrap;
+}
 #turn {
   margin-left: auto;
   color: var(--muted);

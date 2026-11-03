@@ -26,6 +26,8 @@ export interface Species {
   erratic?: boolean;
   /** 壁をすり抜ける */
   phasing?: boolean;
+  /** 特技（balance.md 4章）。spore は胞子で混乱、venom は毒、breath は火を吐く */
+  special?: 'spore' | 'venom' | 'breath';
   /** 仲間にしたときの成長の型と早さ。プレイヤーには見せない */
   growth: GrowthType;
   pace: GrowthPace;
@@ -33,17 +35,16 @@ export interface Species {
   allyRate?: number;
 }
 
-// 混乱・毒・火を吐くなどの特技は、状態異常を作るときに足す
 export const SPECIES: readonly Species[] = [
   { id: 'chuppi', name: 'チュッピ', emoji: '🐭', floors: [1, 3], hp: 8, atk: 3, def: 1, exp: 3, capture: 0.3, cost: 3, speed: 'normal', growth: 'balance', pace: 'early' },
   { id: 'berogg', name: 'ベロッグ', emoji: '🐸', floors: [1, 4], hp: 12, atk: 4, def: 2, exp: 5, capture: 0.25, cost: 4, speed: 'normal', reach: 2, growth: 'balance', pace: 'normal' },
   { id: 'patari', name: 'パタリ', emoji: '🦇', floors: [2, 5], hp: 10, atk: 4, def: 1, exp: 6, capture: 0.2, cost: 4, speed: 'fast', erratic: true, growth: 'balance', pace: 'early' },
-  { id: 'pokotake', name: 'ポコタケ', emoji: '🍄', floors: [3, 7], hp: 18, atk: 5, def: 4, exp: 10, capture: 0.18, cost: 5, speed: 'normal', growth: 'hp', pace: 'late' },
-  { id: 'shururu', name: 'シュルル', emoji: '🐍', floors: [3, 6], hp: 16, atk: 6, def: 3, exp: 10, capture: 0.15, cost: 6, speed: 'normal', growth: 'attack', pace: 'early' },
+  { id: 'pokotake', name: 'ポコタケ', emoji: '🍄', floors: [3, 7], hp: 18, atk: 5, def: 4, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'spore', growth: 'hp', pace: 'late' },
+  { id: 'shururu', name: 'シュルル', emoji: '🐍', floors: [3, 6], hp: 16, atk: 6, def: 3, exp: 10, capture: 0.15, cost: 6, speed: 'normal', special: 'venom', growth: 'attack', pace: 'early' },
   { id: 'garuf', name: 'ガルフ', emoji: '🐺', floors: [4, 8], hp: 24, atk: 8, def: 4, exp: 16, capture: 0.12, cost: 8, speed: 'fast', growth: 'attack', pace: 'normal' },
   { id: 'kaburamu', name: 'カブラム', emoji: '🦂', floors: [5, 9], hp: 26, atk: 9, def: 7, exp: 20, capture: 0.1, cost: 8, speed: 'normal', growth: 'defense', pace: 'normal' },
   { id: 'moyari', name: 'モヤリ', emoji: '👻', floors: [6, 10], hp: 20, atk: 8, def: 3, exp: 22, capture: 0.08, cost: 9, speed: 'normal', phasing: true, growth: 'attack', pace: 'late' },
-  { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', floors: [7, 10], hp: 30, atk: 10, def: 5, exp: 28, capture: 0.07, cost: 10, speed: 'normal', growth: 'balance', pace: 'normal' },
+  { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', floors: [7, 10], hp: 30, atk: 10, def: 5, exp: 28, capture: 0.07, cost: 10, speed: 'normal', special: 'breath', growth: 'balance', pace: 'normal' },
   { id: 'goromu', name: 'ゴロム', emoji: '🗿', floors: [8, 10], hp: 45, atk: 13, def: 10, exp: 40, capture: 0.05, cost: 12, speed: 'slow', growth: 'hp', pace: 'late' },
 ];
 

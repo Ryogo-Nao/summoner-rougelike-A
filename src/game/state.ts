@@ -14,6 +14,8 @@ import {
   dropChance,
   growCard,
   isPartner,
+  noAilments,
+  type Ailments,
   type Ally,
   type AllyOrder,
   type Card,
@@ -54,6 +56,7 @@ export const SPELLS = {
   thunder: { name: '雷の魔法', label: '雷', mp: 5 },
   power: { name: '力の魔法', label: '力', mp: 6 },
   guard: { name: '守りの魔法', label: '守り', mp: 6 },
+  bigFire: { name: '大火球', label: '大火球', mp: 10 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
 /** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
@@ -69,6 +72,17 @@ const HUNGER_WARNINGS: Record<number, string> = {
 const BUFF_TURNS = 20;
 const POWER_RATE = 1.5;
 const GUARD_RATE = 0.6;
+/** 大火球が届くマス数（前方3マス幅） */
+const BIG_FIRE_RANGE = 5;
+/** 状態異常と特技（balance.md 3.5、4章） */
+const CONFUSE_TURNS = 5;
+const POISON_TURNS = 10;
+/** 攻撃が当たったときに、胞子で混乱させる・毒にする確率 */
+const AILMENT_CHANCE = 0.3;
+/** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
+const BREATH_CHANCE = 0.3;
+const BREATH_RANGE = 4;
+const BREATH_DAMAGE = 8;
 
 /** 残しておくログの行数 */
 const LOG_LIMIT = 100;
@@ -130,6 +144,8 @@ export interface Player {
   /** 力の魔法・守りの魔法の残りターン */
   powerTurns: number;
   guardTurns: number;
+  /** 混乱・毒の残りターン */
+  ailments: Ailments;
 }
 
 /** マップの上に一時的に出す文字（ダメージなど）。次の行動で消える */
@@ -162,7 +178,7 @@ export interface RunData {
   cards: CardData[];
   storage: CardData[];
   pendingCard: CardData | null;
-  allies: { card: number; pos: Pos; facing: Dir; order: AllyOrder }[];
+  allies: { card: number; pos: Pos; facing: Dir; order: AllyOrder; ailments?: Ailments }[];
   bag: Item[];
   floorItems: FloorItem[];
   learned: SpellId[];
@@ -271,6 +287,7 @@ export class GameState {
       shield: null,
       powerTurns: 0,
       guardTurns: 0,
+      ailments: noAilments(),
     };
     this.enterFloor();
   }
@@ -291,7 +308,7 @@ export class GameState {
       cards: this.cards.map(cardToData),
       storage: this.storage.map(cardToData),
       pendingCard: this.pendingCard ? cardToData(this.pendingCard) : null,
-      allies: this.allies.map((a) => ({ card: a.card.id, pos: a.pos, facing: a.facing, order: a.order })),
+      allies: this.allies.map((a) => ({ card: a.card.id, pos: a.pos, facing: a.facing, order: a.order, ailments: a.ailments })),
       bag: this.bag,
       floorItems: this.floorItems,
       learned: [...this.learned],
@@ -315,14 +332,19 @@ export class GameState {
     s.visible = new Uint8Array(data.map.width * data.map.height);
     s.bag = data.bag;
     const itemById = (id: number | null) => (id === null ? null : (s.bag.find((i) => i.id === id) ?? null));
-    s.player = { ...data.player, weapon: itemById(data.player.weapon), shield: itemById(data.player.shield) };
+    s.player = {
+      ...data.player,
+      weapon: itemById(data.player.weapon),
+      shield: itemById(data.player.shield),
+      ailments: data.player.ailments ?? noAilments(),
+    };
     s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species) }));
     s.cards = data.cards.map(cardFromData);
     s.storage = data.storage.map(cardFromData);
     s.pendingCard = data.pendingCard ? cardFromData(data.pendingCard) : null;
     s.allies = data.allies.flatMap((a) => {
       const card = s.cards.find((c) => c.id === a.card);
-      return card ? [{ card, pos: a.pos, facing: a.facing, order: a.order }] : [];
+      return card ? [{ card, pos: a.pos, facing: a.facing, order: a.order, ailments: a.ailments ?? noAilments() }] : [];
     });
     s.floorItems = data.floorItems;
     s.learned = new Set(data.learned);
@@ -438,7 +460,18 @@ export class GameState {
    */
   tryMove(dir: Dir): 'moved' | 'none' {
     const p = this.player;
-    if (this.turnFirst && p.facing !== dir) {
+    // 混乱しているときは、でたらめな方向へ進む。その先に魔物がいれば攻撃する
+    if (p.ailments.confused > 0) {
+      dir = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
+      const v = DIR_VECTORS[dir];
+      p.facing = dir;
+      if (this.monsterAt(p.pos.x + v.x, p.pos.y + v.y) || !this.map.canStep(p.pos, dir)) {
+        this.beginAction();
+        this.strike();
+        this.endTurn();
+        return 'none';
+      }
+    } else if (this.turnFirst && p.facing !== dir) {
       p.facing = dir;
       return 'none';
     }
@@ -606,6 +639,7 @@ export class GameState {
       p.hp += heal;
       this.addLog(`薬草を使った（HP+${heal}）`);
       this.popups.push({ pos: p.pos, text: `+${heal}`, kind: 'info' });
+      this.cure(p.ailments, 'あなた');
     } else if (item.kind === 'water') {
       const gain = Math.min(WATER_MP, p.maxMp - p.mp);
       p.mp += gain;
@@ -687,6 +721,7 @@ export class GameState {
         ally.card.hp += heal;
         this.addLog(`薬草を投げた → ${ally.card.species.name}のHP+${heal}`);
         this.popups.push({ pos: ally.pos, text: `+${heal}`, kind: 'info' });
+        this.cure(ally.ailments, ally.card.species.name);
       } else if (item.kind === 'herb' && monster) {
         const heal = Math.min(HERB_HEAL, monster.maxHp - monster.hp);
         monster.hp += heal;
@@ -737,9 +772,17 @@ export class GameState {
     this.endTurn();
   }
 
-  /** 向いている方向を攻撃する。誰もいなくても1ターン使う */
+  /** 向いている方向を攻撃する。混乱しているときは、でたらめな方向を攻撃する。誰もいなくても1ターン使う */
   attack(): void {
+    const p = this.player;
+    if (p.ailments.confused > 0) p.facing = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
     this.beginAction();
+    this.strike();
+    this.endTurn();
+  }
+
+  /** 向いている方向を攻撃する */
+  private strike(): void {
     const p = this.player;
     const v = DIR_VECTORS[p.facing];
     const target = this.monsterAt(p.pos.x + v.x, p.pos.y + v.y);
@@ -755,7 +798,6 @@ export class GameState {
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
     });
-    this.endTurn();
   }
 
   /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前 */
@@ -828,7 +870,7 @@ export class GameState {
     this.beginAction();
     this.player.mp -= card.species.cost;
     card.status = 'summoned';
-    this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing, order: 'follow' });
+    this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing, order: 'follow', ailments: noAilments() });
     this.addLog(`${card.species.name}を召喚した`);
     this.endTurn();
   }
@@ -926,6 +968,7 @@ export class GameState {
   availableSpells(): SpellId[] {
     const spells: SpellId[] = ['fire'];
     if (this.allies.some((a) => isPartner(a.card))) spells.push('thunder');
+    if (this.allies.some((a) => a.card.species.special === 'breath')) spells.push('bigFire');
     for (const id of ['power', 'guard'] as const) if (this.learned.has(id)) spells.push(id);
     return spells;
   }
@@ -949,13 +992,40 @@ export class GameState {
     const targets =
       spell === 'fire'
         ? [this.traceLine()].filter((m) => m !== undefined)
-        : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
-    const dmg = spell === 'fire' ? 10 + p.level * 2 : 6 + p.level;
+        : spell === 'bigFire'
+          ? this.bigFireTargets()
+          : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
+    const dmg = spell === 'fire' ? 10 + p.level * 2 : spell === 'bigFire' ? 20 + p.level * 2 : 6 + p.level;
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (targets.length === 0) this.addLog(`${name}は外れた`);
       for (const m of targets) this.damageMonster(m, dmg, null, name);
     });
     this.endTurn();
+  }
+
+  /**
+   * 大火球が当たる魔物。向いている方向へ5マス先まで、その列と左右の列の3マス幅。
+   * 見えている魔物だけに当たり、仲間には当たらない
+   */
+  private bigFireTargets(): Monster[] {
+    const p = this.player;
+    const v = DIR_VECTORS[p.facing];
+    const tiles: Pos[] = [];
+    for (let i = 1; i <= BIG_FIRE_RANGE; i++) {
+      const c = { x: p.pos.x + v.x * i, y: p.pos.y + v.y * i };
+      tiles.push(c, { x: c.x - v.y, y: c.y + v.x }, { x: c.x + v.y, y: c.y - v.x });
+    }
+    return this.monsters.filter(
+      (m) => this.isVisible(m.pos.x, m.pos.y) && tiles.some((t) => t.x === m.pos.x && t.y === m.pos.y),
+    );
+  }
+
+  /** 混乱と毒を治す。who はログに出す名前 */
+  private cure(ailments: Ailments, who: string): void {
+    if (ailments.confused === 0 && ailments.poisoned === 0) return;
+    ailments.confused = 0;
+    ailments.poisoned = 0;
+    this.addLog(`${who}の混乱と毒が治った`);
   }
 
   /** 階段を降りる。最下層の階段なら踏破 */
@@ -1114,6 +1184,32 @@ export class GameState {
     const p = this.player;
     if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
     if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
+    if (this.dead) return;
+    // 毒は毎ターンHPが1減る。毒では力つきず、HP1で止まる
+    if (p.ailments.poisoned > 0) p.hp = Math.max(1, p.hp - 1);
+    this.tickAilments(p.ailments, 'あなた');
+    for (const a of this.allies) {
+      if (a.ailments.poisoned > 0) a.card.hp = Math.max(1, a.card.hp - 1);
+      this.tickAilments(a.ailments, a.card.species.name);
+    }
+  }
+
+  private tickAilments(ailments: Ailments, who: string): void {
+    if (ailments.confused > 0 && --ailments.confused === 0) this.addLog(`${who}の混乱が治った`);
+    if (ailments.poisoned > 0 && --ailments.poisoned === 0) this.addLog(`${who}の毒が消えた`);
+  }
+
+  /** 攻撃が当たったあと、特技の胞子や毒を受けるか。who はログに出す名前 */
+  private afflict(m: Monster, ailments: Ailments, who: string): void {
+    const kind = m.species.special;
+    if ((kind !== 'spore' && kind !== 'venom') || !this.rng.chance(AILMENT_CHANCE)) return;
+    if (kind === 'spore') {
+      ailments.confused = CONFUSE_TURNS;
+      this.addLog(`${m.species.name}の胞子 → ${who}は混乱した`);
+    } else {
+      ailments.poisoned = POISON_TURNS;
+      this.addLog(`${m.species.name}の毒 → ${who}は毒を受けた`);
+    }
   }
 
   /** 主人公だけが自然回復する。仲間は回復しない。満腹度が0なら、回復せずに毎ターンHPが1減る */
@@ -1128,7 +1224,7 @@ export class GameState {
       }
       return;
     }
-    if (this.dead || p.hp >= p.maxHp) {
+    if (this.dead || p.hp >= p.maxHp || p.ailments.poisoned > 0) {
       this.regenCarry = 0;
       return;
     }
@@ -1209,6 +1305,21 @@ export class GameState {
     if (!this.monsters.includes(m)) return;
     const p = this.player.pos;
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
+
+    // 火を吐く魔物は、まっすぐ4マス以内に主人公がいれば、ときどき火を吐く
+    if (
+      m.species.special === 'breath' &&
+      m.lastSeen !== null &&
+      distance(m.pos, p) >= 2 &&
+      this.isClearLine(m.pos, p, BREATH_RANGE) &&
+      this.rng.chance(BREATH_CHANCE)
+    ) {
+      m.facing = dirFromDelta(p.x - m.pos.x, p.y - m.pos.y) ?? m.facing;
+      this.player.facing = dirFromDelta(m.pos.x - p.x, m.pos.y - p.y) ?? this.player.facing;
+      this.provoker = m;
+      this.scene(m.pos, p, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'));
+      return;
+    }
 
     // 主人公に届けば主人公を、届かなくても隣に仲間がいれば仲間を攻撃する
     const attackPlayer = m.lastSeen !== null && this.canAttackPlayer(m);
@@ -1295,7 +1406,13 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const raw = rollDamage(this.rng, m.species.atk, this.defensePower());
+    this.hurtPlayer(m, rollDamage(this.rng, m.species.atk, this.defensePower()), how);
+    if (!this.dead) this.afflict(m, p.ailments, 'あなた');
+  }
+
+  /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
+  private hurtPlayer(m: Monster, raw: number, how: string): void {
+    const p = this.player;
     const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * GUARD_RATE)) : raw;
     p.hp = Math.max(0, p.hp - dmg);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
@@ -1321,7 +1438,9 @@ export class GameState {
       this.allies = this.allies.filter((x) => x !== a);
       a.card.status = 'dying';
       this.addLog(`${name}は瀕死になりカードに戻った`);
+      return;
     }
+    this.afflict(m, a.ailments, name);
   }
 
   // ---- 仲間の行動（ついてくる） ----
@@ -1335,6 +1454,12 @@ export class GameState {
   private allyAct(a: Ally): void {
     if (!this.allies.includes(a)) return;
     const species = a.card.species;
+    // 混乱している仲間は、でたらめな方向へ1歩動くだけ
+    if (a.ailments.confused > 0) {
+      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(species, a.pos, d));
+      if (dirs.length > 0) this.moveAlly(a, this.rng.pick(dirs));
+      return;
+    }
     // 逃げる：近くに魔物がいれば、まず離れる。逃げ場がなければ、その場で戦う
     if (a.order === 'flee' && this.fleeStep(a)) return;
     const adjacent = this.monsters
@@ -1362,6 +1487,18 @@ export class GameState {
         this.scene(a.pos, target.pos, () =>
           this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, 'いかずち'),
         );
+        return;
+      }
+    }
+
+    // 火を吐く仲間は、まっすぐ4マス以内に見えている魔物に、ときどき火を吐く（必ず当たる）
+    if (species.special === 'breath' && this.rng.chance(BREATH_CHANCE)) {
+      const target = this.monsters.find(
+        (m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) >= 2 && this.isClearLine(a.pos, m.pos, BREATH_RANGE),
+      );
+      if (target) {
+        a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, a.card.atk, a, '火'));
         return;
       }
     }

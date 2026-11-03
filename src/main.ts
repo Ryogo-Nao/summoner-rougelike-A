@@ -103,6 +103,14 @@ function updateHud(moment?: HudMoment): void {
   document.getElementById('floor')!.textContent = `B${state.floor}F`;
   document.getElementById('level')!.textContent = `Lv${p.level}`;
   document.getElementById('turn')!.textContent = `${state.turn}T`;
+  // かかっている状態異常と魔法を、残りターンつきで出す
+  const effects = [
+    p.ailments.confused > 0 ? `😵混乱${p.ailments.confused}` : '',
+    p.ailments.poisoned > 0 ? `☠️毒${p.ailments.poisoned}` : '',
+    p.powerTurns > 0 ? `💪${p.powerTurns}` : '',
+    p.guardTurns > 0 ? `🧱${p.guardTurns}` : '',
+  ];
+  document.getElementById('effects')!.textContent = effects.filter(Boolean).join(' ');
   setGauge('.gauge.hp', 'hp-text', hp, p.maxHp, `${hp}/${p.maxHp}`);
   // HPが1割以下のときと、満腹度が0のときは、その段を赤く点滅させる
   setDanger('.gauge.hp', hp <= p.maxHp * 0.1);
@@ -115,7 +123,8 @@ function updateHud(moment?: HudMoment): void {
     const a = state.allies[i];
     // ついてくる以外の指示を出しているときは、指示も出す
     const order = a && a.order !== 'follow' ? ` ${ORDER_LABEL[a.order]}` : '';
-    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}${order}` : '召喚';
+    const sick = a ? `${a.ailments.confused > 0 ? '😵' : ''}${a.ailments.poisoned > 0 ? '☠️' : ''}` : '';
+    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}${sick}${order}` : '召喚';
     slot.classList.toggle('filled', a !== undefined);
   });
 

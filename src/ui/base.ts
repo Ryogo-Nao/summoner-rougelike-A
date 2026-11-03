@@ -122,6 +122,7 @@ export class BaseScreen {
     const rows: SheetRow[] = [
       { icon: '🔥', name: SPELLS.fire.name, sub: `MP${SPELLS.fire.mp}　最初から使える` },
       { icon: '⚡', name: SPELLS.thunder.name, sub: `MP${SPELLS.thunder.mp}　イヅツチを召喚している間だけ` },
+      { icon: '☄️', name: SPELLS.bigFire.name, sub: `MP${SPELLS.bigFire.mp}　ヒダマリを召喚している間だけ` },
       ...(['power', 'guard'] as SpellId[]).map((id) => ({
         icon: id === 'power' ? '💪' : '🧱',
         name: SPELLS[id].name,

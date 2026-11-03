@@ -68,6 +68,7 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
       thunder: `周りの敵に${6 + p.level}`,
       power: '20ターン攻撃力×1.5',
       guard: '20ターン受けるダメージ×0.6',
+      bigFire: `前方3マス幅の敵に${20 + p.level * 2}`,
     };
     return {
       icon: SPELL_ICONS[id],
@@ -88,7 +89,7 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
 }
 
-const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱' };
+const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱', bigFire: '☄️' };
 
 /** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
 export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
