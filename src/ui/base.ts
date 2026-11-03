@@ -2,7 +2,7 @@ import { HAND_LIMIT, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
 import { MAX_FLOOR, SPELLS, type SpellId } from '../game/state';
-import { cardIcon } from './screens';
+import { cardIcon, cardSub } from './screens';
 import { renderRow, type SheetRow } from './sheet';
 
 type Tab = 'cards' | 'items' | 'spells';
@@ -82,7 +82,7 @@ export class BaseScreen {
       return {
         icon: cardIcon(card),
         name: taking ? `${card.species.name}（持っていく）` : card.species.name,
-        sub: `Lv${card.level}　HP${card.maxHp}　攻撃${card.atk}　防御${card.def}　MP${card.species.cost}`,
+        sub: cardSub(card, false),
         button: taking
           ? { label: '残す', onClick: () => this.change(() => (p.hand = p.hand.filter((id) => id !== card.id))) }
           : {
