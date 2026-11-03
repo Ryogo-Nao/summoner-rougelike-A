@@ -3,7 +3,7 @@ import { GameState } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
-import { cardIcon, openBagSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { cardIcon, openAllySheet, openBagSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
 
@@ -13,7 +13,9 @@ const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSe
 
 const state = new GameState(seed);
 state.addLog('ダンジョンに入った');
-state.turnFirst = loadSettings().turnFirst;
+const settings = loadSettings();
+state.turnFirst = settings.turnFirst;
+state.allyMove = settings.allyMove;
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
 
@@ -133,14 +135,22 @@ function askDescend(): void {
 }
 
 // ミニマップをタップすると拡大し、拡大中はマップのどこをタップしても元に戻す。
-// 拡大したままでも歩ける
+// 拡大したままでも歩ける。隣の仲間をタップすると、入れ替わるか押すかを選べる
 canvas.addEventListener('pointerdown', (e) => {
   const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
   if (renderer.minimapExpanded) {
     renderer.minimapExpanded = false;
-  } else if (renderer.hitsMinimap(e.clientX - rect.left, e.clientY - rect.top)) {
+  } else if (renderer.hitsMinimap(x, y)) {
     renderer.minimapExpanded = true;
   } else {
+    const at = renderer.tileAt(state, x, y);
+    const ally = state.allyAt(at.x, at.y);
+    if (ally && state.canReachAlly(ally) && acceptsInput()) {
+      // 仲間のマスへ進むので、階段の上なら降りるかを聞く
+      openAllySheet(state, sheet, ally, () => afterAction(() => state.isOnStairs && askDescend()));
+    }
     return;
   }
   redraw();
@@ -237,7 +247,7 @@ onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
 onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
-  openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst })),
+  openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst, allyMove: state.allyMove })),
 );
 // 仲間の枠をタップしてもカード画面を開く。指示（ついてくる・待機など）はあとで足す
 document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot) => {

@@ -76,6 +76,9 @@ export interface LogEntry {
   serial: number;
 }
 
+/** 仲間のいるマスへ進むときの動き。押すと、仲間を1マス先へ押し出して主人公が進む */
+export type AllyMove = 'swap' | 'push';
+
 /** マップに描くもの1つぶん。主人公・仲間・見えている魔物 */
 export interface ActorView {
   emoji: string;
@@ -165,6 +168,8 @@ export class GameState {
   dead = false;
   /** 1回目のタップで振り向くか。オフなら、押した方向へすぐ進む（メニューで切り替える） */
   turnFirst = true;
+  /** 仲間のいるマスへ進んだとき、入れ替わるか押すか（メニューで切り替える） */
+  allyMove: AllyMove = 'swap';
   /** 離れたところから主人公を攻撃してきた魔物。仲間はこの魔物には自分から近づく */
   private provoker: Monster | null = null;
   /** HP回復の端数の持ち越し */
@@ -290,7 +295,7 @@ export class GameState {
   /**
    * パッドの方向を押したとき。turnFirst なら、今の向きと違えば振り向くだけで、ターンは使わない。
    * 進む先に魔物がいれば、その方を向くだけで攻撃はしない（攻撃は［攻撃］ボタンで）。
-   * 仲間がいれば場所を入れ替わる。進めたら 'moved'、それ以外は 'none'
+   * 仲間がいれば、設定（allyMove）に従って入れ替わるか押す。押せなければ入れ替わる。進めたら 'moved'、それ以外は 'none'
    */
   tryMove(dir: Dir): 'moved' | 'none' {
     const p = this.player;
@@ -305,11 +310,47 @@ export class GameState {
     this.beginAction();
     const to = { x: p.pos.x + v.x, y: p.pos.y + v.y };
     const ally = this.allyAt(to.x, to.y);
-    if (ally) ally.pos = { ...p.pos };
+    if (ally) this.passAlly(ally, dir, this.allyMove === 'push' && this.canPush(ally) ? 'push' : 'swap');
     p.pos = to;
     this.pickUp();
     this.endTurn();
     return 'moved';
+  }
+
+  /** 隣の仲間の方へ進めるか（壁の角越しでないか） */
+  canReachAlly(ally: Ally): boolean {
+    const dir = dirFromDelta(ally.pos.x - this.player.pos.x, ally.pos.y - this.player.pos.y);
+    return distance(ally.pos, this.player.pos) === 1 && dir !== null && this.map.canStep(this.player.pos, dir);
+  }
+
+  /** 仲間を、主人公から見て向こう側へ1マス押し出せるか */
+  canPush(ally: Ally): boolean {
+    const dir = dirFromDelta(ally.pos.x - this.player.pos.x, ally.pos.y - this.player.pos.y);
+    return dir !== null && this.canReachAlly(ally) && this.canMoveTo(ally.card.species, ally.pos, dir);
+  }
+
+  /** 隣の仲間をタップして選んだとき。その仲間と入れ替わるか、押して進む。1ターンかかる */
+  moveThroughAlly(ally: Ally, how: AllyMove): void {
+    if (!this.allies.includes(ally) || !this.canReachAlly(ally) || (how === 'push' && !this.canPush(ally))) return;
+    const p = this.player;
+    const dir = dirFromDelta(ally.pos.x - p.pos.x, ally.pos.y - p.pos.y)!;
+    p.facing = dir;
+    this.beginAction();
+    const to = { ...ally.pos };
+    this.passAlly(ally, dir, how);
+    p.pos = to;
+    this.pickUp();
+    this.endTurn();
+  }
+
+  /** 主人公が dir へ進んで仲間のマスに入る前に、仲間をどかす */
+  private passAlly(ally: Ally, dir: Dir, how: AllyMove): void {
+    if (how === 'push') {
+      ally.pos = this.ahead(ally.pos, dir);
+      ally.facing = dir;
+    } else {
+      ally.pos = { ...this.player.pos };
+    }
   }
 
   /** 足もとのアイテムを拾う。バッグがいっぱいなら拾わない */

@@ -192,6 +192,17 @@ export class Renderer {
     }
   }
 
+  /** 画面上の点（CSS px、キャンバスの左上が原点）にあるマス。draw と同じく、主人公を中央に置いた位置で求める */
+  tileAt(state: GameState, x: number, y: number): { x: number; y: number } {
+    const ts = this.tileSize;
+    const px0 = HALF * ts;
+    const py0 = Math.floor(this.viewH / 2 - ts / 2);
+    return {
+      x: state.player.pos.x + Math.floor((x - px0) / ts),
+      y: state.player.pos.y + Math.floor((y - py0) / ts),
+    };
+  }
+
   /** 画面上の点（CSS px、キャンバスの左上が原点）が小さいミニマップの上にあるか */
   hitsMinimap(x: number, y: number): boolean {
     const r = this.minimapRect;

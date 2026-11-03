@@ -1,5 +1,6 @@
 import { HAND_LIMIT, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
+import type { Ally } from '../game/cards';
 import { SPELLS, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
 
@@ -158,8 +159,40 @@ export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => vo
         },
       },
     },
+    {
+      icon: '🔁',
+      name: '仲間のいるマスへ進む',
+      sub: state.allyMove === 'swap' ? '仲間と入れ替わる' : '仲間を1マス押し出す\n押せないときは入れ替わる',
+      button: {
+        label: state.allyMove === 'swap' ? '入れ替わる' : '押す',
+        onClick: () => {
+          state.allyMove = state.allyMove === 'swap' ? 'push' : 'swap';
+          onChange();
+          openMenuSheet(state, sheet, onChange);
+        },
+      },
+    },
   ];
-  sheet.open('メニュー', rows, { note: '攻撃は［攻撃］ボタンで' });
+  sheet.open('メニュー', rows, { note: '攻撃は［攻撃］ボタンで\n隣の仲間をタップすると入れ替わるか押すかを選べる' });
+}
+
+/** マップで隣の仲間をタップしたとき。入れ替わるか押すかを選ぶ。どちらも1ターンかかる */
+export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after: AfterAction): void {
+  const act = (f: () => void) => () => {
+    sheet.close();
+    f();
+    after();
+  };
+  const buttons = document.createElement('div');
+  buttons.append(wideButton('入れ替わる', false, act(() => state.moveThroughAlly(ally, 'swap'))));
+  const canPush = state.canPush(ally);
+  buttons.append(
+    wideButton(canPush ? '押す' : '押せない', !canPush, act(() => state.moveThroughAlly(ally, 'push'))),
+  );
+  sheet.open(`${cardIcon(ally.card)} ${ally.card.species.name}`, [], {
+    note: `HP${ally.card.hp}/${ally.card.maxHp}`,
+    footer: buttons,
+  });
 }
 
 /** 手元がいっぱいのときに新しいカードを手に入れたら、保管庫へ送る1枚を選ぶまで閉じない */
