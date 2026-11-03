@@ -107,6 +107,8 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
     after();
   };
   const buttons = document.createElement('div');
+  const preview = state.equipPreview(item);
+  if (preview) buttons.append(statChange(preview));
   const label = state.useLabel(item);
   if (label) {
     const problem = state.useProblem(item);
@@ -117,6 +119,25 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
   buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
   buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
   sheet.open(`${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
+}
+
+/** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */
+function statChange({ stat, before, after }: { stat: string; before: number; after: number }): HTMLElement {
+  const el = document.createElement('p');
+  el.className = 'stat-change';
+  el.textContent = `${stat} ${before} → ${after} `;
+  const diff = document.createElement('span');
+  if (after > before) {
+    diff.className = 'up';
+    diff.textContent = `↑${after - before}`;
+  } else if (after < before) {
+    diff.className = 'down';
+    diff.textContent = `↓${before - after}`;
+  } else {
+    diff.textContent = '変化なし';
+  }
+  el.append(diff);
+  return el;
 }
 
 /** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */

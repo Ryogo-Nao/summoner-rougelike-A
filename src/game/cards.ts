@@ -85,11 +85,12 @@ export function growCard(card: Card): void {
 
 /**
  * 封印カードの成功率（requirements.md 5.2）。hpRatio は残りHPの割合。
- * h > 0.15 → 基本 × (1 + (1 − h))、h ≦ 0.15 → 基本 × (3 + 2 × (0.15 − h) / 0.15)。最大100％
+ * h > 0.15 → 基本 × (1 + (1 − h))、0.01 < h ≦ 0.15 → 基本 × (3 + 2 × (0.15 − h) / 0.14)、
+ * h ≦ 0.01 → 基本 × 5。最大100％
  */
 export function captureChance(base: number, hpRatio: number): number {
   const h = Math.max(0, Math.min(1, hpRatio));
-  const scale = h > 0.15 ? 1 + (1 - h) : 3 + (2 * (0.15 - h)) / 0.15;
+  const scale = h > 0.15 ? 1 + (1 - h) : h > 0.01 ? 3 + (2 * (0.15 - h)) / 0.14 : 5;
   return Math.min(1, base * scale);
 }
 

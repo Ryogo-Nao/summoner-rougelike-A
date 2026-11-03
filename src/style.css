@@ -90,6 +90,20 @@ button {
   height: 100%;
   width: 0;
 }
+/* HPが少ないときや空腹のときに、その段を赤く点滅させる */
+@keyframes danger-blink {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(229, 83, 75, 0.45); }
+}
+.gauge-row.danger {
+  border-radius: 4px;
+  animation: danger-blink 0.9s ease-in-out infinite;
+}
+.gauge-row.danger .label,
+.gauge-row.danger .value {
+  color: #ff6b5e;
+  font-weight: bold;
+}
 .gauge.hp i { background: var(--hp); }
 .gauge.mp i { background: var(--mp); }
 .gauge.food i { background: var(--food); }
@@ -278,6 +292,17 @@ button {
 .sheet-wide {
   width: 100%;
   margin-top: 10px;
+}
+.stat-change {
+  margin: 4px 4px 0;
+  font-size: 15px;
+  font-weight: bold;
+}
+.stat-change .up {
+  color: #4fd18b;
+}
+.stat-change .down {
+  color: #ff6b5e;
 }
 
 /* 操作部。画面の幅に合わせて大きくする */

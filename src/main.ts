@@ -28,6 +28,10 @@ function setGauge(selector: string, textId: string, value: number, max: number, 
   document.getElementById(textId)!.textContent = text;
 }
 
+function setDanger(selector: string, on: boolean): void {
+  document.querySelector(selector)!.parentElement!.classList.toggle('danger', on);
+}
+
 /** 攻撃の場面の再生中は、その時点のHPとログを出す */
 interface HudMoment {
   hp: number;
@@ -41,6 +45,9 @@ function updateHud(moment?: HudMoment): void {
   document.getElementById('level')!.textContent = `Lv${p.level}`;
   document.getElementById('turn')!.textContent = `${state.turn}T`;
   setGauge('.gauge.hp', 'hp-text', hp, p.maxHp, `${hp}/${p.maxHp}`);
+  // HPが1割以下のときと、満腹度が0のときは、その段を赤く点滅させる
+  setDanger('.gauge.hp', hp <= p.maxHp * 0.1);
+  setDanger('.gauge.food', p.food <= 0);
   setGauge('.gauge.mp', 'mp-text', p.mp, p.maxMp, `${p.mp}/${p.maxMp}`);
   setGauge('.gauge.food', 'food-text', p.food, p.maxFood, `${p.food}%`);
 

@@ -30,7 +30,7 @@ import {
   type Item,
   type ItemKind,
 } from './items';
-import { firstStepToward } from './path';
+import { distanceField, firstStepToward } from './path';
 import { Rng } from './rng';
 
 /** MVPのダンジョンの階数（requirements.md 8章） */
@@ -153,6 +153,8 @@ export class GameState {
   turn = 0;
   log: LogEntry[] = [];
   private logSerial = 0;
+  /** 主人公から各マスまでの歩数。仲間がついていくときに使い、仲間が動く前に作り直す */
+  private followField: Int16Array = new Int16Array(0);
   /** この行動で起きた攻撃の場面。画面が再生する */
   private scenes: Scene[] = [];
   /** 一度でも見たマス（ミニマップと、暗く表示する範囲） */
@@ -347,6 +349,20 @@ export class GameState {
     if (def.slot) return this.isEquipped(item) ? '外す' : '装備';
     if (item.kind === 'blank') return null;
     return '使う';
+  }
+
+  /** 装備する（装備中なら外す）と、攻撃力か防御力がいくつからいくつになるか。装備できないアイテムは null */
+  equipPreview(item: Item): { stat: '攻撃力' | '防御力'; before: number; after: number } | null {
+    const slot = ITEMS[item.kind].slot;
+    if (!slot) return null;
+    const p = this.player;
+    const value = () => (slot === 'weapon' ? this.attackPower() : this.defensePower());
+    const current = p[slot];
+    const before = value();
+    p[slot] = current === item ? null : item;
+    const after = value();
+    p[slot] = current;
+    return { stat: slot === 'weapon' ? '攻撃力' : '防御力', before, after };
   }
 
   isEquipped(item: Item): boolean {
@@ -818,7 +834,9 @@ export class GameState {
     this.updateVisibility();
     this.slowRest = !this.slowRest;
     // 主人公に近い仲間から動く。前の仲間が空けたマスに、後ろの仲間が続けて入れるようにする
-    const allies = [...this.allies].sort((x, y) => distance(x.pos, this.player.pos) - distance(y.pos, this.player.pos));
+    const { width, height } = this.map;
+    this.followField = distanceField(width, height, this.player.pos, (at, d) => this.map.canStep(at, d));
+    const allies = [...this.allies].sort((x, y) => this.followDistance(x.pos) - this.followDistance(y.pos));
     for (const a of allies) {
       for (let i = 0; i < this.actionsThisTurn(a.card.species); i++) this.allyAct(a);
     }
@@ -1114,42 +1132,35 @@ export class GameState {
     // 隣にいても、壁の角で斜めに進めないなら離れているのと同じ。曲がり角では主人公のいたマスに入る
     const p = this.player.pos;
     if (this.canHitAdjacent(species, a.pos, p)) return;
-    let dir = this.followStep(a, p);
-    if (dir === null) return;
-    if (this.nextToMonster(a.pos, dir)) {
-      // 魔物の隣に入らずに、主人公へ同じだけ近づける道があれば、そちらを選ぶ
-      const v = DIR_VECTORS[dir];
-      const best = distance({ x: a.pos.x + v.x, y: a.pos.y + v.y }, p);
-      const safer = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).find((d) => {
-        if (!this.canMoveTo(species, a.pos, d) || this.nextToMonster(a.pos, d)) return false;
-        const w = DIR_VECTORS[d];
-        return distance({ x: a.pos.x + w.x, y: a.pos.y + w.y }, p) <= best;
-      });
-      if (safer !== undefined) dir = safer;
-    }
-    this.moveAlly(a, dir);
+    const dir = this.followStep(a);
+    if (dir !== null) this.moveAlly(a, dir);
+  }
+
+  /** 主人公までの歩数。たどり着けないマスはとても遠いものとする */
+  private followDistance(at: Pos): number {
+    const d = this.followField[at.y * this.map.width + at.x];
+    return d === undefined || d < 0 ? 9999 : d;
   }
 
   /**
-   * 主人公についていく1歩。いちばん近い道の1歩目が空いていればそこへ進む。
-   * 他の仲間に塞がれていたら、主人公に近づける空いたマスへ進み、なければ待つ。
-   * 塞がれたからといって遠回りはしない（通路で前の仲間が詰まっているだけなので、次のターンには空く）
+   * 主人公についていく1歩。まわり8マスのうち、空いていて、主人公までの歩数がいちばん少なくなるマスへ進む。
+   * 前の仲間が塞いでいても、斜めに回り込んで間を空けない。近づけるマスがなければ待つ（遠回りはしない）。
+   * 同じだけ近づけるなら、魔物の隣でないマスを選ぶ
    */
-  private followStep(a: Ally, goal: Pos): Dir | null {
+  private followStep(a: Ally): Dir | null {
     const species = a.card.species;
-    const { width, height } = this.map;
-    const direct = firstStepToward(width, height, a.pos, goal, (at, d) => this.canPass(species, at, d));
-    if (direct === null) return null;
-    if (this.canMoveTo(species, a.pos, direct)) return direct;
-    const now = distance(a.pos, goal);
     let best: Dir | null = null;
-    let bestDist = now;
-    for (const d of [0, 1, 2, 3, 4, 5, 6, 7] as Dir[]) {
+    let bestDist = this.followDistance(a.pos);
+    let bestSafe = false;
+    for (const d of [0, 2, 4, 6, 1, 3, 5, 7] as Dir[]) {
       if (!this.canMoveTo(species, a.pos, d)) continue;
-      const dist = distance(this.ahead(a.pos, d), goal);
-      if (dist < bestDist) {
+      const dist = this.followDistance(this.ahead(a.pos, d));
+      if (dist >= this.followDistance(a.pos)) continue;
+      const safe = !this.nextToMonster(a.pos, d);
+      if (dist < bestDist || (dist === bestDist && safe && !bestSafe)) {
         best = d;
         bestDist = dist;
+        bestSafe = safe;
       }
     }
     return best;

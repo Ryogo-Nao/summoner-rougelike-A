@@ -4,6 +4,36 @@ import { DIR_VECTORS, type Dir, type Pos } from './dir';
 const SEARCH_ORDER: readonly Dir[] = [0, 2, 4, 6, 1, 3, 5, 7];
 
 /**
+ * from から各マスまでの歩数を幅優先探索で求める。たどり着けないマスは -1。
+ * canStep(マス, 向き) でその向きに進めるかを判定する
+ */
+export function distanceField(
+  width: number,
+  height: number,
+  from: Pos,
+  canStep: (at: Pos, dir: Dir) => boolean,
+): Int16Array {
+  const dist = new Int16Array(width * height).fill(-1);
+  dist[from.y * width + from.x] = 0;
+  const queue: Pos[] = [from];
+  for (let head = 0; head < queue.length; head++) {
+    const at = queue[head];
+    const next = dist[at.y * width + at.x] + 1;
+    for (const dir of SEARCH_ORDER) {
+      const v = DIR_VECTORS[dir];
+      const x = at.x + v.x;
+      const y = at.y + v.y;
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      const i = y * width + x;
+      if (dist[i] !== -1 || !canStep(at, dir)) continue;
+      dist[i] = next;
+      queue.push({ x, y });
+    }
+  }
+  return dist;
+}
+
+/**
  * from から goal へ向かう最短経路の、最初の1歩の向きを幅優先探索で求める。
  * canStep(マス, 向き) でその向きに進めるかを判定する。goal 自体は塞がっていてもよい。
  * たどり着けなければ null
