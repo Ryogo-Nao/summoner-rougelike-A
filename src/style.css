@@ -399,5 +399,8 @@ button {
 }
 .ally-slot.filled {
   color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
   border-color: #3f7a5c;
 }

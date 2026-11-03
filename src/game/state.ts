@@ -10,6 +10,7 @@ import {
   growCard,
   isPartner,
   type Ally,
+  type AllyOrder,
   type Card,
 } from './cards';
 import { HIT_RATE, levelForExp, rollDamage } from './combat';
@@ -315,6 +316,11 @@ export class GameState {
     this.pickUp();
     this.endTurn();
     return 'moved';
+  }
+
+  /** 仲間に指示を出す。ターンは使わない */
+  setOrder(ally: Ally, order: AllyOrder): void {
+    ally.order = order;
   }
 
   /** 隣の仲間の方へ進めるか（壁の角越しでないか） */
@@ -626,7 +632,7 @@ export class GameState {
     this.beginAction();
     this.player.mp -= card.species.cost;
     card.status = 'summoned';
-    this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing });
+    this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing, order: 'follow' });
     this.addLog(`${card.species.name}を召喚した`);
     this.endTurn();
   }
@@ -1131,6 +1137,8 @@ export class GameState {
   private allyAct(a: Ally): void {
     if (!this.allies.includes(a)) return;
     const species = a.card.species;
+    // 逃げる：近くに魔物がいれば、まず離れる。逃げ場がなければ、その場で戦う
+    if (a.order === 'flee' && this.fleeStep(a)) return;
     const adjacent = this.monsters
       .filter((m) => this.canHitAdjacent(species, a.pos, m.pos))
       .sort((x, y) => x.hp - y.hp);
@@ -1160,6 +1168,21 @@ export class GameState {
       }
     }
 
+    // 待機：その場から動かない（隣の魔物への攻撃と、いかずちはする）
+    if (a.order === 'wait') return;
+
+    // 突撃：見えている魔物のうち、いちばん近いものへ向かう。いなければついてくる
+    if (a.order === 'charge') {
+      const target = this.monsters
+        .filter((m) => this.isVisible(m.pos.x, m.pos.y))
+        .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
+      if (target) {
+        const dir = this.stepToward(species, a.pos, target.pos);
+        if (dir !== null && this.canMoveTo(species, a.pos, dir)) this.moveAlly(a, dir);
+        return;
+      }
+    }
+
     const provoker = this.provoker;
     if (provoker && (!this.monsters.includes(provoker) || !this.isVisible(provoker.pos.x, provoker.pos.y))) {
       this.provoker = null;
@@ -1175,6 +1198,33 @@ export class GameState {
     if (this.canHitAdjacent(species, a.pos, p)) return;
     const dir = this.followStep(a);
     if (dir !== null) this.moveAlly(a, dir);
+  }
+
+  /**
+   * 逃げる仲間の1歩。4マス以内に見えている魔物がいれば、いちばん近い魔物から遠ざかるマスへ進む。
+   * 同じだけ遠ざかれるなら、主人公に近いマスを選ぶ。動いたら true
+   */
+  private fleeStep(a: Ally): boolean {
+    const near = this.monsters.filter((m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) <= 4);
+    if (near.length === 0) return false;
+    const danger = (at: Pos) => Math.min(...near.map((m) => distance(m.pos, at)));
+    let best: Dir | null = null;
+    let bestDanger = danger(a.pos);
+    let bestFollow = this.followDistance(a.pos);
+    for (const d of [0, 1, 2, 3, 4, 5, 6, 7] as Dir[]) {
+      if (!this.canMoveTo(a.card.species, a.pos, d)) continue;
+      const to = this.ahead(a.pos, d);
+      const away = danger(to);
+      const follow = this.followDistance(to);
+      if (away > bestDanger || (away === bestDanger && best !== null && follow < bestFollow)) {
+        best = d;
+        bestDanger = away;
+        bestFollow = follow;
+      }
+    }
+    if (best === null) return false;
+    this.moveAlly(a, best);
+    return true;
   }
 
   /** 主人公までの歩数。たどり着けないマスはとても遠いものとする */

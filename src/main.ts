@@ -3,7 +3,8 @@ import { GameState } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
-import { cardIcon, openAllySheet, openBagSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { ORDER_LABEL } from './game/cards';
+import { cardIcon, openAllySheet, openBagSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
 
@@ -56,7 +57,9 @@ function updateHud(moment?: HudMoment): void {
   // 仲間の枠には、召喚している仲間とそのHPを出す。空いている枠は、押すと召喚できることを示す
   document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
     const a = state.allies[i];
-    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}` : '召喚';
+    // ついてくる以外の指示を出しているときは、指示も出す
+    const order = a && a.order !== 'follow' ? ` ${ORDER_LABEL[a.order]}` : '';
+    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}${order}` : '召喚';
     slot.classList.toggle('filled', a !== undefined);
   });
 
@@ -250,9 +253,13 @@ onButton('btn-menu', () =>
   openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst, allyMove: state.allyMove })),
 );
 // 仲間の枠をタップしてもカード画面を開く。指示（ついてくる・待機など）はあとで足す
-document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot) => {
+// 仲間の枠をタップすると、仲間がいれば指示を、空いていればカード画面（召喚）を開く
+document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
   slot.addEventListener('pointerdown', () => {
-    if (acceptsInput()) openCardSheet(state, sheet, afterAction);
+    if (!acceptsInput()) return;
+    const ally = state.allies[i];
+    if (ally) openOrderSheet(state, sheet, ally, afterAction);
+    else openCardSheet(state, sheet, afterAction);
   });
 });
 

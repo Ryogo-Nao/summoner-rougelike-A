@@ -1,6 +1,6 @@
 import { HAND_LIMIT, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
-import type { Ally } from '../game/cards';
+import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
 
@@ -174,6 +174,41 @@ export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => vo
     },
   ];
   sheet.open('メニュー', rows, { note: '攻撃は［攻撃］ボタンで\n隣の仲間をタップすると入れ替わるか押すかを選べる' });
+}
+
+const ORDER_DESC: Record<AllyOrder, string> = {
+  follow: '主人公のそばで戦う',
+  wait: 'その場から動かない',
+  charge: '見えている敵へ向かっていく',
+  flee: '敵から離れる',
+};
+
+/** 仲間の枠をタップしたとき。指示を選ぶ（ターンは使わない）。カードに戻すこともできる（1ターン） */
+export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after: AfterAction): void {
+  const card = ally.card;
+  const rows: SheetRow[] = (Object.keys(ORDER_LABEL) as AllyOrder[]).map((order) => ({
+    icon: ally.order === order ? '▶' : '',
+    name: ORDER_LABEL[order],
+    sub: ORDER_DESC[order],
+    button: {
+      label: ally.order === order ? '指示中' : '選ぶ',
+      disabled: ally.order === order,
+      onClick: () => {
+        state.setOrder(ally, order);
+        sheet.close();
+        after();
+      },
+    },
+  }));
+  const footer = wideButton('カードに戻す', false, () => {
+    sheet.close();
+    state.recall(card);
+    after();
+  });
+  sheet.open(`${cardIcon(card)} ${card.species.name}`, rows, {
+    note: `Lv${card.level}　HP${card.hp}/${card.maxHp}`,
+    footer,
+  });
 }
 
 /** マップで隣の仲間をタップしたとき。入れ替わるか押すかを選ぶ。どちらも1ターンかかる */

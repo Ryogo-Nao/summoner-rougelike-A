@@ -42,10 +42,21 @@ export interface Card {
 }
 
 /** フィールドに召喚している仲間 */
+/** 仲間への指示（requirements.md 6章）。ついてくる・待機・突撃・逃げる */
+export type AllyOrder = 'follow' | 'wait' | 'charge' | 'flee';
+
+export const ORDER_LABEL: Record<AllyOrder, string> = {
+  follow: 'ついてくる',
+  wait: '待機',
+  charge: '突撃',
+  flee: '逃げる',
+};
+
 export interface Ally {
   card: Card;
   pos: Pos;
   facing: Dir;
+  order: AllyOrder;
 }
 
 let nextCardId = 1;
