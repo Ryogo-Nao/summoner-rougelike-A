@@ -6,6 +6,15 @@ export class Rng {
     this.state = seed >>> 0;
   }
 
+  /** 保存と再開のために、今の状態を取り出す・戻す */
+  save(): number {
+    return this.state;
+  }
+
+  load(state: number): void {
+    this.state = state >>> 0;
+  }
+
   /** 0以上1未満 */
   next(): number {
     let t = (this.state = (this.state + 0x6d2b79f5) >>> 0);

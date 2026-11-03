@@ -69,6 +69,14 @@ export interface FloorItem {
 
 let nextItemId = 1;
 
+/** 保存したアイテムを読み込んだあと、新しいアイテムの番号が重ならないようにする */
+export function reserveItemIds(maxId: number): void {
+  nextItemId = Math.max(nextItemId, maxId + 1);
+}
+
+/** 初めて遊ぶときのバッグの中身（balance.md 8章） */
+export const START_ITEMS: ItemKind[] = ['bread', 'herb', 'blank', 'blank'];
+
 export function createItem(kind: ItemKind): Item {
   return { id: nextItemId++, kind };
 }

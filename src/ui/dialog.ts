@@ -5,6 +5,7 @@ export class ConfirmDialog {
   private readonly yes = document.getElementById('dialog-yes')!;
   private readonly no = document.getElementById('dialog-no')!;
   private onYes: (() => void) | null = null;
+  private onNo: (() => void) | null = null;
   private readonly onOpen: () => void;
 
   /** onOpen はダイアログを開くたびに呼ぶ。押しっぱなしのパッドを離すのに使う */
@@ -15,14 +16,20 @@ export class ConfirmDialog {
       this.close();
       handler?.();
     });
-    this.no.addEventListener('click', () => this.close());
+    this.no.addEventListener('click', () => {
+      const handler = this.onNo;
+      this.close();
+      handler?.();
+    });
   }
 
-  open(message: string, yesLabel: string, noLabel: string, onYes: () => void): void {
+  /** onNo を省くと、いいえは閉じるだけ */
+  open(message: string, yesLabel: string, noLabel: string, onYes: () => void, onNo?: () => void): void {
     this.text.textContent = message;
     this.yes.textContent = yesLabel;
     this.no.textContent = noLabel;
     this.onYes = onYes;
+    this.onNo = onNo ?? null;
     this.root.hidden = false;
     this.onOpen();
   }
@@ -30,6 +37,7 @@ export class ConfirmDialog {
   close(): void {
     this.root.hidden = true;
     this.onYes = null;
+    this.onNo = null;
   }
 
   isOpen(): boolean {

@@ -53,7 +53,7 @@ export class Sheet {
   }
 }
 
-function renderRow(row: SheetRow): HTMLElement {
+export function renderRow(row: SheetRow): HTMLElement {
   const el = document.createElement('div');
   el.className = row.dim ? 'sheet-row dim' : 'sheet-row';
   const icon = document.createElement('span');

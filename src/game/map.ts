@@ -34,6 +34,11 @@ export class GameMap {
     });
   }
 
+  /** 保存用に、全マスを数字の並びで取り出す */
+  tileData(): Tile[] {
+    return [...this.tiles];
+  }
+
   inBounds(x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < this.width && y < this.height;
   }

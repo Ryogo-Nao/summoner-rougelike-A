@@ -61,6 +61,11 @@ export interface Ally {
 
 let nextCardId = 1;
 
+/** 保存したカードを読み込んだあと、新しいカードの番号が重ならないようにする */
+export function reserveCardIds(maxId: number): void {
+  nextCardId = Math.max(nextCardId, maxId + 1);
+}
+
 export function createCard(species: Species, obtainedHere: boolean): Card {
   return {
     id: nextCardId++,

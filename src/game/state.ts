@@ -6,6 +6,7 @@ import {
   SUMMON_LIMIT,
   captureChance,
   createCard,
+  reserveCardIds,
   dropChance,
   growCard,
   isPartner,
@@ -17,7 +18,7 @@ import { HIT_RATE, levelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { GameMap, Tile, type Room } from './map';
-import { createMonster, speciesForFloor, type Monster, type Species } from './monsters';
+import { SPECIES, createMonster, speciesForFloor, type Monster, type Species } from './monsters';
 import {
   BAG_LIMIT,
   HERB_HEAL,
@@ -25,11 +26,12 @@ import {
   ITEMS_PER_FLOOR,
   THROW_DAMAGE,
   WATER_MP,
+  START_ITEMS,
   createItem,
   randomItemKind,
+  reserveItemIds,
   type FloorItem,
   type Item,
-  type ItemKind,
 } from './items';
 import { distanceField, firstStepToward } from './path';
 import { Rng } from './rng';
@@ -52,8 +54,6 @@ export const SPELLS = {
 export type SpellId = keyof typeof SPELLS;
 /** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
 const LINE_RANGE = 10;
-/** 初めて遊ぶときのバッグの中身（balance.md 8章） */
-const START_ITEMS: ItemKind[] = ['bread', 'herb', 'blank', 'blank'];
 /** 満腹度が1減るまでのターン数と、知らせる満腹度（balance.md 1.5） */
 const FOOD_INTERVAL = 10;
 const HUNGER_WARNINGS: Record<number, string> = {
@@ -135,6 +135,51 @@ export interface Popup {
   kind: 'damage' | 'hurt' | 'miss' | 'info';
 }
 
+/** ダンジョンに持っていくもの。拠点で選ぶ */
+export interface Loadout {
+  cards: Card[];
+  bag: Item[];
+  learned: SpellId[];
+}
+
+/** 保存するときのカード。魔物の種類は id で持つ */
+export type CardData = Omit<Card, 'species'> & { species: string };
+
+/** ダンジョンの途中の保存データ（requirements.md 2章：毎ターン自動保存） */
+export interface RunData {
+  version: 1;
+  rng: number;
+  floor: number;
+  turn: number;
+  map: { width: number; height: number; tiles: number[]; rooms: Room[] };
+  explored: string;
+  player: Omit<Player, 'weapon' | 'shield'> & { weapon: number | null; shield: number | null };
+  monsters: (Omit<Monster, 'species'> & { species: string })[];
+  cards: CardData[];
+  storage: CardData[];
+  pendingCard: CardData | null;
+  allies: { card: number; pos: Pos; facing: Dir; order: AllyOrder }[];
+  bag: Item[];
+  floorItems: FloorItem[];
+  learned: SpellId[];
+  log: LogEntry[];
+  logSerial: number;
+  provoker: number;
+  regenCarry: number;
+  slowRest: boolean;
+}
+
+const ALL_SPECIES: readonly Species[] = [...SPECIES, IZUTSUCHI];
+
+export function speciesById(id: string): Species {
+  const s = ALL_SPECIES.find((x) => x.id === id);
+  if (!s) throw new Error(`知らない魔物: ${id}`);
+  return s;
+}
+
+export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
+export const cardFromData = (data: CardData): Card => ({ ...data, species: speciesById(data.species) });
+
 export class GameState {
   readonly rng: Rng;
   map!: GameMap;
@@ -178,8 +223,14 @@ export class GameState {
   /** 鈍足の魔物が休むターンかどうか */
   private slowRest = false;
 
-  constructor(seed: number) {
+  /** loadout を省くと、初めて遊ぶときの持ち物で始める */
+  constructor(seed: number, loadout?: Loadout) {
     this.rng = new Rng(seed);
+    if (loadout) {
+      this.cards = loadout.cards;
+      this.bag = loadout.bag;
+      this.learned = new Set(loadout.learned);
+    }
     this.player = {
       pos: { x: 0, y: 0 },
       facing: 4,
@@ -199,6 +250,70 @@ export class GameState {
       guardTurns: 0,
     };
     this.enterFloor();
+  }
+
+  // ---- 保存と再開 ----
+
+  toData(): RunData {
+    const p = this.player;
+    return {
+      version: 1,
+      rng: this.rng.save(),
+      floor: this.floor,
+      turn: this.turn,
+      map: { width: this.map.width, height: this.map.height, tiles: this.map.tileData(), rooms: this.map.rooms },
+      explored: Array.from(this.explored).join(''),
+      player: { ...p, weapon: p.weapon?.id ?? null, shield: p.shield?.id ?? null },
+      monsters: this.monsters.map((m) => ({ ...m, species: m.species.id })),
+      cards: this.cards.map(cardToData),
+      storage: this.storage.map(cardToData),
+      pendingCard: this.pendingCard ? cardToData(this.pendingCard) : null,
+      allies: this.allies.map((a) => ({ card: a.card.id, pos: a.pos, facing: a.facing, order: a.order })),
+      bag: this.bag,
+      floorItems: this.floorItems,
+      learned: [...this.learned],
+      log: this.log,
+      logSerial: this.logSerial,
+      provoker: this.provoker ? this.monsters.indexOf(this.provoker) : -1,
+      regenCarry: this.regenCarry,
+      slowRest: this.slowRest,
+    };
+  }
+
+  /** 保存データから、ダンジョンの途中の状態を作り直す */
+  static fromData(data: RunData): GameState {
+    if (data.version !== 1) throw new Error('保存データの形式が違う');
+    const s = new GameState(1);
+    s.rng.load(data.rng);
+    s.floor = data.floor;
+    s.turn = data.turn;
+    s.map = new GameMap(data.map.width, data.map.height, data.map.tiles as Tile[], data.map.rooms);
+    s.explored = Uint8Array.from(data.explored, (c) => Number(c));
+    s.visible = new Uint8Array(data.map.width * data.map.height);
+    s.bag = data.bag;
+    const itemById = (id: number | null) => (id === null ? null : (s.bag.find((i) => i.id === id) ?? null));
+    s.player = { ...data.player, weapon: itemById(data.player.weapon), shield: itemById(data.player.shield) };
+    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species) }));
+    s.cards = data.cards.map(cardFromData);
+    s.storage = data.storage.map(cardFromData);
+    s.pendingCard = data.pendingCard ? cardFromData(data.pendingCard) : null;
+    s.allies = data.allies.flatMap((a) => {
+      const card = s.cards.find((c) => c.id === a.card);
+      return card ? [{ card, pos: a.pos, facing: a.facing, order: a.order }] : [];
+    });
+    s.floorItems = data.floorItems;
+    s.learned = new Set(data.learned);
+    s.log = data.log;
+    s.logSerial = data.logSerial;
+    s.provoker = s.monsters[data.provoker] ?? null;
+    s.regenCarry = data.regenCarry;
+    s.slowRest = data.slowRest;
+    s.popups = [];
+    const cards = [...s.cards, ...s.storage, ...(s.pendingCard ? [s.pendingCard] : [])];
+    reserveCardIds(Math.max(0, ...cards.map((c) => c.id)));
+    reserveItemIds(Math.max(0, ...s.bag.map((i) => i.id), ...s.floorItems.map((f) => f.item.id)));
+    s.updateVisibility();
+    return s;
   }
 
   private enterFloor(): void {

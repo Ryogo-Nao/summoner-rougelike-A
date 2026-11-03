@@ -73,6 +73,17 @@
           <div id="sheet-body"></div>
         </div>
       </div>
+      <!-- 拠点。ダンジョンに入る前と、戻ってきたあとに開く -->
+      <div id="base" hidden>
+        <header class="base-head">🏠 拠点</header>
+        <nav id="base-tabs">
+          <button data-tab="cards">カード</button>
+          <button data-tab="items">アイテム</button>
+          <button data-tab="spells">魔法</button>
+        </nav>
+        <div id="base-body"></div>
+        <button id="base-depart"></button>
+      </div>
       <div id="dialog" hidden>
         <div class="dialog-box">
           <p id="dialog-text"></p>

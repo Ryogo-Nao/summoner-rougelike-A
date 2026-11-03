@@ -1,29 +1,85 @@
+import { clearRun, loadProfile, loadRunData, loadoutOf, returnToBase, saveRun } from './game/profile';
 import { randomSeed } from './game/rng';
-import { GameState } from './game/state';
+import { GameState, type RunData } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { ORDER_LABEL } from './game/cards';
 import { cardIcon, openAllySheet, openBagSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { BaseScreen } from './ui/base';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
 
 // ?seed=数字 を付けると同じダンジョンを再現できる（デバッグ用）
 const seedParam = Number(new URLSearchParams(location.search).get('seed'));
-const seed = Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSeed();
+const nextSeed = () => (Number.isInteger(seedParam) && seedParam > 0 ? seedParam : randomSeed());
 
-const state = new GameState(seed);
-state.addLog('ダンジョンに入った');
+const profile = loadProfile();
 const settings = loadSettings();
-state.turnFirst = settings.turnFirst;
-state.allyMove = settings.allyMove;
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
+const base = new BaseScreen(() => startRun());
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);
-// 開発中だけ、ブラウザのコンソールから状態を触れるようにする
-if (import.meta.env.DEV) Object.assign(window, { game: state, renderer });
+
+/** 遊んでいるダンジョン。拠点にいる間は、前のダンジョン（または仮の状態）が入っている */
+let state = resumeRun() ?? new GameState(nextSeed(), loadoutOf(profile));
+/** ダンジョンが終わったときの知らせ（踏破・力つきた）。拠点へ戻るまで出し続ける */
+let ending: string | null = null;
+useState(state);
+
+/** 途中で閉じたダンジョンがあれば、続きから再開する。読めない保存データは消す */
+function resumeRun(): GameState | null {
+  const data = loadRunData();
+  if (!data) return null;
+  try {
+    return GameState.fromData(data as RunData);
+  } catch {
+    clearRun();
+    return null;
+  }
+}
+
+function useState(next: GameState): void {
+  state = next;
+  state.turnFirst = settings.turnFirst;
+  state.allyMove = settings.allyMove;
+  // 開発中だけ、ブラウザのコンソールから状態を触れるようにする
+  if (import.meta.env.DEV) Object.assign(window, { game: state, renderer, profile });
+}
+
+/** 拠点で選んだカードとアイテムを持って、ダンジョンに入る */
+function startRun(): void {
+  useState(new GameState(nextSeed(), loadoutOf(profile)));
+  state.addLog('ダンジョンに入った');
+  ending = null;
+  saveRun(state);
+  base.close();
+  layout();
+}
+
+/**
+ * ダンジョンが終わったとき（踏破・力つきた）。持ち帰るものを拠点に移し、知らせる。
+ * 力つきたときは、そのダンジョンで手に入れたカードとバッグの半分を失う
+ */
+function endRun(): void {
+  const title = state.cleared ? 'ダンジョンを踏破した！' : `B${state.floor}Fで力つきた…`;
+  const losses = returnToBase(profile, state);
+  const lost = state.dead
+    ? losses.cards.length + losses.items.length > 0
+      ? `\n失ったもの：カード${losses.cards.length}枚　アイテム${losses.items.length}個`
+      : '\n失ったものはない'
+    : '';
+  ending = title + lost;
+  showEnding();
+}
+
+function showEnding(): void {
+  if (!ending) return;
+  const message = ending;
+  dialog.open(message, '拠点へ', 'ログを見る', () => base.open(profile, message), () => openLogHistory());
+}
 
 function setGauge(selector: string, textId: string, value: number, max: number, text: string): void {
   const bar = document.querySelector<HTMLElement>(`${selector} i`)!;
@@ -131,9 +187,8 @@ function askDescend(): void {
   dialog.open('階段を降りる？', '降りる', 'やめる', () => {
     state.descend();
     redraw();
-    if (state.cleared) {
-      dialog.open('踏破した！', 'もう一度', '閉じる', () => location.reload());
-    }
+    if (state.cleared) endRun();
+    else saveRun(state);
   });
 }
 
@@ -166,7 +221,7 @@ document.addEventListener(
   'touchstart',
   (e) => {
     // 確認ダイアログとログの一覧は、click やスクロールを使うので止めない
-    if (!(e.target instanceof Element && e.target.closest('#dialog, #log-history, #sheet'))) e.preventDefault();
+    if (!(e.target instanceof Element && e.target.closest('#dialog, #log-history, #sheet, #base'))) e.preventDefault();
   },
   { passive: false },
 );
@@ -199,17 +254,27 @@ function openLogHistory(): void {
 document.getElementById('log')!.addEventListener('pointerdown', () => {
   if (!dialog.isOpen() && !sheet.isOpen()) openLogHistory();
 });
-document.getElementById('log-close')!.addEventListener('click', () => {
+/** ログの一覧を閉じる。ダンジョンが終わっていれば、もう一度その知らせを出す */
+function closeLogHistory(): void {
   logHistory.hidden = true;
-});
+  showEnding();
+}
+
+document.getElementById('log-close')!.addEventListener('click', closeLogHistory);
 // 一覧の外側をタップしても閉じる
 logHistory.addEventListener('click', (e) => {
-  if (e.target === logHistory) logHistory.hidden = true;
+  if (e.target === logHistory) closeLogHistory();
 });
 
 /** 攻撃を見せている間、ダイアログやログの一覧が開いている間、踏破・力つきた後は、入力を受け付けない */
 const acceptsInput = () =>
-  !playing && !dialog.isOpen() && !sheet.isOpen() && logHistory.hidden && !state.cleared && !state.dead;
+  !playing &&
+  !base.isOpen() &&
+  !dialog.isOpen() &&
+  !sheet.isOpen() &&
+  logHistory.hidden &&
+  !state.cleared &&
+  !state.dead;
 
 /**
  * 行動のあとに、起きた攻撃を順に見せる。そのあと、カードがあふれていれば保管庫へ送るカードを選ばせ、
@@ -223,9 +288,11 @@ function afterAction(next?: () => void): void {
       return;
     }
     if (state.dead) {
-      dialog.open(`B${state.floor}Fで力つきた…`, 'もう一度', '閉じる', () => location.reload());
+      endRun();
       return;
     }
+    // 毎ターン自動で保存し、閉じても続きから遊べるようにする
+    saveRun(state);
     next?.();
   });
 }
@@ -252,7 +319,6 @@ onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
   openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst, allyMove: state.allyMove })),
 );
-// 仲間の枠をタップしてもカード画面を開く。指示（ついてくる・待機など）はあとで足す
 // 仲間の枠をタップすると、仲間がいれば指示を、空いていればカード画面（召喚）を開く
 document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
   slot.addEventListener('pointerdown', () => {
@@ -302,3 +368,5 @@ new ResizeObserver(layout).observe(field);
 window.addEventListener('resize', layout);
 window.visualViewport?.addEventListener('resize', layout);
 layout();
+// 途中のダンジョンがなければ、拠点から始める
+if (!loadRunData()) base.open(profile);

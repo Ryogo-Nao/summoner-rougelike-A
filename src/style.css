@@ -358,6 +358,73 @@ button {
   grid-column: span 2;
 }
 
+/* 拠点。画面いっぱいに出す */
+#base {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  background: var(--bg);
+}
+#base[hidden] {
+  display: none;
+}
+.base-head {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+#base-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+#base-tabs button {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+}
+#base-tabs button.active {
+  background: var(--btn-active);
+  color: var(--text);
+}
+#base-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin: 8px 0;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.base-message {
+  color: var(--text);
+  font-weight: bold;
+}
+.base-section {
+  margin-top: 14px;
+  color: var(--text);
+  font-weight: bold;
+}
+#base-depart {
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: #3f7a5c;
+  font-size: 17px;
+  font-weight: bold;
+}
+#base-depart:disabled {
+  background: var(--btn);
+  color: var(--muted);
+}
+
 /* 確認ダイアログ。操作部の上に出して、すぐ押せるようにする */
 #dialog {
   position: fixed;
@@ -382,6 +449,7 @@ button {
 }
 .dialog-box p {
   margin: 0 0 14px;
+  white-space: pre-line;
 }
 .dialog-buttons {
   display: grid;
