@@ -66,16 +66,31 @@ export function reserveCardIds(maxId: number): void {
   nextCardId = Math.max(nextCardId, maxId + 1);
 }
 
+/** 仲間にしたばかり（Lv1）の能力は、敵のときのこの割合（balance.md 4.2） */
+export const CAPTURED_RATE = 0.8;
+
+/**
+ * 仲間の、あるレベルでの最大HP・攻撃力・防御力（balance.md 4.2）。
+ * Lv1は敵のときの8割。1レベルごとの伸びは「決まった分 ＋ 敵のときの能力に比例した分」で、
+ * もとが強い魔物ほど大きく伸びる
+ */
+export function cardStats(species: Species, level: number): { maxHp: number; atk: number; def: number } {
+  const n = level - 1;
+  const at = (base: number, flat: number, rate: number) =>
+    Math.max(1, Math.round(base * CAPTURED_RATE + (flat + base * rate) * n));
+  return { maxHp: at(species.hp, 1, 0.08), atk: at(species.atk, 0.5, 0.06), def: at(species.def, 0.3, 0.06) };
+}
+
 export function createCard(species: Species, obtainedHere: boolean): Card {
+  // 相棒のイヅツチは、仲間として作った値をそのまま使う
+  const stats = species.id === IZUTSUCHI.id ? { maxHp: species.hp, atk: species.atk, def: species.def } : cardStats(species, 1);
   return {
     id: nextCardId++,
     species,
     level: 1,
     exp: 0,
-    hp: species.hp,
-    maxHp: species.hp,
-    atk: species.atk,
-    def: species.def,
+    hp: stats.maxHp,
+    ...stats,
     status: 'ready',
     obtainedHere,
   };
@@ -89,12 +104,15 @@ export function growCard(card: Card): void {
   const before = card.maxHp;
   if (isPartner(card)) {
     card.maxHp = Math.max(before + 3, Math.round(before * 1.12));
+    card.atk += 1;
     card.def += 1;
   } else {
-    card.maxHp = Math.max(before + 2, Math.round(before * 1.1));
-    if (card.level % 2 === 1) card.def += 1;
+    // 前のレベルより下がらないようにする（前の決まりで育てたカードのため）
+    const next = cardStats(card.species, card.level);
+    card.maxHp = Math.max(before, next.maxHp);
+    card.atk = Math.max(card.atk, next.atk);
+    card.def = Math.max(card.def, next.def);
   }
-  card.atk += 1;
   // 増えた分だけ今のHPも増える。仲間は自然回復しないので、全回復はしない
   card.hp += card.maxHp - before;
 }
