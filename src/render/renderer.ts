@@ -1,4 +1,5 @@
 import type { ActorView, GameState, Popup, Scene } from '../game/state';
+import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
 
 /**
@@ -35,6 +36,7 @@ const COLORS = {
   hpBar: '#e5534b',
   allyHpBar: '#4fd18b',
   miniAlly: '#4fd18b',
+  miniItem: '#5ff0ff',
   hpBarBg: 'rgba(0, 0, 0, 0.7)',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(0, 0, 0, 0.82)',
@@ -139,6 +141,16 @@ export class Renderer {
       x: px0 + (pos.x - player.pos.x) * ts,
       y: py0 + (pos.y - player.pos.y) * ts,
     });
+
+    // 落ちているアイテムは、見たことのあるマスなら出す
+    ctx.font = `${Math.floor(ts * 0.62)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    for (const f of state.floorItems) {
+      if (!state.isExplored(f.pos.x, f.pos.y)) continue;
+      const { x: sx, y: sy } = toScreen(f.pos);
+      if (sx < -ts || sx > viewW || sy < -ts || sy > viewH) continue;
+      ctx.fillText(ITEMS[f.item.kind].emoji, sx + ts / 2, sy + ts / 2 + 1);
+    }
+    ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
     const actors = play ? play.scene.actors : state.actorViews();
     const popups = play ? (play.phase === 'hit' ? play.scene.popups : []) : state.popups;
@@ -268,6 +280,10 @@ export class Renderer {
         ctx.fillStyle = t === Tile.Stairs ? COLORS.miniStairs : COLORS.miniFloor;
         ctx.fillRect(left + x * tile, top + y * tile, tile, tile);
       }
+    }
+    ctx.fillStyle = COLORS.miniItem;
+    for (const f of state.floorItems) {
+      if (state.isExplored(f.pos.x, f.pos.y)) ctx.fillRect(left + f.pos.x * tile, top + f.pos.y * tile, tile, tile);
     }
     ctx.fillStyle = COLORS.miniMonster;
     for (const m of state.monsters) {

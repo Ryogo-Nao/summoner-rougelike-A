@@ -1,5 +1,6 @@
 import { HAND_LIMIT, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
-import { SPELLS, type GameState } from '../game/state';
+import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
+import { SPELLS, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
 
 /** 一覧から行動したあとに呼ぶ（再描画、力つきたかの確認など） */
@@ -42,14 +43,8 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
       button: { label: '召喚', disabled: problem !== null, onClick: act(() => state.summon(card)) },
     };
   });
-  const footer = wideButton(
-    `封印（残り${state.blankCards}）`,
-    state.blankCards <= 0,
-    act(() => state.throwBlankCard()),
-  );
   sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
     note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}`,
-    footer,
   });
 }
 
@@ -59,14 +54,16 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   const rows: SheetRow[] = state.availableSpells().map((id) => {
     const spell = SPELLS[id];
     const enough = p.mp >= spell.mp;
-    const effect =
-      id === 'fire'
-        ? `正面の敵に${10 + p.level * 2}`
-        : `周りの敵に${6 + p.level}`;
+    const effect: Record<SpellId, string> = {
+      fire: `正面の敵に${10 + p.level * 2}`,
+      thunder: `周りの敵に${6 + p.level}`,
+      power: '20ターン攻撃力×1.5',
+      guard: '20ターン受けるダメージ×0.6',
+    };
     return {
-      icon: id === 'fire' ? '🔥' : '⚡',
+      icon: SPELL_ICONS[id],
       name: spell.label,
-      sub: `MP${spell.mp}　${effect}`,
+      sub: `MP${spell.mp}　${effect[id]}`,
       dim: !enough,
       button: {
         label: '使う',
@@ -80,6 +77,46 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     };
   });
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
+}
+
+const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱' };
+
+/** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
+export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
+  const p = state.player;
+  const rows: SheetRow[] = state.bag.map((item) => ({
+    icon: ITEMS[item.kind].emoji,
+    name: state.isEquipped(item) ? `${ITEMS[item.kind].name}（装備中）` : ITEMS[item.kind].name,
+    sub: ITEMS[item.kind].desc,
+    button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
+  }));
+  const buffs = [p.powerTurns > 0 ? `力${p.powerTurns}T` : '', p.guardTurns > 0 ? `守り${p.guardTurns}T` : '']
+    .filter((b) => b)
+    .join('　');
+  sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
+    note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}${buffs ? `　${buffs}` : ''}`,
+  });
+}
+
+/** アイテム1つでできること。白紙カードは投げるだけ。投げるのは向いている方向 */
+function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterAction): void {
+  const def = ITEMS[item.kind];
+  const act = (f: () => void) => () => {
+    sheet.close();
+    f();
+    after();
+  };
+  const buttons = document.createElement('div');
+  const label = state.useLabel(item);
+  if (label) {
+    const problem = state.useProblem(item);
+    buttons.append(wideButton(problem ?? label, problem !== null, act(() => state.useItem(item))));
+  }
+  buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
+  const dropProblem = state.dropProblem();
+  buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
+  buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
+  sheet.open(`${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
 }
 
 /** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */

@@ -3,7 +3,7 @@ import { GameState } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
-import { cardIcon, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { cardIcon, openBagSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
 
@@ -228,6 +228,7 @@ onButton('btn-attack', () => {
 });
 onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
+onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
   openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst })),
 );

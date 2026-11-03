@@ -17,6 +17,19 @@ import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } f
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { GameMap, Tile, type Room } from './map';
 import { createMonster, speciesForFloor, type Monster, type Species } from './monsters';
+import {
+  BAG_LIMIT,
+  HERB_HEAL,
+  ITEMS,
+  ITEMS_PER_FLOOR,
+  THROW_DAMAGE,
+  WATER_MP,
+  createItem,
+  randomItemKind,
+  type FloorItem,
+  type Item,
+  type ItemKind,
+} from './items';
 import { firstStepToward } from './path';
 import { Rng } from './rng';
 
@@ -32,12 +45,25 @@ const REGEN_TURNS = 150;
 export const SPELLS = {
   fire: { name: '火の魔法', label: '火', mp: 4 },
   thunder: { name: '雷の魔法', label: '雷', mp: 5 },
+  power: { name: '力の魔法', label: '力', mp: 6 },
+  guard: { name: '守りの魔法', label: '守り', mp: 6 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
 /** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
 const LINE_RANGE = 10;
-/** 初めて遊ぶときに持っている白紙カードの枚数（balance.md 8章） */
-const START_BLANK_CARDS = 2;
+/** 初めて遊ぶときのバッグの中身（balance.md 8章） */
+const START_ITEMS: ItemKind[] = ['bread', 'herb', 'blank', 'blank'];
+/** 満腹度が1減るまでのターン数と、知らせる満腹度（balance.md 1.5） */
+const FOOD_INTERVAL = 10;
+const HUNGER_WARNINGS: Record<number, string> = {
+  20: 'おなかが減ってきた',
+  10: 'おなかがペコペコだ',
+  0: 'おなかが空いて倒れそうだ',
+};
+/** 力の魔法・守りの魔法が続くターン数と強さ（balance.md 2.1） */
+const BUFF_TURNS = 20;
+const POWER_RATE = 1.5;
+const GUARD_RATE = 0.6;
 
 /** 残しておくログの行数 */
 const LOG_LIMIT = 100;
@@ -90,6 +116,12 @@ export interface Player {
   exp: number;
   atk: number;
   def: number;
+  /** 装備しているもの。どちらもバッグの中のアイテム */
+  weapon: Item | null;
+  shield: Item | null;
+  /** 力の魔法・守りの魔法の残りターン */
+  powerTurns: number;
+  guardTurns: number;
 }
 
 /** マップの上に一時的に出す文字（ダメージなど）。次の行動で消える */
@@ -109,8 +141,11 @@ export class GameState {
   storage: Card[] = [];
   /** 召喚している仲間 */
   allies: Ally[] = [];
-  /** 白紙カードの枚数。バッグを作ったら、バッグのアイテムに移す */
-  blankCards = START_BLANK_CARDS;
+  /** バッグの中身（最大20個）と、この階の床に落ちているアイテム */
+  bag: Item[] = START_ITEMS.map(createItem);
+  floorItems: FloorItem[] = [];
+  /** 魔導書で覚えた魔法 */
+  learned = new Set<SpellId>();
   /** 手元がいっぱいのときに手に入れたカード。保管庫へ送るカードを選ぶまで、ここで待つ */
   pendingCard: Card | null = null;
   popups: Popup[] = [];
@@ -150,6 +185,10 @@ export class GameState {
       exp: 0,
       atk: 5,
       def: 3,
+      weapon: null,
+      shield: null,
+      powerTurns: 0,
+      guardTurns: 0,
     };
     this.enterFloor();
   }
@@ -177,7 +216,25 @@ export class GameState {
     const rooms = map.rooms.filter((r) => r !== startRoom);
     const count = this.rng.int(...INITIAL_MONSTERS);
     for (let i = 0; i < count; i++) this.spawnMonster(this.rng.pick(rooms));
+    this.floorItems = [];
+    const items = this.rng.int(...ITEMS_PER_FLOOR);
+    for (let i = 0; i < items; i++) this.placeItem(this.rng.pick(map.rooms));
     this.updateVisibility();
+  }
+
+  /** 部屋の空いているマスに、アイテムを1つ置く。主人公の足もとと、他のアイテムの上には置かない */
+  private placeItem(room: Room): void {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const pos = randomFreePointIn(this.rng, this.map, room);
+      const p = this.player.pos;
+      if ((pos.x === p.x && pos.y === p.y) || this.itemAt(pos.x, pos.y)) continue;
+      this.floorItems.push({ item: createItem(randomItemKind(this.rng)), pos });
+      return;
+    }
+  }
+
+  itemAt(x: number, y: number): FloorItem | undefined {
+    return this.floorItems.find((f) => f.pos.x === x && f.pos.y === y);
   }
 
   /** 部屋の空いているマスに、この階に出る魔物を1体置く。置けなければ何もしない */
@@ -248,8 +305,172 @@ export class GameState {
     const ally = this.allyAt(to.x, to.y);
     if (ally) ally.pos = { ...p.pos };
     p.pos = to;
+    this.pickUp();
     this.endTurn();
     return 'moved';
+  }
+
+  /** 足もとのアイテムを拾う。バッグがいっぱいなら拾わない */
+  private pickUp(): void {
+    const { x, y } = this.player.pos;
+    const found = this.itemAt(x, y);
+    if (!found) return;
+    const { name } = ITEMS[found.item.kind];
+    if (this.bag.length >= BAG_LIMIT) {
+      this.addLog(`バッグがいっぱいで${name}を拾えない`);
+      return;
+    }
+    this.floorItems = this.floorItems.filter((f) => f !== found);
+    this.bag.push(found.item);
+    this.addLog(`${name}を拾った`);
+  }
+
+  /** 攻撃力と防御力。装備と、力の魔法の分を含む */
+  attackPower(): number {
+    const p = this.player;
+    const atk = p.atk + (p.weapon ? (ITEMS[p.weapon.kind].bonus ?? 0) : 0);
+    return p.powerTurns > 0 ? Math.round(atk * POWER_RATE) : atk;
+  }
+
+  defensePower(): number {
+    const p = this.player;
+    return p.def + (p.shield ? (ITEMS[p.shield.kind].bonus ?? 0) : 0);
+  }
+
+  // ---- バッグ ----
+
+  /** アイテムの「使う」ボタンの名前。使えないアイテム（白紙カードは投げるだけ）は null */
+  useLabel(item: Item): string | null {
+    const def = ITEMS[item.kind];
+    if (def.food) return '食べる';
+    if (def.spell) return '読む';
+    if (def.slot) return this.isEquipped(item) ? '外す' : '装備';
+    if (item.kind === 'blank') return null;
+    return '使う';
+  }
+
+  isEquipped(item: Item): boolean {
+    return this.player.weapon === item || this.player.shield === item;
+  }
+
+  /** 使えない理由。使えるなら null */
+  useProblem(item: Item): string | null {
+    const spell = ITEMS[item.kind].spell;
+    if (spell && this.learned.has(spell)) return `${SPELLS[spell].name}はもう覚えている`;
+    return null;
+  }
+
+  /** アイテムを使う（食べる・飲む・読む・装備する・外す）。1ターンかかる */
+  useItem(item: Item): void {
+    if (!this.bag.includes(item) || this.useLabel(item) === null || this.useProblem(item)) return;
+    const p = this.player;
+    const def = ITEMS[item.kind];
+    this.beginAction();
+    if (def.slot) {
+      const key = def.slot === 'weapon' ? 'weapon' : 'shield';
+      if (p[key] === item) {
+        p[key] = null;
+        this.addLog(`${def.name}を外した`);
+      } else {
+        p[key] = item;
+        this.addLog(`${def.name}を装備した`);
+      }
+      this.endTurn();
+      return;
+    }
+    this.removeFromBag(item);
+    if (def.food) {
+      p.food = Math.min(p.maxFood, p.food + def.food);
+      this.addLog(`${def.name}を食べた`);
+    } else if (def.spell) {
+      this.learned.add(def.spell);
+      this.addLog(`${SPELLS[def.spell].name}を覚えた！`);
+    } else if (item.kind === 'herb') {
+      const heal = Math.min(HERB_HEAL, p.maxHp - p.hp);
+      p.hp += heal;
+      this.addLog(`薬草を使った（HP+${heal}）`);
+      this.popups.push({ pos: p.pos, text: `+${heal}`, kind: 'info' });
+    } else if (item.kind === 'water') {
+      const gain = Math.min(WATER_MP, p.maxMp - p.mp);
+      p.mp += gain;
+      this.addLog(`魔力の水を飲んだ（MP+${gain}）`);
+    }
+    this.endTurn();
+  }
+
+  /** 足もとに置けない理由。階段や、他のアイテムがあるマスには置けない */
+  dropProblem(): string | null {
+    const { x, y } = this.player.pos;
+    if (this.map.get(x, y) === Tile.Stairs || this.itemAt(x, y)) return 'ここには置けない';
+    return null;
+  }
+
+  /** 足もとに置く。1ターンかかる */
+  dropItem(item: Item): void {
+    if (!this.bag.includes(item) || this.dropProblem()) return;
+    this.beginAction();
+    this.removeFromBag(item);
+    this.floorItems.push({ item, pos: { ...this.player.pos } });
+    this.addLog(`${ITEMS[item.kind].name}を置いた`);
+    this.endTurn();
+  }
+
+  /**
+   * 向いている方向に投げる。白紙カードは魔物の封印を試み、薬草は当たった相手（仲間も）を回復し、
+   * それ以外は魔物に小さなダメージを与える。何にも当たらなければ、止まったところに落ちる
+   */
+  throwItem(item: Item): void {
+    if (!this.bag.includes(item)) return;
+    const p = this.player;
+    const { name } = ITEMS[item.kind];
+    this.beginAction();
+    this.removeFromBag(item);
+    const { monster, ally, landing } = this.traceThrow(item.kind === 'herb');
+    this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
+      if (item.kind === 'blank' && monster) {
+        this.seal(monster);
+      } else if (item.kind === 'herb' && ally) {
+        const heal = Math.min(HERB_HEAL, ally.card.maxHp - ally.card.hp);
+        ally.card.hp += heal;
+        this.addLog(`薬草を投げた → ${ally.card.species.name}のHP+${heal}`);
+        this.popups.push({ pos: ally.pos, text: `+${heal}`, kind: 'info' });
+      } else if (item.kind === 'herb' && monster) {
+        const heal = Math.min(HERB_HEAL, monster.maxHp - monster.hp);
+        monster.hp += heal;
+        this.addLog(`薬草を投げた → ${monster.species.name}のHP+${heal}`);
+        this.popups.push({ pos: monster.pos, text: `+${heal}`, kind: 'info' });
+      } else if (monster) {
+        this.damageMonster(monster, THROW_DAMAGE, null, `投げた${name}`);
+      } else {
+        this.landItem(item, landing);
+      }
+    });
+    this.endTurn();
+  }
+
+  /** 床に落とす。そのマスに置けなければまわりに落とし、どこにも置けなければなくなる */
+  private landItem(item: Item, at: Pos): void {
+    const { name } = ITEMS[item.kind];
+    const canLand = (x: number, y: number) =>
+      this.map.isWalkable(x, y) && this.map.get(x, y) !== Tile.Stairs && !this.itemAt(x, y);
+    let spot: Pos | null = canLand(at.x, at.y) ? at : null;
+    for (const v of DIR_VECTORS) {
+      if (spot) break;
+      if (canLand(at.x + v.x, at.y + v.y)) spot = { x: at.x + v.x, y: at.y + v.y };
+    }
+    if (!spot) {
+      this.addLog(`${name}は消えた`);
+      return;
+    }
+    this.floorItems.push({ item, pos: spot });
+    this.addLog(item.kind === 'blank' ? '白紙カードは外れた' : `${name}は床に落ちた`);
+  }
+
+  private removeFromBag(item: Item): void {
+    this.bag = this.bag.filter((i) => i !== item);
+    const p = this.player;
+    if (p.weapon === item) p.weapon = null;
+    if (p.shield === item) p.shield = null;
   }
 
   wait(): void {
@@ -269,7 +490,7 @@ export class GameState {
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (!target || !reachable) return;
       if (this.rng.chance(HIT_RATE)) {
-        this.damageMonster(target, rollDamage(this.rng, p.atk, target.species.def), null, '攻撃');
+        this.damageMonster(target, rollDamage(this.rng, this.attackPower(), target.species.def), null, '攻撃');
       } else {
         this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
@@ -392,20 +613,9 @@ export class GameState {
     this.addLog(`${chosen.species.name}を保管庫へ`);
   }
 
-  /** 向いている方向に白紙カードを投げ、最初に当たった魔物の封印を試みる。1ターンかかる */
-  throwBlankCard(): void {
-    if (this.blankCards <= 0) return;
-    this.beginAction();
-    this.blankCards--;
-    const target = this.traceLine();
-    this.scene(this.player.pos, this.ahead(this.player.pos, this.player.facing), () => this.sealOrMiss(target));
-    this.endTurn();
-  }
-
-  private sealOrMiss(target: Monster | undefined): void {
-    if (!target) {
-      this.addLog('封印カードは外れた');
-    } else if (this.rng.chance(captureChance(target.species.capture, target.hp / target.maxHp))) {
+  /** 白紙カードが魔物に当たったとき。弱っているほど封印しやすい */
+  private seal(target: Monster): void {
+    if (this.rng.chance(captureChance(target.species.capture, target.hp / target.maxHp))) {
       this.monsters = this.monsters.filter((m) => m !== target);
       this.popups.push({ pos: target.pos, text: '封印', kind: 'info' });
       this.addLog(`${target.species.name}を封印した！`);
@@ -415,6 +625,24 @@ export class GameState {
       this.popups.push({ pos: target.pos, text: '失敗', kind: 'miss' });
       this.addLog('封印に失敗した');
     }
+  }
+
+  /**
+   * 投げたアイテムが飛ぶ先。最初に当たる魔物（stopAtAlly なら仲間も）と、何にも当たらなかったときに止まるマス。
+   * 壁の手前で止まる
+   */
+  private traceThrow(stopAtAlly: boolean): { monster?: Monster; ally?: Ally; landing: Pos } {
+    let at = this.player.pos;
+    const dir = this.player.facing;
+    for (let i = 0; i < LINE_RANGE; i++) {
+      if (!this.map.canStep(at, dir)) break;
+      at = this.ahead(at, dir);
+      const monster = this.monsterAt(at.x, at.y);
+      if (monster) return { monster, landing: at };
+      const ally = stopAtAlly ? this.allyAt(at.x, at.y) : undefined;
+      if (ally) return { ally, landing: at };
+    }
+    return { landing: at };
   }
 
   /** 主人公の向いている方向にまっすぐ進み、最初に当たる魔物。仲間はすり抜け、壁で止まる */
@@ -437,6 +665,7 @@ export class GameState {
   availableSpells(): SpellId[] {
     const spells: SpellId[] = ['fire'];
     if (this.allies.some((a) => isPartner(a.card))) spells.push('thunder');
+    for (const id of ['power', 'guard'] as const) if (this.learned.has(id)) spells.push(id);
     return spells;
   }
 
@@ -447,6 +676,15 @@ export class GameState {
     if (p.mp < mp || !this.availableSpells().includes(spell)) return;
     this.beginAction();
     p.mp -= mp;
+    if (spell === 'power' || spell === 'guard') {
+      // 自分にかける魔法。続いている間にかけ直すと、残りターンが元に戻る
+      if (spell === 'power') p.powerTurns = BUFF_TURNS;
+      else p.guardTurns = BUFF_TURNS;
+      this.addLog(`${name}を使った`);
+      this.popups.push({ pos: p.pos, text: spell === 'power' ? '力UP' : '守りUP', kind: 'info' });
+      this.endTurn();
+      return;
+    }
     const targets =
       spell === 'fire'
         ? [this.traceLine()].filter((m) => m !== undefined)
@@ -588,7 +826,9 @@ export class GameState {
       if (this.dead) break;
       for (let i = 0; i < this.actionsThisTurn(m.species) && !this.dead; i++) this.monsterAct(m);
     }
+    this.digest();
     this.regenerate();
+    this.tickBuffs();
     if (this.turn % SPAWN_INTERVAL === 0) this.spawnOutOfSight();
     this.updateVisibility();
   }
@@ -598,9 +838,33 @@ export class GameState {
     return species.speed === 'slow' && this.slowRest ? 0 : 1;
   }
 
-  /** 主人公だけが自然回復する。仲間は回復しない */
+  /** 満腹度は10ターンごとに1減る。減ってきたらログで知らせる */
+  private digest(): void {
+    const p = this.player;
+    if (this.dead || p.food <= 0 || this.turn % FOOD_INTERVAL !== 0) return;
+    p.food--;
+    const warning = HUNGER_WARNINGS[p.food];
+    if (warning) this.addLog(warning);
+  }
+
+  private tickBuffs(): void {
+    const p = this.player;
+    if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
+    if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
+  }
+
+  /** 主人公だけが自然回復する。仲間は回復しない。満腹度が0なら、回復せずに毎ターンHPが1減る */
   private regenerate(): void {
     const p = this.player;
+    if (!this.dead && p.food <= 0) {
+      this.regenCarry = 0;
+      p.hp = Math.max(0, p.hp - 1);
+      if (p.hp === 0) {
+        this.dead = true;
+        this.addLog('あなたは力つきてしまった…');
+      }
+      return;
+    }
     if (this.dead || p.hp >= p.maxHp) {
       this.regenCarry = 0;
       return;
@@ -768,7 +1032,8 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = rollDamage(this.rng, m.species.atk, p.def);
+    const raw = rollDamage(this.rng, m.species.atk, this.defensePower());
+    const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * GUARD_RATE)) : raw;
     p.hp = Math.max(0, p.hp - dmg);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
     this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
