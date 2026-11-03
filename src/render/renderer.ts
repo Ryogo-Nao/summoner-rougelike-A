@@ -1,6 +1,18 @@
-import type { GameState, Popup } from '../game/state';
-import { isPartner } from '../game/cards';
+import type { ActorView, GameState, Popup, Scene } from '../game/state';
 import { Tile } from '../game/map';
+
+/**
+ * 攻撃の場面を再生している途中の様子。
+ * lunge は攻撃する側が踏み込んで戻るところ、hit は攻撃を受けた側が点滅して数字が出るところ。t は 0〜1
+ */
+export interface Playback {
+  scene: Scene;
+  phase: 'lunge' | 'hit';
+  t: number;
+}
+
+/** 踏み込む深さ（マスの何割か） */
+const LUNGE_DEPTH = 0.4;
 
 /** 画面に映すマス数（要件 10.1） */
 const VIEW_TILES = 11;
@@ -80,7 +92,7 @@ export class Renderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  draw(state: GameState): void {
+  draw(state: GameState, play?: Playback): void {
     const { ctx, tileSize: ts, viewW, viewH } = this;
     const { map, player } = state;
     // 主人公のマスの左上。横は中央の列、縦は画面の真ん中
@@ -128,31 +140,32 @@ export class Renderer {
       y: py0 + (pos.y - player.pos.y) * ts,
     });
 
-    for (const m of state.monsters) {
-      if (!state.isVisible(m.pos.x, m.pos.y)) continue;
-      const { x: sx, y: sy } = toScreen(m.pos);
-      ctx.fillText(m.species.emoji, sx + ts / 2, sy + ts / 2 + 1);
-      if (m.hp < m.maxHp) this.drawHpBar(sx, sy, m.hp / m.maxHp, COLORS.hpBar);
-    }
-
-    // 仲間は敵と見分けやすいよう、足もとに緑のHPの棒をいつも出す
-    for (const a of state.allies) {
-      const { x: sx, y: sy } = toScreen(a.pos);
-      ctx.fillText(a.card.species.emoji, sx + ts / 2, sy + ts / 2 + 1);
-      if (isPartner(a.card)) {
-        ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-        ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);
-        ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    const actors = play ? play.scene.actors : state.actorViews();
+    const popups = play ? (play.phase === 'hit' ? play.scene.popups : []) : state.popups;
+    // 攻撃を受けたマス。点滅させる
+    const hurt = new Set(
+      popups.filter((p) => p.kind === 'damage' || p.kind === 'hurt').map((p) => `${p.pos.x},${p.pos.y}`),
+    );
+    actors.forEach((actor, i) => {
+      let { x: sx, y: sy } = toScreen(actor.pos);
+      if (play?.phase === 'lunge' && i === play.scene.attacker) {
+        // 相手の方へ踏み込んで、元の位置に戻る
+        const depth = Math.sin(play.t * Math.PI) * LUNGE_DEPTH * ts;
+        const dx = Math.sign(play.scene.toward.x - actor.pos.x);
+        const dy = Math.sign(play.scene.toward.y - actor.pos.y);
+        const len = Math.hypot(dx, dy) || 1;
+        sx += (dx / len) * depth;
+        sy += (dy / len) * depth;
       }
-      this.drawHpBar(sx, sy, a.card.hp / a.card.maxHp, COLORS.allyHpBar);
-    }
+      if (play?.phase === 'hit' && hurt.has(`${actor.pos.x},${actor.pos.y}`)) {
+        // 受けた側は細かく揺れて点滅する
+        if (Math.floor(play.t * 6) % 2 === 1) return;
+        sx += Math.sin(play.t * Math.PI * 8) * ts * 0.06;
+      }
+      this.drawActor(actor, sx, sy);
+    });
 
-    const cx = px0 + ts / 2;
-    const cy = py0 + ts / 2;
-    ctx.fillText('🧙', cx, cy + 1);
-    this.drawFacing(cx, cy, player.facing);
-
-    this.drawPopups(state, toScreen);
+    this.drawPopups(popups, toScreen, play?.phase === 'hit' ? play.t : 1);
 
     if (this.minimapExpanded) {
       ctx.fillStyle = COLORS.expandedBg;
@@ -174,6 +187,18 @@ export class Renderer {
     return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
   }
 
+  private drawActor(actor: ActorView, sx: number, sy: number): void {
+    const { ctx, tileSize: ts } = this;
+    ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
+    if (actor.isPartner) {
+      ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);
+      ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    }
+    if (actor.hp) this.drawHpBar(sx, sy, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
+    if (actor.isPlayer) this.drawFacing(sx + ts / 2, sy + ts / 2, actor.facing);
+  }
+
   /** マスの下端に、残りHPの割合を細い棒で出す */
   private drawHpBar(sx: number, sy: number, ratio: number, color: string): void {
     const { ctx, tileSize: ts } = this;
@@ -184,19 +209,27 @@ export class Renderer {
     ctx.fillRect(sx + 3, sy + ts - h - 1, Math.max(1, (ts - 6) * ratio), h);
   }
 
-  /** ダメージなどの数字を、そのマスの上に出す。同じマスに重なるときは上にずらす */
-  private drawPopups(state: GameState, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }): void {
+  /**
+   * ダメージなどの数字を、そのマスの上に出す。同じマスに重なるときは上にずらす。
+   * rise（0〜1）が小さいうちは、下から浮き上がってくる途中
+   */
+  private drawPopups(
+    popups: Popup[],
+    toScreen: (pos: { x: number; y: number }) => { x: number; y: number },
+    rise: number,
+  ): void {
     const { ctx, tileSize: ts } = this;
     const stack = new Map<string, number>();
     ctx.font = `bold ${Math.floor(ts * 0.42)}px -apple-system, sans-serif`;
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#000';
-    for (const popup of state.popups) {
+    const lift = (1 - Math.min(1, rise * 2.5)) * ts * 0.3;
+    for (const popup of popups) {
       const key = `${popup.pos.x},${popup.pos.y}`;
       const n = stack.get(key) ?? 0;
       stack.set(key, n + 1);
       const { x, y } = toScreen(popup.pos);
-      const ty = y + ts * 0.12 - n * ts * 0.4;
+      const ty = y + ts * 0.12 - n * ts * 0.4 + lift;
       ctx.fillStyle = POPUP_COLORS[popup.kind];
       ctx.strokeText(popup.text, x + ts / 2, ty);
       ctx.fillText(popup.text, x + ts / 2, ty);

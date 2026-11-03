@@ -46,6 +46,35 @@ export interface LogEntry {
   /** その出来事が起きたターン */
   turn: number;
   text: string;
+  /** 書いた順の通し番号。攻撃の場面を順に見せるとき、どこまでのログを出すかに使う */
+  serial: number;
+}
+
+/** マップに描くもの1つぶん。主人公・仲間・見えている魔物 */
+export interface ActorView {
+  emoji: string;
+  pos: Pos;
+  facing: Dir;
+  /** 足もとに出すHPの棒。null なら出さない */
+  hp: { ratio: number; ally: boolean } | null;
+  isPlayer: boolean;
+  isPartner: boolean;
+}
+
+/**
+ * 攻撃1回ぶんの場面。行動のあとに、起きた順に画面で再生する。
+ * actors は攻撃する直前の様子。attacker（actors の番号、-1 ならいない）が toward へ踏み込み、popups が出る
+ */
+export interface Scene {
+  actors: ActorView[];
+  attacker: number;
+  toward: Pos;
+  popups: Popup[];
+  /** 攻撃の前と後で、ログをどこまで出すか（serial）と主人公のHP */
+  logBefore: number;
+  logAfter: number;
+  hpBefore: number;
+  hpAfter: number;
 }
 
 export interface Player {
@@ -88,6 +117,9 @@ export class GameState {
   floor = 1;
   turn = 0;
   log: LogEntry[] = [];
+  private logSerial = 0;
+  /** この行動で起きた攻撃の場面。画面が再生する */
+  private scenes: Scene[] = [];
   /** 一度でも見たマス（ミニマップと、暗く表示する範囲） */
   explored!: Uint8Array;
   /** 今見えているマス */
@@ -165,7 +197,7 @@ export class GameState {
   }
 
   addLog(text: string): void {
-    this.log.push({ turn: this.turn, text });
+    this.log.push({ turn: this.turn, text, serial: ++this.logSerial });
     if (this.log.length > LOG_LIMIT) this.log.shift();
   }
 
@@ -233,14 +265,16 @@ export class GameState {
     const target = this.monsterAt(p.pos.x + v.x, p.pos.y + v.y);
     // 壁の角越しには斜めに攻撃できない
     const reachable = !isDiagonal(p.facing) || this.map.canStep(p.pos, p.facing);
-    if (target && reachable) {
+    // 誰もいなくても、振りかぶる動きは見せる
+    this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
+      if (!target || !reachable) return;
       if (this.rng.chance(HIT_RATE)) {
         this.damageMonster(target, rollDamage(this.rng, p.atk, target.species.def), null, '攻撃');
       } else {
         this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
       }
-    }
+    });
     this.endTurn();
   }
 
@@ -364,6 +398,11 @@ export class GameState {
     this.beginAction();
     this.blankCards--;
     const target = this.traceLine();
+    this.scene(this.player.pos, this.ahead(this.player.pos, this.player.facing), () => this.sealOrMiss(target));
+    this.endTurn();
+  }
+
+  private sealOrMiss(target: Monster | undefined): void {
     if (!target) {
       this.addLog('封印カードは外れた');
     } else if (this.rng.chance(captureChance(target.species.capture, target.hp / target.maxHp))) {
@@ -376,7 +415,6 @@ export class GameState {
       this.popups.push({ pos: target.pos, text: '失敗', kind: 'miss' });
       this.addLog('封印に失敗した');
     }
-    this.endTurn();
   }
 
   /** 主人公の向いている方向にまっすぐ進み、最初に当たる魔物。仲間はすり抜け、壁で止まる */
@@ -413,9 +451,11 @@ export class GameState {
       spell === 'fire'
         ? [this.traceLine()].filter((m) => m !== undefined)
         : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
-    if (targets.length === 0) this.addLog(`${name}は外れた`);
     const dmg = spell === 'fire' ? 10 + p.level * 2 : 6 + p.level;
-    for (const m of targets) this.damageMonster(m, dmg, null, name);
+    this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
+      if (targets.length === 0) this.addLog(`${name}は外れた`);
+      for (const m of targets) this.damageMonster(m, dmg, null, name);
+    });
     this.endTurn();
   }
 
@@ -468,6 +508,70 @@ export class GameState {
   private beginAction(): void {
     this.turn++;
     this.popups = [];
+    this.scenes = [];
+  }
+
+  /** この行動で起きた攻撃の場面を取り出す。取り出すと空になる */
+  takeScenes(): Scene[] {
+    const scenes = this.scenes;
+    this.scenes = [];
+    return scenes;
+  }
+
+  /** 今マップに描くもの。魔物は見えているものだけ */
+  actorViews(): ActorView[] {
+    const p = this.player;
+    const views: ActorView[] = [];
+    for (const m of this.monsters) {
+      if (!this.isVisible(m.pos.x, m.pos.y)) continue;
+      views.push({
+        emoji: m.species.emoji,
+        pos: { ...m.pos },
+        facing: m.facing,
+        hp: m.hp < m.maxHp ? { ratio: m.hp / m.maxHp, ally: false } : null,
+        isPlayer: false,
+        isPartner: false,
+      });
+    }
+    // 仲間は敵と見分けやすいよう、足もとに緑のHPの棒をいつも出す
+    for (const a of this.allies) {
+      views.push({
+        emoji: a.card.species.emoji,
+        pos: { ...a.pos },
+        facing: a.facing,
+        hp: { ratio: a.card.hp / a.card.maxHp, ally: true },
+        isPlayer: false,
+        isPartner: isPartner(a.card),
+      });
+    }
+    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false });
+    return views;
+  }
+
+  /** attacker が toward へ攻撃する場面を記録しながら act を行う。act の中で出た文字はその場面で出す */
+  private scene(attacker: Pos, toward: Pos, act: () => void): void {
+    const actors = this.actorViews();
+    const index = actors.findIndex((a) => a.pos.x === attacker.x && a.pos.y === attacker.y);
+    const start = this.popups.length;
+    const logBefore = this.logSerial;
+    const hpBefore = this.player.hp;
+    act();
+    this.scenes.push({
+      actors,
+      attacker: index,
+      toward: { ...toward },
+      popups: this.popups.splice(start),
+      logBefore,
+      logAfter: this.logSerial,
+      hpBefore,
+      hpAfter: this.player.hp,
+    });
+  }
+
+  /** 正面のマス */
+  private ahead(at: Pos, dir: Dir): Pos {
+    const v = DIR_VECTORS[dir];
+    return { x: at.x + v.x, y: at.y + v.y };
   }
 
   /** 主人公のあと、仲間、魔物の順に動く */
@@ -588,8 +692,16 @@ export class GameState {
         this.logIfNear(m.pos, `${m.species.name}はふらついた`);
         return;
       }
-      if (allyTarget) this.monsterAttackAlly(m, allyTarget);
-      else this.monsterAttack(m);
+      // 攻撃された側は、攻撃してきた方を向く
+      const turnTo = dirFromDelta(m.pos.x - target.x, m.pos.y - target.y);
+      if (turnTo !== null) {
+        if (allyTarget) allyTarget.facing = turnTo;
+        else this.player.facing = turnTo;
+      }
+      this.scene(m.pos, target, () => {
+        if (allyTarget) this.monsterAttackAlly(m, allyTarget);
+        else this.monsterAttack(m);
+      });
       return;
     }
 
@@ -700,19 +812,24 @@ export class GameState {
       if (species.erratic && this.rng.chance(0.5)) return;
       const target = adjacent[0];
       a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-      if (this.rng.chance(HIT_RATE)) {
-        this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
-      } else {
-        this.addLog(`${target.species.name}はかわした`);
-        this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
-      }
+      this.scene(a.pos, target.pos, () => {
+        if (this.rng.chance(HIT_RATE)) {
+          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
+        } else {
+          this.addLog(`${target.species.name}はかわした`);
+          this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
+        }
+      });
       return;
     }
 
     if (isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
       const target = this.monsters.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
       if (target) {
-        this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, 'いかずち');
+        a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
+        this.scene(a.pos, target.pos, () =>
+          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, 'いかずち'),
+        );
         return;
       }
     }
