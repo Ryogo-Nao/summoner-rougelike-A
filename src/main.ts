@@ -115,7 +115,7 @@ const pad = setupPad(document.getElementById('pad')!, {
     if (!acceptsInput()) return;
     const moved = state.tryMove(dir);
     afterAction();
-    if (moved && !state.dead && state.isOnStairs) askDescend();
+    if (moved === 'moved' && !state.dead && state.isOnStairs) askDescend();
   },
   onWait() {
     if (!acceptsInput()) return;

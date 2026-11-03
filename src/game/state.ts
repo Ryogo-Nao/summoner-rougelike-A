@@ -124,16 +124,27 @@ export class GameState {
 
   // ---- 主人公の行動。行動したら true を返し、そのあと魔物が動く ----
 
-  /** 移動できたら true。魔物や壁で進めなければ向きだけ変わり、ターンは進まない */
-  tryMove(dir: Dir): boolean {
+  /**
+   * パッドの方向を押したとき。今の向きと違えば振り向くだけで、ターンは使わない。
+   * 同じ向きなら1マス進み、魔物がいれば攻撃する。
+   * 進めたら 'moved'、攻撃したら 'attacked'、それ以外は 'none'
+   */
+  tryMove(dir: Dir): 'moved' | 'attacked' | 'none' {
     const p = this.player;
-    p.facing = dir;
+    if (p.facing !== dir) {
+      p.facing = dir;
+      return 'none';
+    }
     const v = DIR_VECTORS[dir];
-    if (!this.map.canStep(p.pos, dir) || this.monsterAt(p.pos.x + v.x, p.pos.y + v.y)) return false;
+    if (this.monsterAt(p.pos.x + v.x, p.pos.y + v.y)) {
+      this.attack();
+      return 'attacked';
+    }
+    if (!this.map.canStep(p.pos, dir)) return 'none';
     this.popups = [];
     p.pos = { x: p.pos.x + v.x, y: p.pos.y + v.y };
     this.endTurn();
-    return true;
+    return 'moved';
   }
 
   wait(): void {
