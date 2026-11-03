@@ -45,7 +45,7 @@ button {
 #status {
   /* 上端は iOS の時計表示の下にぼかしがかかるので、安全領域よりさらに下げる。
      背景色は画面の一番上まで塗る */
-  padding: calc(env(safe-area-inset-top) + 24px) 12px 4px;
+  padding: calc(env(safe-area-inset-top) + 40px) 12px 4px;
   font-size: 13px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
