@@ -33,7 +33,9 @@ export class BaseScreen {
   private reordering = false;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
-  private selling = new Set<Item>();
+  private sellFrom: 'bag' | 'warehouse' = 'bag';
+  /** 売る数（まとめた道具の key ごと） */
+  private sellCount = new Map<string, number>();
   /** 商店で最後にしたこと（「薬草を買った」など） */
   private shopNote = '';
   private picked: Card | null = null;
@@ -54,7 +56,7 @@ export class BaseScreen {
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
-        this.selling.clear();
+        this.sellCount.clear();
         this.shopNote = '';
         this.viewing = null;
         this.pouch = null;
@@ -241,18 +243,12 @@ export class BaseScreen {
    * ［バッグへ］で1つずつ出す
    */
   private warehouseRows(p: Profile): HTMLElement[] {
-    const groups = new Map<string, Item[]>();
-    for (const item of p.warehouse) {
-      const key = item.contents?.length ? `#${item.id}` : `${item.kind}:${item.plus ?? 0}:${item.capacity ?? 0}`;
-      groups.set(key, [...(groups.get(key) ?? []), item]);
-    }
-    const rows = [...groups.values()].map((items) => {
-      const first = items[0];
-      const def = ITEMS[first.kind];
+    const rows = groupItems(p.warehouse).map((g) => {
+      const first = g.items[0];
       // 矢は本数を足して出す
-      const name = def.arrow
-        ? `${def.name}（${items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
-        : `${itemName(first)}${items.length > 1 ? ` ×${items.length}` : ''}`;
+      const name = ITEMS[first.kind].arrow
+        ? `${ITEMS[first.kind].name}（${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
+        : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
       return this.itemRow(first, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(first, p.warehouse, p.bag), name);
     });
     return [
@@ -316,7 +312,7 @@ export class BaseScreen {
     for (const [mode, label] of [['buy', '買う'], ['sell', '売る']] as const) {
       const b = wideButton(label, false, () => {
         this.shopMode = mode;
-        this.selling.clear();
+        this.sellCount.clear();
         this.shopNote = '';
         this.render();
       });
@@ -354,46 +350,61 @@ export class BaseScreen {
         note('買った物はバッグへ入る（いっぱいなら倉庫へ）'),
       ];
     }
-    // 売る：選んだ道具の売り値の合計を、上のボタンに出す
-    const total = [...this.selling].reduce((n, i) => n + sellPrice(i), 0);
-    head.append(
-      wideButton(this.selling.size > 0 ? `${this.selling.size}個を売る（💠${total}）` : '売る道具を押して選ぶ', this.selling.size === 0, () =>
+    // 売る：バッグと倉庫を切り替え、同じ道具はまとめて、売る数を［－］［＋］で選ぶ
+    const from = this.sellFrom === 'bag' ? p.bag : p.warehouse;
+    const groups = groupItems(from, true);
+    const picked = groups.flatMap((g) => g.items.slice(0, this.sellCount.get(g.key) ?? 0));
+    const total = picked.reduce((n, i) => n + sellPrice(i), 0);
+    const places = document.createElement('div');
+    places.className = 'sort-keys shop-modes';
+    for (const [place, label, list] of [
+      ['bag', 'バッグから売る', p.bag],
+      ['warehouse', '倉庫から売る', p.warehouse],
+    ] as const) {
+      const b = wideButton(`${label}（${list.length}）`, false, () => {
+        this.sellFrom = place;
+        this.sellCount.clear();
+        this.render();
+      });
+      if (this.sellFrom === place) b.classList.add('on');
+      places.append(b);
+    }
+    const sellButton = wideButton(
+      picked.length > 0 ? `${picked.length}個を売る（💠${total}）` : '売る数を選ぶ',
+      picked.length === 0,
+      () =>
         this.change(() => {
-          const n = this.selling.size;
-          const got = sell(p, [...this.selling]);
-          this.selling.clear();
-          this.shopNote = `${n}個を売って ${got}ルーンを得た`;
+          const got = sell(p, picked);
+          this.sellCount.clear();
+          this.shopNote = `${picked.length}個を売って ${got}ルーンを得た`;
         }),
-      ),
     );
-    head.lastElementChild!.classList.add('main');
-    const sellRow = (item: Item): HTMLElement => {
-      const ok = canSell(item);
-      const on = this.selling.has(item);
-      const toggle = () => {
-        if (!ok) return;
-        if (on) this.selling.delete(item);
-        else this.selling.add(item);
+    sellButton.classList.add('main');
+    head.append(places, sellButton);
+    const sellRow = (g: ItemGroup): HTMLElement => {
+      const first = g.items[0];
+      const ok = canSell(first);
+      const n = this.sellCount.get(g.key) ?? 0;
+      const set = (v: number) => {
+        this.sellCount.set(g.key, Math.max(0, Math.min(g.items.length, v)));
         this.render(true);
       };
-      const why = ITEMS[item.kind].pouch && (item.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
-      return renderRow({
-        icon: ITEMS[item.kind].emoji,
-        name: ok ? `${itemName(item)}　💠${sellPrice(item)}` : itemName(item),
-        sub: ok ? ITEMS[item.kind].desc : why,
+      const why = ITEMS[first.kind].pouch && (first.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
+      const count = g.items.length > 1 ? `　×${g.items.length}` : '';
+      const row = renderRow({
+        icon: ITEMS[first.kind].emoji,
+        name: `${g.name}${count}`,
+        sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
         dim: !ok,
-        className: on ? 'chosen' : undefined,
-        onSelect: ok ? toggle : undefined,
-        button: { label: on ? '✓' : '選ぶ', disabled: !ok, onClick: toggle },
+        className: n > 0 ? 'chosen' : undefined,
       });
+      if (ok) row.append(stepper(n, g.items.length, set));
+      return row;
     };
     return [
       head,
       ...done,
-      note('バッグ', 'base-section'),
-      ...(p.bag.length > 0 ? p.bag.map(sellRow) : [note('空')]),
-      note('倉庫', 'base-section'),
-      ...(p.warehouse.length > 0 ? p.warehouse.map(sellRow) : [note('空')]),
+      ...(groups.length > 0 ? groups.map(sellRow) : [note(this.sellFrom === 'bag' ? 'バッグは空' : '倉庫は空')]),
     ];
   }
 
@@ -468,6 +479,49 @@ export class BaseScreen {
     ];
     return rows.map(renderRow);
   }
+}
+
+/** 同じ道具をまとめたもの。key で見分ける */
+interface ItemGroup {
+  key: string;
+  name: string;
+  items: Item[];
+}
+
+/**
+ * 同じ道具をまとめる（倉庫の一覧と、商店で売るとき）。＋の違う装備、入る数の違う袋、中身のある袋は分ける。
+ * splitArrows なら、矢は1束ずつ本数（売り値）が違うので、束ごとに分ける
+ */
+function groupItems(items: Item[], splitArrows = false): ItemGroup[] {
+  const groups = new Map<string, ItemGroup>();
+  for (const item of items) {
+    const key =
+      item.contents?.length || (splitArrows && item.count !== undefined)
+        ? `#${item.id}`
+        : `${item.kind}:${item.plus ?? 0}:${item.capacity ?? 0}`;
+    const g = groups.get(key);
+    if (g) g.items.push(item);
+    else groups.set(key, { key, name: itemName(item), items: [item] });
+  }
+  return [...groups.values()];
+}
+
+/** 売る数を選ぶ［－］数［＋］。0〜max */
+function stepper(value: number, max: number, onChange: (v: number) => void): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'stepper';
+  const minus = document.createElement('button');
+  minus.textContent = '－';
+  minus.disabled = value <= 0;
+  minus.addEventListener('click', () => onChange(value - 1));
+  const num = document.createElement('span');
+  num.textContent = `${value}`;
+  const plus = document.createElement('button');
+  plus.textContent = '＋';
+  plus.disabled = value >= max;
+  plus.addEventListener('click', () => onChange(value + 1));
+  box.append(minus, num, plus);
+  return box;
 }
 
 /** 名前と値を2列に並べた表 */
