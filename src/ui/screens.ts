@@ -75,8 +75,8 @@ export function openCardSheet(
       openCardSheet(state, sheet, after, reorder);
       after();
     });
-    sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
-      note: '入れ替えるカードを2枚続けて押す\n召喚中の仲間の枠と 動く順番も この順になる',
+    sheet.open(`仲間 ${state.cards.length}/${HAND_LIMIT}`, rows, {
+      note: '入れ替える仲間を2体続けて押す\n召喚中の仲間の枠と 動く順番も この順になる',
       header,
     });
     return;
@@ -104,8 +104,8 @@ export function openCardSheet(
       onSelect,
     };
   });
-  sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
-    note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}\nカードを押すとつよさを見る`,
+  sheet.open(`仲間 ${state.cards.length}/${HAND_LIMIT}`, rows, {
+    note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}\n仲間を押すとつよさを見る`,
     header,
   });
 }
@@ -603,7 +603,7 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
     wideButton('つよさ', false, () =>
       openStatusSheet(state, sheet, card, () => openOrderSheet(state, sheet, ally, after)),
     ),
-    wideButton('カードに戻す', false, () => {
+    wideButton('召喚を解く', false, () => {
       sheet.close();
       state.recall(card);
       after();
@@ -661,8 +661,8 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
         : { label: '別れる', onClick: () => openPartSheet(state, sheet, card, index, after) },
     };
   });
-  sheet.open('カードがいっぱい', rows, {
-    note: '外す1枚を選ぶ\n持ってきたカードは拠点へ預けられる\nここで手に入れたカードとは別れる',
+  sheet.open('仲間がいっぱい', rows, {
+    note: '外す1体を選ぶ\n持ってきた仲間は拠点へ預けられる\nここで仲間にした魔物とは別れる',
     closable: false,
   });
 }
@@ -680,7 +680,7 @@ function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number
     wideButton('戻る', false, () => openSwapSheet(state, sheet, after)),
   );
   sheet.open(`${cardIcon(card)} ${card.species.name}と別れる？`, [], {
-    note: `${cardSub(card)}\n別れたカードは戻らない`,
+    note: `${cardSub(card)}\n別れた仲間は戻らない`,
     footer: buttons,
     closable: false,
   });

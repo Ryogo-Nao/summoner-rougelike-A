@@ -1028,11 +1028,31 @@ button {
   align-items: center;
   gap: 4px;
 }
-.stepper span {
-  min-width: 26px;
-  text-align: center;
+/* まん中の数。押すと、じかに打ち込める */
+.sheet-row .stepper .stepper-num {
+  min-width: 44px;
+  width: 44px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--btn-line);
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
   font-weight: bold;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.stepper input.stepper-num {
+  border-color: var(--gold);
+  outline: none;
+}
+/* 打ち込んだ数が多すぎたとき */
+.sheet-row .sub.count-error {
+  color: var(--coral);
+  font-weight: bold;
 }
 .sheet-row .stepper button {
   min-width: 38px;
@@ -1041,7 +1061,6 @@ button {
   padding: 0;
   font-size: 18px;
 }
-/* 商店の［買う］［売る］は2つ並べる */
 /* 持ち物の［バッグ］［倉庫］の切り替え。選んでいる方は濃い茶に金の下線、ほかは薄いベージュ */
 .place-tabs {
   display: grid;
@@ -1098,6 +1117,7 @@ button {
   opacity: 0;
   font-size: 16px;
 }
+/* 商店の［買う］［売る］は2つ並べる */
 .sort-keys.shop-modes {
   grid-template-columns: repeat(2, 1fr);
 }

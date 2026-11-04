@@ -58,17 +58,15 @@ export interface DungeonRecord {
 /** これまでの累積。あきらめたダンジョンの分も、記録としては数える */
 export interface Records {
   dungeons: Record<string, DungeonRecord>;
-  turns: number;
   kills: number;
+  /** 仲間にした魔物の数（別れた仲間も含む） */
   cards: number;
   items: number;
   /** ダンジョンで拾ったルーン（失った分も含む） */
   runes: number;
-  /** ダンジョンの中で届いた、いちばん高い主人公のレベル */
-  bestLevel: number;
 }
 
-export const newRecords = (): Records => ({ dungeons: {}, turns: 0, kills: 0, cards: 0, items: 0, runes: 0, bestLevel: 1 });
+export const newRecords = (): Records => ({ dungeons: {}, kills: 0, cards: 0, items: 0, runes: 0 });
 
 /** 終わったダンジョンを記録に足す */
 function recordRun(profile: Profile, state: GameState): void {
@@ -81,12 +79,10 @@ function recordRun(profile: Profile, state: GameState): void {
   else d.failed++;
   // 踏破したときは、いちばん下の階まで行ったと数える
   d.bestFloor = Math.max(d.bestFloor, state.cleared ? state.dungeon.floors : state.floor);
-  r.turns += state.turn;
   r.kills += state.stats.kills;
   r.cards += state.stats.cards;
   r.items += state.stats.items;
   r.runes += state.runes;
-  r.bestLevel = Math.max(r.bestLevel, state.player.level);
 }
 
 /** ダンジョンの終わり方。踏破（いちばん下まで行った）・離脱（転送の印で出た）・失敗（力つきた） */

@@ -87,10 +87,10 @@ function endRun(): void {
     ? DUNGEONS.filter((d) => d.requires === state.dungeon.id).map((d) => `\n${d.name}に挑めるようになった`).join('')
     : '';
   const lost = state.gaveUp
-    ? `\n失ったもの：アイテム${losses.items.length}個　${losses.runesLost}ルーン`
+    ? `\n失ったもの：道具${losses.items.length}個　${losses.runesLost}ルーン`
     : state.dead
     ? losses.cards.length + losses.items.length > 0
-      ? `\n失ったもの：カード${losses.cards.length}枚　アイテム${losses.items.length}個`
+      ? `\n失ったもの：仲間${losses.cards.length}体　道具${losses.items.length}個`
       : '\n失ったものはない'
     : '';
   const downgraded = losses.downgraded > 0 ? `\n聖なる袋${losses.downgraded}つがふつうの袋に戻った` : '';

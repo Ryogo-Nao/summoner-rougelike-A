@@ -49,32 +49,21 @@ export function rollStock(random: () => number = Math.random): ItemKind[] {
   return stock;
 }
 
-/** 買った物を入れるところ。バッグがいっぱいなら倉庫。どちらもいっぱいなら null */
-export function buyDestination(p: Profile): 'bag' | 'warehouse' | null {
-  if (p.bag.length < BAG_LIMIT) return 'bag';
-  if (p.warehouse.length < WAREHOUSE_LIMIT) return 'warehouse';
-  return null;
-}
-
-/** 買えない理由。買えるなら null */
-export function buyProblem(p: Profile, kind: ItemKind): string | null {
-  if (p.runes < buyPrice(kind)) return 'ルーンが足りない';
-  if (!buyDestination(p)) return 'バッグも倉庫もいっぱい';
-  return null;
-}
-
-/** 1つ買う。入れ替わる品は、買うと棚からなくなる。入れたところを返す */
-export function buy(p: Profile, kind: ItemKind): 'bag' | 'warehouse' | null {
-  const where = buyDestination(p);
-  if (!where || buyProblem(p, kind)) return null;
+/**
+ * 1つ買って、where（バッグか倉庫）へ送る。入れ替わる品は、買うと棚からなくなる。
+ * ルーンが足りない・送り先がいっぱい・棚にないときは買わずに false
+ */
+export function buy(p: Profile, kind: ItemKind, where: 'bag' | 'warehouse'): boolean {
+  const to = where === 'bag' ? p.bag : p.warehouse;
+  if (p.runes < buyPrice(kind) || to.length >= (where === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT)) return false;
   if (!ALWAYS_SOLD.includes(kind)) {
     const i = p.shopStock.indexOf(kind);
-    if (i < 0) return null;
+    if (i < 0) return false;
     p.shopStock.splice(i, 1);
   }
   p.runes -= buyPrice(kind);
-  (where === 'bag' ? p.bag : p.warehouse).push(createItem(kind));
-  return where;
+  to.push(createItem(kind));
+  return true;
 }
 
 /** 売れるか。値打ちのないもの、中身の入った袋（先に出す）は売れない */

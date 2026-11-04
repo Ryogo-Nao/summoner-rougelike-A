@@ -1370,7 +1370,6 @@ export class GameState {
     this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${exp}）` : `${m.species.name}は毒でたおれた（経験値${exp}）`);
     this.shareExp(exp, by, byPlayer);
     if (drop && this.rng.chance(dropChance(m.species))) {
-      this.addLog(`${m.species.name}がカードを落とした`);
       this.addCard(createCard(m.species, true, this.rng.pick(PERSONALITY_IDS), m.level));
     }
   }
@@ -1414,7 +1413,7 @@ export class GameState {
 
   /** 召喚できないときは、その理由を返す */
   summonProblem(card: Card): string | null {
-    if (card.status === 'dying') return '瀕死のカードはこのダンジョンでは召喚できない';
+    if (card.status === 'dying') return '瀕死の仲間はこのダンジョンでは召喚できない';
     if (card.status === 'summoned') return 'すでに召喚している';
     if (this.allies.length >= SUMMON_LIMIT) return `同時に召喚できるのは${SUMMON_LIMIT}体まで`;
     if (this.player.mp < card.species.cost) return 'MPが足りない';
@@ -1457,12 +1456,12 @@ export class GameState {
     this.stats.cards++;
     if (this.cards.length < HAND_LIMIT) {
       this.cards.push(card);
-      this.addLog(`${card.species.name}のカードを手に入れた（性格：${PERSONALITIES[card.personality].name}）`);
+      this.addLog(`${card.species.name}が仲間になった（性格：${PERSONALITIES[card.personality].name}）`);
       return;
     }
     this.pendingCard = card;
     this.addLog(
-      `${card.species.name}のカードを手に入れた（性格：${PERSONALITIES[card.personality].name}）\n手持ちがいっぱいのため預けるか別れるカードを選んでください`,
+      `${card.species.name}が仲間になった（性格：${PERSONALITIES[card.personality].name}）\n仲間がいっぱいのため 預けるか別れる仲間を選んでください`,
     );
   }
 
@@ -1798,7 +1797,7 @@ export class GameState {
       if (a.card.hp === 0) {
         this.allies = this.allies.filter((x) => x !== a);
         a.card.status = 'dying';
-        this.addLog(`${a.card.species.name}は毒で瀕死になりカードに戻った`);
+        this.addLog(`${a.card.species.name}は毒で瀕死になり召喚が解けた`);
         continue;
       }
       this.tickAilments(a.ailments, a.card.species.name);
@@ -2084,7 +2083,7 @@ export class GameState {
     if (a.card.hp === 0) {
       this.allies = this.allies.filter((x) => x !== a);
       a.card.status = 'dying';
-      this.addLog(`${name}は瀕死になりカードに戻った`);
+      this.addLog(`${name}は瀕死になり召喚が解けた`);
       return;
     }
     this.afflict(m.species, a.ailments, name);

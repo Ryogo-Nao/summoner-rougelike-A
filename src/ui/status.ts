@@ -58,7 +58,7 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
     if (sick) rows.push(['状態異常', sick]);
   }
   if (isPartner(card)) rows.push(['入手', '最初からの相棒']);
-  else if (inDungeon) rows.push(['入手', card.obtainedHere ? 'このダンジョンで手に入れた' : '持ってきた']);
+  else if (inDungeon) rows.push(['入手', card.obtainedHere ? 'このダンジョンで仲間にした' : '持ってきた']);
 
   const table = document.createElement('dl');
   table.className = 'status-table';

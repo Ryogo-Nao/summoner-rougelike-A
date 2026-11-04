@@ -1,6 +1,6 @@
 import { HAND_LIMIT, type Card } from '../game/cards';
 import { SPECIES } from '../game/monsters';
-import { ALWAYS_SOLD, buy, buyProblem, canSell, sell } from '../game/shop';
+import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
@@ -52,6 +52,11 @@ export class BaseScreen {
   private sellCount = new Map<string, number>();
   /** 商店で最後にしたこと（「薬草を買った」など） */
   private shopNote = '';
+  /** 買う数（品ごと）と、買った物の送り先 */
+  private buyCount = new Map<ItemKind, number>();
+  private buyTo: Place = 'bag';
+  /** 打ち込んだ数が多すぎた行。その行に「n個まで…」を赤で出す */
+  private countError: string | null = null;
   /** 最後に押した並べ替えのボタンと、その向き（desc なら降順） */
   private cardSort: { key: CardSortKey; desc: boolean } | null = null;
   /** つよさ・袋の中・ダンジョンの一覧を開く前の、一覧のスクロールの位置。戻ったときにそこへ戻す */
@@ -87,8 +92,7 @@ export class BaseScreen {
     this.viewing = null;
     this.pouch = null;
     this.choosing = false;
-    this.sellCount.clear();
-    this.shopNote = '';
+    this.clearShop();
     this.render();
   }
 
@@ -168,7 +172,7 @@ export class BaseScreen {
     this.body.scrollTop = keepScroll ? scroll : 0;
     const hand = this.handCards().length;
     const inside = this.viewing !== null || this.pouch !== null || this.choosing;
-    this.depart.textContent = inside ? '戻る' : hand === 0 ? 'カードを1枚以上選ぶ' : 'ダンジョンに向かう';
+    this.depart.textContent = inside ? '戻る' : hand === 0 ? '仲間を1体以上選ぶ' : 'ダンジョンに向かう';
     (this.depart as HTMLButtonElement).disabled = !inside && hand === 0;
     this.depart.classList.toggle('back', inside);
   }
@@ -221,8 +225,8 @@ export class BaseScreen {
     return [
       hero,
       item('prep', '⚔️', '冒険の準備', '仲間・持ち物・ダンジョン選択', true),
-      item('shop', '⚖️', '商店', `道具の売り買い　今日の品 ${p.shopStock.length}`),
-      item('records', '📜', '記録', 'つよさ・戦績・累積'),
+      item('shop', '⚖️', '商店', '道具の売買'),
+      item('records', '📜', '記録', 'つよさ・軌跡'),
     ];
   }
 
@@ -230,11 +234,11 @@ export class BaseScreen {
   private dungeonRows(p: Profile): HTMLElement[] {
     const rows: SheetRow[] = DUNGEONS.map((d) => {
       const open = isUnlocked(d, p.cleared);
-      const done = p.cleared.includes(d.id) ? '（踏破済み）' : '';
+      const done = p.cleared.includes(d.id);
       return {
         icon: open ? (done ? '🏆' : '🚪') : '🔒',
-        name: `${d.name}${done}`,
-        sub: open ? d.desc : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
+        name: d.name,
+        sub: open ? (done ? `踏破済み\n${d.desc}` : d.desc) : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
         dim: !open,
         button: { label: '出発', disabled: !open, onClick: () => this.onDepart(d.id) },
       };
@@ -279,7 +283,7 @@ export class BaseScreen {
       };
     });
     return [
-      note(`連れていく仲間 ${hand}/${HAND_LIMIT}（緑のカード）`),
+      note(`連れていく仲間 ${hand}/${HAND_LIMIT}`),
       toggle,
       ...rows.map(renderRow),
     ];
@@ -300,7 +304,7 @@ export class BaseScreen {
     head.append(
       placeTabs(
         this.itemPlace,
-        { bag: `🎒 バッグ（${p.bag.length}/${BAG_LIMIT}）`, warehouse: `📦 倉庫（${p.warehouse.length}/${WAREHOUSE_LIMIT}）` },
+        { bag: `🎒 バッグ ${p.bag.length}/${BAG_LIMIT}`, warehouse: `📦 倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}` },
         (place) => {
           this.itemPlace = place;
           this.render();
@@ -377,8 +381,8 @@ export class BaseScreen {
   }
 
   /**
-   * 商店（requirements.md 10.5）。買う：薬草とパンはいつでも、ほかの品は戻るたびに入れ替わる。
-   * 売る：バッグと倉庫の道具を押して選び、まとめて売る（売り値は買い値の3分の1）
+   * 商店（requirements.md 10.4.1）。買う：品を［－］数［＋］で選び、送り先（バッグか倉庫）を決めてまとめて買う。
+   * 薬草とパンはいくつでも、ほかの品は棚にある数まで。売る：バッグと倉庫の道具を同じように選んでまとめて売る
    */
   private shopRows(p: Profile): HTMLElement[] {
     const head = document.createElement('div');
@@ -388,8 +392,7 @@ export class BaseScreen {
     for (const [mode, label] of [['buy', '買う'], ['sell', '売る']] as const) {
       const b = wideButton(label, false, () => {
         this.shopMode = mode;
-        this.sellCount.clear();
-        this.shopNote = '';
+        this.clearShop();
         this.render();
       });
       if (this.shopMode === mode) b.classList.add('on');
@@ -397,56 +400,93 @@ export class BaseScreen {
     }
     head.append(modes);
     const done = this.shopNote ? [note(this.shopNote, 'base-section')] : [];
-    if (this.shopMode === 'buy') {
-      const row = (kind: ItemKind, left?: string): HTMLElement => {
-        const problem = buyProblem(p, kind);
-        return renderRow({
-          icon: ITEMS[kind].emoji,
-          name: `${ITEMS[kind].name}　💠${buyPrice(kind)}`,
-          sub: left ? `${ITEMS[kind].desc}\n${left}` : ITEMS[kind].desc,
-          dim: problem !== null,
-          button: {
-            label: '買う',
-            disabled: problem !== null,
-            onClick: () =>
-              this.change(() => {
-                const where = buy(p, kind);
-                this.shopNote = where ? `${ITEMS[kind].name}を買った（${where === 'bag' ? 'バッグ' : '倉庫'}へ）` : '';
-              }),
-          },
-        });
-      };
-      return [
-        head,
-        ...done,
-        note('いつでも買える', 'base-section'),
-        ...ALWAYS_SOLD.map((k) => row(k)),
-        note('今日の品（ダンジョンから戻ると入れ替わる）', 'base-section'),
-        ...(p.shopStock.length > 0 ? p.shopStock.map((k) => row(k, '残り1つ')) : [note('売り切れ')]),
-        note('買った物はバッグへ入る（いっぱいなら倉庫へ）'),
-      ];
-    }
-    // 売る：バッグと倉庫を切り替え、同じ道具はまとめて、売る数を［－］［＋］で選ぶ
+    return [head, ...done, ...(this.shopMode === 'buy' ? this.buyRows(p, head) : this.sellRows(p, head))];
+  }
+
+  /** 選んでいる数と、知らせを消す */
+  private clearShop(): void {
+    this.buyCount.clear();
+    this.sellCount.clear();
+    this.countError = null;
+    this.shopNote = '';
+  }
+
+  /** 買う品の一覧。それぞれ、ルーン・送り先の空き・棚の数から、あと何個まで買えるかを出す */
+  private buyRows(p: Profile, head: HTMLElement): HTMLElement[] {
+    const to = this.buyTo === 'bag' ? p.bag : p.warehouse;
+    const room = (this.buyTo === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT) - to.length;
+    const kinds = [...ALWAYS_SOLD, ...new Set(p.shopStock)];
+    const picked = kinds.filter((k) => (this.buyCount.get(k) ?? 0) > 0);
+    const count = picked.reduce((n, k) => n + this.buyCount.get(k)!, 0);
+    const total = picked.reduce((n, k) => n + buyPrice(k) * this.buyCount.get(k)!, 0);
+    head.append(
+      placeTabs(
+        this.buyTo,
+        { bag: `🎒 バッグへ送る ${p.bag.length}/${BAG_LIMIT}`, warehouse: `📦 倉庫へ送る ${p.warehouse.length}/${WAREHOUSE_LIMIT}` },
+        (place) => {
+          this.buyTo = place;
+          this.buyCount.clear();
+          this.countError = null;
+          this.render(true);
+        },
+      ),
+    );
+    const buyButton = wideButton(count > 0 ? `${count}個を買う 💠${total}` : '買う数を選ぶ', count === 0, () =>
+      this.change(() => {
+        for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
+        this.shopNote = `${count}個を買って ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
+        this.buyCount.clear();
+        this.countError = null;
+      }),
+    );
+    buyButton.classList.add('main');
+    head.append(buyButton);
+    return kinds.map((kind) => {
+      const n = this.buyCount.get(kind) ?? 0;
+      // ほかの品で選んだ分を引いて、この品をあと何個まで買えるか
+      const otherRunes = total - buyPrice(kind) * n;
+      const otherCount = count - n;
+      const shelf = ALWAYS_SOLD.includes(kind) ? Infinity : p.shopStock.filter((k) => k === kind).length;
+      const max = Math.max(0, Math.min(shelf, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
+      const why = p.runes - otherRunes < buyPrice(kind) ? 'ルーンが足りない' : room - otherCount <= 0 ? `${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}がいっぱい` : '';
+      const key = `buy:${kind}`;
+      const row = renderRow({
+        icon: ITEMS[kind].emoji,
+        name: `${ITEMS[kind].name}　💠${buyPrice(kind)}`,
+        sub: ITEMS[kind].desc,
+        dim: max === 0 && n === 0,
+        className: n > 0 ? 'chosen' : undefined,
+      });
+      countLine(row, max > 0 || n > 0 ? `${max}個まで購入できます` : why, this.countError === key);
+      if (max > 0 || n > 0) row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
+      return row;
+    });
+  }
+
+  /** 売る道具の一覧。バッグと倉庫を切り替え、同じ道具はまとめる */
+  private sellRows(p: Profile, head: HTMLElement): HTMLElement[] {
     const from = this.sellFrom === 'bag' ? p.bag : p.warehouse;
     const groups = groupItems(from, true);
     const picked = groups.flatMap((g) => g.items.slice(0, this.sellCount.get(g.key) ?? 0));
     const total = picked.reduce((n, i) => n + sellPrice(i), 0);
     const places = placeTabs(
       this.sellFrom,
-      { bag: `🎒 バッグから（${p.bag.length}）`, warehouse: `📦 倉庫から（${p.warehouse.length}）` },
+      { bag: `🎒 バッグ ${p.bag.length}`, warehouse: `📦 倉庫 ${p.warehouse.length}` },
       (place) => {
         this.sellFrom = place;
         this.sellCount.clear();
+        this.countError = null;
         this.render();
       },
     );
     const sellButton = wideButton(
-      picked.length > 0 ? `${picked.length}個を売る（💠${total}）` : '売る数を選ぶ',
+      picked.length > 0 ? `${picked.length}個を売る 💠${total}` : '売る数を選ぶ',
       picked.length === 0,
       () =>
         this.change(() => {
           const got = sell(p, picked);
           this.sellCount.clear();
+          this.countError = null;
           this.shopNote = `${picked.length}個を売って ${got}ルーンを得た`;
         }),
     );
@@ -456,32 +496,80 @@ export class BaseScreen {
       const first = g.items[0];
       const ok = canSell(first);
       const n = this.sellCount.get(g.key) ?? 0;
-      const set = (v: number) => {
-        this.sellCount.set(g.key, Math.max(0, Math.min(g.items.length, v)));
-        this.render(true);
-      };
+      const max = g.items.length;
       const why = ITEMS[first.kind].pouch && (first.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
-      const count = g.items.length > 1 ? `　×${g.items.length}` : '';
+      const key = `sell:${g.key}`;
       const row = renderRow({
         icon: ITEMS[first.kind].emoji,
-        name: `${g.name}${count}`,
+        name: `${g.name}${max > 1 ? `　×${max}` : ''}`,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
         dim: !ok,
         className: n > 0 ? 'chosen' : undefined,
       });
-      if (ok) row.append(stepper(n, g.items.length, set));
+      if (ok) countLine(row, `${max}個まで売却できます`, this.countError === key);
+      if (ok) row.append(this.stepper(key, n, max, (v) => this.sellCount.set(g.key, v)));
       return row;
     };
-    return [
-      head,
-      ...done,
-      ...(groups.length > 0 ? groups.map(sellRow) : [note(this.sellFrom === 'bag' ? 'バッグは空' : '倉庫は空')]),
-    ];
+    return groups.length > 0 ? groups.map(sellRow) : [note(this.sellFrom === 'bag' ? 'バッグは空' : '倉庫は空')];
+  }
+
+  /**
+   * 数を選ぶ［－］数［＋］。数を押すと、じかに打ち込める。
+   * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す
+   */
+  private stepper(key: string, value: number, max: number, set: (v: number) => void): HTMLElement {
+    const apply = (v: number) => {
+      this.countError = null;
+      set(Math.max(0, Math.min(max, v)));
+      this.render(true);
+    };
+    const box = document.createElement('div');
+    box.className = 'stepper';
+    const minus = document.createElement('button');
+    minus.textContent = '－';
+    minus.disabled = value <= 0;
+    minus.addEventListener('click', () => apply(value - 1));
+    const num = document.createElement('button');
+    num.className = 'stepper-num';
+    num.textContent = `${value}`;
+    num.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.className = 'stepper-num';
+      input.type = 'text';
+      input.inputMode = 'numeric';
+      input.pattern = '[0-9]*';
+      input.value = value > 0 ? `${value}` : '';
+      let done = false;
+      const commit = () => {
+        if (done) return;
+        done = true;
+        const text = input.value.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+        const v = text === '' ? 0 : Number(text);
+        if (!Number.isInteger(v) || v < 0) this.render(true);
+        else if (v > max) {
+          this.countError = key;
+          this.render(true);
+        } else apply(v);
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+      });
+      input.addEventListener('blur', commit);
+      num.replaceWith(input);
+      input.focus();
+      input.select();
+    });
+    const plus = document.createElement('button');
+    plus.textContent = '＋';
+    plus.disabled = value >= max;
+    plus.addEventListener('click', () => apply(value + 1));
+    box.append(minus, num, plus);
+    return box;
   }
 
   /**
    * 主人公のつよさ（requirements.md 10.4.2）。ダンジョンに入るときの能力、覚えている魔法、
-   * ダンジョンごとの戦績、これまでの累積
+   * これまでの軌跡（累計とダンジョンごとの記録）
    */
   private statusRows(p: Profile): HTMLElement[] {
     const portrait = document.createElement('div');
@@ -496,7 +584,7 @@ export class BaseScreen {
         icon: p.cleared.includes(d.id) ? '🏆' : '🚪',
         name: d.name,
         sub: rec
-          ? `挑戦${rec.tries}回　踏破${rec.cleared}　離脱${rec.escaped}\n力つきた${rec.failed}　あきらめた${rec.gaveUp}\n最高到達 B${rec.bestFloor}F（全${d.floors}階）`
+          ? `挑戦${rec.tries}回　踏破${rec.cleared}　離脱${rec.escaped}\n力つきた${rec.failed}　あきらめた${rec.gaveUp}\n最高到達 B${rec.bestFloor}F／全${d.floors}階`
           : 'まだ挑んでいない',
       });
     });
@@ -506,7 +594,7 @@ export class BaseScreen {
       title,
       note('ダンジョンに入るときの能力', 'base-section'),
       table([
-        ['レベル', '1（ダンジョンの中で上がる）'],
+        ['レベル', '1'],
         ['HP', `${b.hp}`],
         ['MP', `${b.mp}`],
         ['攻撃力', `${b.atk}`],
@@ -515,20 +603,15 @@ export class BaseScreen {
       ]),
       note('覚えている魔法', 'base-section'),
       ...this.spellRows(p),
-      note('戦績', 'base-section'),
-      ...dungeonRows,
-      note('累積', 'base-section'),
+      note('軌跡', 'base-section'),
       table([
         ['潜った回数', `${runs}回`],
-        ['歩いたターン', `${r.turns}`],
         ['たおした魔物', `${r.kills}体`],
-        ['手に入れたカード', `${r.cards}枚`],
+        ['仲間にした数', `${r.cards}体`],
         ['拾った道具', `${r.items}個`],
         ['拾ったルーン', `${r.runes}`],
-        ['最高レベル', `Lv${r.bestLevel}`],
-        ['仲間の数', `${p.cards.length}体`],
-        ['持っているルーン', `${p.runes}`],
       ]),
+      ...dungeonRows,
     ];
   }
 
@@ -544,7 +627,7 @@ export class BaseScreen {
           return {
             icon: SPELL_ICONS[id],
             name: rankedName(SPELLS[id].name, rank),
-            sub: `MP${SPELLS[id].mp}　${effect}\n魔導書を読むとランクが上がる（最大+5）`,
+            sub: `MP${SPELLS[id].mp}　${effect}\n魔導書を読むとランクが上がる　最大+5`,
           };
         }),
     ];
@@ -603,22 +686,12 @@ function sortStock(items: Item[], by: ItemSortKey): Item[] {
     .flatMap((g) => g.items);
 }
 
-/** 売る数を選ぶ［－］数［＋］。0〜max */
-function stepper(value: number, max: number, onChange: (v: number) => void): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'stepper';
-  const minus = document.createElement('button');
-  minus.textContent = '－';
-  minus.disabled = value <= 0;
-  minus.addEventListener('click', () => onChange(value - 1));
-  const num = document.createElement('span');
-  num.textContent = `${value}`;
-  const plus = document.createElement('button');
-  plus.textContent = '＋';
-  plus.disabled = value >= max;
-  plus.addEventListener('click', () => onChange(value + 1));
-  box.append(minus, num, plus);
-  return box;
+/** 説明の下に「n個まで…」を出す。打ち込んだ数が多すぎたとき（error）は赤にする */
+function countLine(row: HTMLElement, text: string, error: boolean): void {
+  const el = document.createElement('div');
+  el.className = error ? 'sub count-error' : 'sub';
+  el.textContent = text;
+  row.querySelector('.sub')!.after(el);
 }
 
 /** 名前と値を2列に並べた表 */
