@@ -11,7 +11,7 @@ import {
 } from './state';
 
 /** 倉庫に入るアイテムの数（requirements.md 10.4） */
-export const WAREHOUSE_LIMIT = 100;
+export const WAREHOUSE_LIMIT = 9999;
 
 /**
  * ダンジョンの外に残るもの。持っているカードすべて、そのうち持っていくカード、

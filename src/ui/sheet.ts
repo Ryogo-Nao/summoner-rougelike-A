@@ -7,6 +7,8 @@ export interface SheetRow {
   button?: { label: string; disabled?: boolean; onClick: () => void };
   /** 行（ボタン以外）を押したとき。つよさを見るなど */
   onSelect?: () => void;
+  /** 行に足す見た目（例：taking は連れていくカードを緑で目立たせる） */
+  className?: string;
 }
 
 /** カード・魔法などの一覧を下側に出す。閉じられない一覧は、選ぶまで開いたままにする */
@@ -57,7 +59,7 @@ export class Sheet {
 
 export function renderRow(row: SheetRow): HTMLElement {
   const el = document.createElement('div');
-  el.className = row.dim ? 'sheet-row dim' : 'sheet-row';
+  el.className = ['sheet-row', row.dim ? 'dim' : '', row.className ?? ''].filter(Boolean).join(' ');
   const icon = document.createElement('span');
   icon.className = 'icon';
   icon.textContent = row.icon;

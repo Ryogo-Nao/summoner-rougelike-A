@@ -10,7 +10,7 @@ import { statusView } from './status';
 type Tab = 'cards' | 'bag' | 'warehouse' | 'spells';
 
 /**
- * 拠点画面（requirements.md 10.4）。持っていくカードを選び、バッグと倉庫の間でアイテムを出し入れして出発する。
+ * 拠点画面（requirements.md 10.4）。連れていく仲間を選び、バッグと倉庫の間でアイテムを出し入れして出発する。
  * 変えるたびに保存する
  */
 export class BaseScreen {
@@ -75,14 +75,17 @@ export class BaseScreen {
     return p.cards.filter((c) => p.hand.includes(c.id));
   }
 
+  /** 中身を変えて保存する。一覧のスクロールの位置はそのままにする */
   private change(f: () => void): void {
     f();
     saveProfile(this.profile!);
-    this.render();
+    this.render(true);
   }
 
-  private render(): void {
+  /** keepScroll なら一覧のスクロールの位置を保つ。画面を切り替えたときは一番上に戻す */
+  private render(keepScroll = false): void {
     const p = this.profile!;
+    const scroll = this.body.scrollTop;
     for (const b of this.tabs) b.classList.toggle('active', b.dataset.tab === this.tab);
     const children: HTMLElement[] = [];
     if (this.choosing) {
@@ -106,7 +109,7 @@ export class BaseScreen {
       if (this.tab === 'spells') children.push(...this.spellRows(p));
     }
     this.body.replaceChildren(...children);
-    this.body.scrollTop = 0;
+    this.body.scrollTop = keepScroll ? scroll : 0;
     const hand = this.handCards().length;
     this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンを選ぶ';
     (this.depart as HTMLButtonElement).disabled = hand === 0;
@@ -134,12 +137,13 @@ export class BaseScreen {
       const taking = p.hand.includes(card.id);
       return {
         icon: cardIcon(card),
-        name: taking ? `${card.species.name}（持っていく）` : card.species.name,
+        name: card.species.name,
         sub: cardSub(card, false),
+        className: taking ? 'taking' : undefined,
         button: taking
           ? { label: '残す', onClick: () => this.change(() => (p.hand = p.hand.filter((id) => id !== card.id))) }
           : {
-              label: '持っていく',
+              label: '連れていく',
               disabled: hand >= HAND_LIMIT,
               onClick: () => this.change(() => p.hand.push(card.id)),
             },
@@ -150,7 +154,7 @@ export class BaseScreen {
       };
     });
     return [
-      note(`持っていくカード ${hand}/${HAND_LIMIT}\n残したカードは保管庫で待つ\nカードを押すとつよさを見る`),
+      note(`連れていく仲間 ${hand}/${HAND_LIMIT}（緑のカード）\n残した仲間は保管庫で待つ\nカードを押すとつよさを見る`),
       ...rows.map(renderRow),
     ];
   }
@@ -167,21 +171,37 @@ export class BaseScreen {
   }
 
   /** 倉庫。バッグへ出せる */
+  /**
+   * 倉庫。同じ道具は1行にまとめて数を出す（＋の違う装備、入る数の違う袋、中身のある袋は分ける）。
+   * ［バッグへ］で1つずつ出す
+   */
   private warehouseRows(p: Profile): HTMLElement[] {
+    const groups = new Map<string, Item[]>();
+    for (const item of p.warehouse) {
+      const key = item.contents?.length ? `#${item.id}` : `${item.kind}:${item.plus ?? 0}:${item.capacity ?? 0}`;
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    const rows = [...groups.values()].map((items) => {
+      const first = items[0];
+      const def = ITEMS[first.kind];
+      // 矢は本数を足して出す
+      const name = def.arrow
+        ? `${def.name}（${items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
+        : `${itemName(first)}${items.length > 1 ? ` ×${items.length}` : ''}`;
+      return this.itemRow(first, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(first, p.warehouse, p.bag), name);
+    });
     return [
-      note(`倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}　バッグ ${p.bag.length}/${BAG_LIMIT}`),
+      note(`倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}　バッグ ${p.bag.length}/${BAG_LIMIT}\n同じ道具はまとめて出す`),
       this.sortButtons((by) => (p.warehouse = sortItems(p.warehouse, by))),
-      ...p.warehouse.map((item) =>
-        this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(item, p.warehouse, p.bag)),
-      ),
+      ...rows,
     ];
   }
 
-  private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void): HTMLElement {
+  private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
     const pouch = ITEMS[item.kind].pouch !== undefined;
     return renderRow({
       icon: ITEMS[item.kind].emoji,
-      name: itemName(item),
+      name,
       sub: pouch ? `${ITEMS[item.kind].desc}\n押すと中を見る` : ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
       onSelect: pouch
@@ -228,20 +248,20 @@ export class BaseScreen {
   }
 
   private spellRows(p: Profile): HTMLElement[] {
+    // 覚えている魔法だけを出す。仲間を召喚している間だけ使える魔法と、まだ読んでいない魔導書の魔法は出さない
     const rows: SheetRow[] = [
-      { icon: '🔥', name: SPELLS.fire.name, sub: `MP${SPELLS.fire.mp}　最初から使える` },
-      { icon: '⚡', name: SPELLS.thunder.name, sub: `MP${SPELLS.thunder.mp}　イヅツチを召喚している間だけ` },
-      { icon: '☄️', name: SPELLS.bigFire.name, sub: `MP${SPELLS.bigFire.mp}　ヒダマリを召喚している間だけ` },
-      ...(['power', 'guard'] as SpellId[]).map((id) => {
-        const rank = p.ranks[id] ?? 0;
-        const effect = id === 'power' ? `攻撃力×${powerRate(rank)}` : `受けるダメージ×${guardRate(rank)}`;
-        return {
-          icon: SPELL_ICONS[id],
-          name: rankedName(SPELLS[id].name, rank),
-          sub: p.learned.includes(id) ? `MP${SPELLS[id].mp}　${effect}\n魔導書を読むとランクが上がる（最大+5）` : '魔導書を読むと覚える',
-          dim: !p.learned.includes(id),
-        };
-      }),
+      { icon: SPELL_ICONS.fire, name: SPELLS.fire.name, sub: `MP${SPELLS.fire.mp}　最初から使える` },
+      ...(['power', 'guard'] as SpellId[])
+        .filter((id) => p.learned.includes(id))
+        .map((id) => {
+          const rank = p.ranks[id] ?? 0;
+          const effect = id === 'power' ? `攻撃力×${powerRate(rank)}` : `受けるダメージ×${guardRate(rank)}`;
+          return {
+            icon: SPELL_ICONS[id],
+            name: rankedName(SPELLS[id].name, rank),
+            sub: `MP${SPELLS[id].mp}　${effect}\n魔導書を読むとランクが上がる（最大+5）`,
+          };
+        }),
     ];
     return [note('覚えている魔法'), ...rows.map(renderRow)];
   }

@@ -502,6 +502,14 @@ button {
   margin: 0;
   white-space: pre-line;
 }
+/* 連れていくカード */
+.sheet-row.taking {
+  background: rgba(79, 209, 139, 0.14);
+  box-shadow: inset 4px 0 0 #4fd18b;
+}
+.sheet-row.taking .name {
+  color: #4fd18b;
+}
 .sheet-row.tappable {
   cursor: pointer;
 }
