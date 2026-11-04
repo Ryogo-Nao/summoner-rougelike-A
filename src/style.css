@@ -370,6 +370,45 @@ button {
   grid-column: span 2;
 }
 
+/* ［攻撃］の長押しで出す、登録した道具の扇 */
+#quick-fan {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+#quick-fan[hidden] {
+  display: none;
+}
+.quick-slot {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.quick-slot span {
+  font-size: 24px;
+  line-height: 1;
+}
+.quick-slot small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.quick-slot.off {
+  opacity: 0.4;
+}
+.quick-slot.hover {
+  background: var(--btn-active);
+  border-color: var(--text);
+}
+
 /* 拠点。画面いっぱいに出す */
 #base {
   position: fixed;

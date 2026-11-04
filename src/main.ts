@@ -5,8 +5,10 @@ import { GameState, sickMark, type RunData } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
+import { setupQuick } from './ui/quick';
+import { ITEMS } from './game/items';
 import { ORDER_LABEL } from './game/cards';
-import { cardIcon, openAllySheet, openBagSheet, openFloorSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
+import { useShortcut, cardIcon, openAllySheet, openBagSheet, openFloorSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { BaseScreen } from './ui/base';
 import { loadSettings, saveSettings } from './ui/settings';
 import { Sheet } from './ui/sheet';
@@ -342,9 +344,24 @@ function onButton(id: string, handler: () => void): void {
   }
 }
 
-onButton('btn-attack', () => {
-  state.attack();
-  afterAction();
+// ［攻撃］：短く押すと攻撃、長押しで登録した道具の扇を出す
+setupQuick(document.getElementById('btn-attack')!, {
+  canStart: acceptsInput,
+  onTap() {
+    if (!acceptsInput()) return;
+    state.attack();
+    afterAction();
+  },
+  slots: () =>
+    state.shortcuts.map((kind) => {
+      if (!kind) return { emoji: '', label: '', enabled: false };
+      const n = state.countInBag(kind);
+      const label = ITEMS[kind].arrow ? `${n}本` : `×${n}`;
+      return { emoji: ITEMS[kind].emoji, label, enabled: n > 0 };
+    }),
+  onPick(slot) {
+    if (acceptsInput()) useShortcut(state, sheet, slot, afterAction);
+  },
 });
 onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));

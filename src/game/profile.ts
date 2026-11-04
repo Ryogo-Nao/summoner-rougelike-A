@@ -1,5 +1,5 @@
 import { HAND_LIMIT, IZUTSUCHI, createCard, isPartner, reserveCardIds, type Card } from './cards';
-import { BAG_LIMIT, START_ITEMS, createItem, reserveItemIds, type Item } from './items';
+import { BAG_LIMIT, START_ITEMS, createItem, noShortcuts, reserveItemIds, type Item, type Shortcuts } from './items';
 import {
   cardFromData,
   cardToData,
@@ -28,6 +28,8 @@ export interface Profile {
   ranks: SpellRanks;
   /** 踏破したダンジョンの id。次のダンジョンに挑めるかなどに使う */
   cleared: string[];
+  /** ［攻撃］の長押しで使う、登録した道具の種類 */
+  shortcuts: Shortcuts;
 }
 
 /** ダンジョンの終わり方。踏破（いちばん下まで行った）・離脱（転送の印で出た）・失敗（力つきた） */
@@ -49,6 +51,7 @@ interface ProfileData {
   learned: SpellId[];
   ranks?: SpellRanks;
   cleared?: string[];
+  shortcuts?: Shortcuts;
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -57,7 +60,7 @@ const RUN_KEY = 'summoner-run';
 /** 初めて遊ぶとき。イヅツチのカードと、最初の持ち物だけを持っている（balance.md 8章） */
 export function newProfile(): Profile {
   const partner = createCard(IZUTSUCHI, false);
-  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {}, cleared: [] };
+  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {}, cleared: [], shortcuts: noShortcuts() };
 }
 
 export function loadProfile(): Profile {
@@ -65,7 +68,7 @@ export function loadProfile(): Profile {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return newProfile();
     const data = JSON.parse(raw) as ProfileData;
-    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {}, cleared: data.cleared ?? [] };
+    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {}, cleared: data.cleared ?? [], shortcuts: data.shortcuts ?? noShortcuts() };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...profile.bag.map((i) => i.id), ...profile.warehouse.map((i) => i.id)));
     return profile;
@@ -86,7 +89,7 @@ export function saveProfile(profile: Profile): void {
 /** 持っていくカード・バッグ・魔法。カードは召喚できる状態にする */
 export function loadoutOf(profile: Profile): Loadout {
   const cards = profile.hand.flatMap((id) => profile.cards.filter((c) => c.id === id)).slice(0, HAND_LIMIT);
-  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks } };
+  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks }, shortcuts: [...profile.shortcuts] };
 }
 
 // ---- ダンジョンの途中の保存 ----
@@ -148,6 +151,7 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.bag = bag.slice(0, BAG_LIMIT);
   profile.learned = [...state.learned];
   profile.ranks = { ...state.ranks };
+  profile.shortcuts = [...state.shortcuts];
   if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
   saveProfile(profile);
   clearRun();

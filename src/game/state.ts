@@ -31,6 +31,7 @@ import {
   ITEMS,
   PLUS_LIMIT,
   THROW_DAMAGE,
+  noShortcuts,
   START_ITEMS,
   createItem,
   equipBonus,
@@ -40,6 +41,8 @@ import {
   type FloorItem,
   type Item,
   type SealKind,
+  type ItemKind,
+  type Shortcuts,
 } from './items';
 import { distanceField, firstStepToward } from './path';
 import { Rng } from './rng';
@@ -180,6 +183,7 @@ export interface Loadout {
   bag: Item[];
   learned: SpellId[];
   ranks: SpellRanks;
+  shortcuts: Shortcuts;
 }
 
 /** 覚えた魔法のランク。0（無印）のものは省いてよい */
@@ -210,6 +214,7 @@ export interface RunData {
   floorItems: FloorItem[];
   learned: SpellId[];
   ranks?: SpellRanks;
+  shortcuts?: Shortcuts;
   log: LogEntry[];
   logSerial: number;
   provoker: number;
@@ -273,6 +278,8 @@ export class GameState {
   /** 魔導書で覚えた魔法 */
   learned = new Set<SpellId>();
   ranks: SpellRanks = {};
+  /** ［攻撃］の長押しで使える、登録した道具の種類 */
+  shortcuts: Shortcuts = noShortcuts();
   /** 手元がいっぱいのときに手に入れたカード。保管庫へ送るカードを選ぶまで、ここで待つ */
   pendingCard: Card | null = null;
   popups: Popup[] = [];
@@ -316,6 +323,7 @@ export class GameState {
       this.bag = loadout.bag;
       this.learned = new Set(loadout.learned);
       this.ranks = { ...loadout.ranks };
+      this.shortcuts = [...loadout.shortcuts];
     }
     this.player = {
       pos: { x: 0, y: 0 },
@@ -362,6 +370,7 @@ export class GameState {
       floorItems: this.floorItems,
       learned: [...this.learned],
       ranks: this.ranks,
+      shortcuts: this.shortcuts,
       log: this.log,
       logSerial: this.logSerial,
       provoker: this.provoker ? this.monsters.indexOf(this.provoker) : -1,
@@ -400,6 +409,7 @@ export class GameState {
     s.floorItems = data.floorItems;
     s.learned = new Set(data.learned);
     s.ranks = data.ranks ?? {};
+    s.shortcuts = data.shortcuts ?? noShortcuts();
     s.log = data.log;
     s.logSerial = data.logSerial;
     s.provoker = s.monsters[data.provoker] ?? null;
@@ -724,6 +734,29 @@ export class GameState {
     if (def.seal === 'summon' && this.summonTargets().length === 0) return '召喚できる仲間がいない';
     if (item.kind === 'pot' && this.potBases().length === 0) return '同じ名前の装備が2つない';
     return null;
+  }
+
+  // ---- 登録した道具（［攻撃］の長押し） ----
+
+  /** 登録できる道具か。使える道具だけで、装備（武器・盾）と白紙カードは登録できない */
+  canRegister(item: Item): boolean {
+    return this.useLabel(item) !== null && !ITEMS[item.kind].slot;
+  }
+
+  /** slot の枠に道具の種類を登録する（null で外す）。同じ種類がほかの枠にあれば、そちらは外す */
+  setShortcut(slot: number, kind: ItemKind | null): void {
+    this.shortcuts = this.shortcuts.map((k, i) => (i === slot ? kind : k === kind ? null : k));
+  }
+
+  /** その枠で使うバッグの道具。同じ種類が何個あっても、最初のものを使う */
+  shortcutItem(slot: number): Item | undefined {
+    const kind = this.shortcuts[slot];
+    return kind ? this.bag.find((i) => i.kind === kind) : undefined;
+  }
+
+  /** バッグにあるその種類の数。矢は本数を足す */
+  countInBag(kind: ItemKind): number {
+    return this.bag.filter((i) => i.kind === kind).reduce((n, i) => n + (i.count ?? 1), 0);
   }
 
   /** 復活の印で選べるカード（瀕死のカード） */

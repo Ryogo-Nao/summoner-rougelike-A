@@ -9,6 +9,12 @@ export const ARROW_STACK = 99;
 export const ARROW_DROP: [number, number] = [5, 15];
 /** 錬金釜で強くできる上限 */
 export const PLUS_LIMIT = 10;
+/** ［攻撃］の長押しで使える、登録した道具の枠の数（左上・上・右上） */
+export const SHORTCUT_SLOTS = 3;
+export const SHORTCUT_LABELS = ['左上', '上', '右上'];
+/** 登録した道具の種類。空いている枠は null */
+export type Shortcuts = (ItemKind | null)[];
+export const noShortcuts = (): Shortcuts => Array<ItemKind | null>(SHORTCUT_SLOTS).fill(null);
 
 export type ItemKind =
   | 'bread'

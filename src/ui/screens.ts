@@ -1,5 +1,5 @@
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
-import { BAG_LIMIT, ITEMS, PLUS_LIMIT, itemName, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
@@ -165,6 +165,61 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
 }
 
 /**
+ * 登録した道具を使う（［攻撃］の長押し）。選ぶものがある道具は、選ぶ画面を出す。
+ * 使えないときは、その理由をログに出す（ターンは使わない）
+ */
+export function useShortcut(state: GameState, sheet: Sheet, slot: number, after: AfterAction): void {
+  const item = state.shortcutItem(slot);
+  if (!item) return;
+  const problem = state.useProblem(item);
+  if (problem) {
+    state.addLog(problem);
+    after();
+    return;
+  }
+  startUse(state, sheet, item, after, () => sheet.close());
+}
+
+/** 使い始める。印・錬金釜は選ぶ画面を出し、それ以外はすぐ使う */
+function startUse(state: GameState, sheet: Sheet, item: Item, after: AfterAction, back: () => void): void {
+  const seal = ITEMS[item.kind].seal;
+  if (item.kind === 'pot') {
+    openPotSheet(state, sheet, item, after, back);
+  } else if (seal === 'revive' || seal === 'summon') {
+    openSealTargetSheet(state, sheet, item, after, back);
+  } else {
+    sheet.close();
+    state.useItem(item);
+    after();
+  }
+}
+
+/** 道具を［攻撃］の長押しの枠に登録する。種類で登録するので、なくなっても同じ種類を使う */
+function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: AfterAction): void {
+  const kind = item.kind;
+  const rows: SheetRow[] = SHORTCUT_LABELS.map((label, slot) => {
+    const there = state.shortcuts[slot];
+    const mine = there === kind;
+    return {
+      icon: there ? ITEMS[there].emoji : '',
+      name: label,
+      sub: there ? ITEMS[there].name : '空き',
+      button: {
+        label: mine ? '外す' : '登録',
+        onClick: () => {
+          state.setShortcut(slot, mine ? null : kind);
+          openRegisterSheet(state, sheet, item, after);
+        },
+      },
+    };
+  });
+  sheet.open(`${ITEMS[kind].emoji} ${ITEMS[kind].name}を登録`, rows, {
+    note: '［攻撃］を長押しして\n登録した枠の方へ指を滑らせると使える',
+    footer: wideButton('戻る', false, () => openItemSheet(state, sheet, item, after)),
+  });
+}
+
+/**
  * ［使う］などのボタン。選ぶものがある道具は、選ぶ画面を出す
  * （復活の印・召喚の印は仲間、錬金釜は装備）。back は選ぶ画面の［戻る］で開き直す画面
  */
@@ -172,18 +227,7 @@ function useButton(state: GameState, sheet: Sheet, item: Item, after: AfterActio
   const label = state.useLabel(item);
   if (!label) return null;
   const problem = state.useProblem(item);
-  return wideButton(problem ?? label, problem !== null, () => {
-    const seal = ITEMS[item.kind].seal;
-    if (item.kind === 'pot') {
-      openPotSheet(state, sheet, item, after, back);
-    } else if (seal === 'revive' || seal === 'summon') {
-      openSealTargetSheet(state, sheet, item, after, back);
-    } else {
-      sheet.close();
-      state.useItem(item);
-      after();
-    }
-  });
+  return wideButton(problem ?? label, problem !== null, () => startUse(state, sheet, item, after, back));
 }
 
 /** 復活の印・召喚の印を使う仲間を選ぶ */
@@ -285,6 +329,11 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
   const use = useButton(state, sheet, item, after, () => openItemSheet(state, sheet, item, after));
   if (use) buttons.append(use);
   if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
+  if (state.canRegister(item)) {
+    const slot = state.shortcuts.indexOf(item.kind);
+    const label = slot >= 0 ? `登録する（${SHORTCUT_LABELS[slot]}に登録中）` : '登録する';
+    buttons.append(wideButton(label, false, () => openRegisterSheet(state, sheet, item, after)));
+  }
   const underfoot = state.itemUnderfoot();
   if (underfoot) {
     // 足もとに道具があれば、置く代わりに入れ替える
