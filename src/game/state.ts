@@ -695,6 +695,16 @@ export class GameState {
     return item.count !== undefined && this.bag.some((i) => i.kind === item.kind && (i.count ?? ARROW_STACK) < ARROW_STACK);
   }
 
+  /** 仲間の攻撃力。力の魔法がかかっていれば上がる（味方全体にかかる） */
+  private allyAttack(a: Ally): number {
+    return this.player.powerTurns > 0 ? Math.round(a.card.atk * powerRate(this.rankOf('power'))) : a.card.atk;
+  }
+
+  /** 主人公と仲間が受けるダメージ。守りの魔法がかかっていれば減る（味方全体にかかる） */
+  private guarded(raw: number): number {
+    return this.player.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
+  }
+
   /** 攻撃力と防御力。装備と、力の魔法の分を含む */
   attackPower(): number {
     const p = this.player;
@@ -1426,11 +1436,13 @@ export class GameState {
     this.beginAction();
     p.mp -= mp;
     if (spell === 'power' || spell === 'guard') {
-      // 自分にかける魔法。続いている間にかけ直すと、残りターンが元に戻る
+      // 味方全体（主人公と召喚中の仲間）にかかる。あとから召喚した仲間にも、続いている間はかかる。
+      // 続いている間にかけ直すと、残りターンが元に戻る
       if (spell === 'power') p.powerTurns = BUFF_TURNS;
       else p.guardTurns = BUFF_TURNS;
-      this.addLog(`${name}を使った`);
-      this.popups.push({ pos: p.pos, text: spell === 'power' ? '力UP' : '守りUP', kind: 'info' });
+      this.addLog(`${name}を使った（味方全体）`);
+      const text = spell === 'power' ? '力UP' : '守りUP';
+      for (const at of [p.pos, ...this.allies.map((a) => a.pos)]) this.popups.push({ pos: at, text, kind: 'info' });
       this.endTurn();
       return;
     }
@@ -1901,7 +1913,7 @@ export class GameState {
   /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
   private hurtPlayer(m: Monster, raw: number, how: string): void {
     const p = this.player;
-    const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
+    const dmg = this.guarded(raw);
     p.hp = Math.max(0, p.hp - dmg);
     this.wake(p.ailments);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
@@ -1919,7 +1931,7 @@ export class GameState {
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = rollDamage(this.rng, m.atk, a.card.def);
+    const dmg = this.guarded(rollDamage(this.rng, m.atk, a.card.def));
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
@@ -1963,7 +1975,7 @@ export class GameState {
       a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
       this.scene(a.pos, target.pos, () => {
         if (this.rng.chance(HIT_RATE)) {
-          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.def), a, '攻撃');
+          this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
           // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
           if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
         } else {
@@ -1979,7 +1991,7 @@ export class GameState {
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
         this.scene(a.pos, target.pos, () =>
-          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.def), a, 'いかずち'),
+          this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, 'いかずち'),
         );
         return;
       }
@@ -1992,7 +2004,7 @@ export class GameState {
       );
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-        this.scene(a.pos, target.pos, () => this.damageMonster(target, a.card.atk, a, '火'));
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, this.allyAttack(a), a, '火'));
         return;
       }
     }

@@ -80,8 +80,8 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     const effect: Record<SpellId, string> = {
       fire: `正面の敵に${10 + p.level * 2}`,
       thunder: `周りの敵に${6 + p.level}`,
-      power: `20ターン攻撃力×${powerRate(state.rankOf('power'))}`,
-      guard: `20ターン受けるダメージ×${guardRate(state.rankOf('guard'))}`,
+      power: `20ターン味方全体の攻撃力×${powerRate(state.rankOf('power'))}`,
+      guard: `20ターン味方全体の受けるダメージ×${guardRate(state.rankOf('guard'))}`,
       bigFire: `前方3マス幅の敵に${20 + p.level * 2}`,
     };
     return {
