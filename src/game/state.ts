@@ -209,6 +209,7 @@ export interface RunData {
   revealed?: boolean;
   /** このダンジョンで拾ったルーン */
   runes?: number;
+  stats?: RunStats;
   /** モンスターハウスの部屋の番号（map.rooms）。ない・もう起きたなら -1 */
   monsterHouse?: number;
   rng: number;
@@ -274,6 +275,19 @@ export function cardFromData(data: CardData): Card {
   return card;
 }
 
+/** ダンジョンに入るときの主人公の能力（Lv1。balance.md 1章） */
+export const PLAYER_BASE = { hp: 30, mp: 20, food: 100, atk: 5, def: 3 };
+
+/** ダンジョンの中で数える戦績。拠点に戻ると、累積の記録に足す */
+export interface RunStats {
+  /** たおした魔物（毒でたおれたものも含む） */
+  kills: number;
+  /** 手に入れたカード */
+  cards: number;
+  /** 拾った道具（ルーンは含まない） */
+  items: number;
+}
+
 /** 魔物などに付ける、見分けるための番号。保存はしない */
 const objectKeys = new WeakMap<object, number>();
 let nextObjectKey = 1;
@@ -333,6 +347,7 @@ export class GameState {
   dead = false;
   /** このダンジョンで拾ったルーン。拠点に戻ると持っているルーンに足す（力つきたら半分） */
   runes = 0;
+  stats: RunStats = { kills: 0, cards: 0, items: 0 };
   /** 自分でダンジョンをあきらめた（dead と一緒に立てる） */
   gaveUp = false;
   /** 千里の印で、この階の地図と、階段・道具・敵の場所がわかっている */
@@ -361,19 +376,20 @@ export class GameState {
       this.ranks = { ...loadout.ranks };
       this.shortcuts = [...loadout.shortcuts];
     }
+    const b = PLAYER_BASE;
     this.player = {
       pos: { x: 0, y: 0 },
       facing: 4,
-      hp: 30,
-      maxHp: 30,
-      mp: 20,
-      maxMp: 20,
-      food: 100,
-      maxFood: 100,
+      hp: b.hp,
+      maxHp: b.hp,
+      mp: b.mp,
+      maxMp: b.mp,
+      food: b.food,
+      maxFood: b.food,
       level: 1,
       exp: 0,
-      atk: 5,
-      def: 3,
+      atk: b.atk,
+      def: b.def,
       weapon: null,
       shield: null,
       powerTurns: 0,
@@ -392,6 +408,7 @@ export class GameState {
       dungeon: this.dungeon.id,
       revealed: this.revealed,
       runes: this.runes,
+      stats: this.stats,
       monsterHouse: this.monsterHouse ? this.map.rooms.indexOf(this.monsterHouse) : -1,
       rng: this.rng.save(),
       floor: this.floor,
@@ -423,6 +440,7 @@ export class GameState {
     const s = new GameState(1, undefined, data.dungeon ?? 'first');
     s.revealed = data.revealed ?? false;
     s.runes = data.runes ?? 0;
+    s.stats = { kills: 0, cards: 0, items: 0, ...data.stats };
     s.rng.load(data.rng);
     s.floor = data.floor;
     s.turn = data.turn;
@@ -766,6 +784,7 @@ export class GameState {
       return;
     }
     this.addLog(`${name}を拾った`);
+    this.stats.items++;
     // 矢は、バッグの同じ矢に99本までまとめる。入りきらない分は別の1つにする
     const item = found.item;
     if (item.count !== undefined) {
@@ -1345,6 +1364,7 @@ export class GameState {
    */
   private defeatMonster(m: Monster, by: Ally | null, byPlayer: boolean, drop = true): void {
     this.monsters = this.monsters.filter((x) => x !== m);
+    this.stats.kills++;
     if (this.provoker === m) this.provoker = null;
     const exp = monsterExp(m);
     this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${exp}）` : `${m.species.name}は毒でたおれた（経験値${exp}）`);
@@ -1434,6 +1454,7 @@ export class GameState {
 
   /** 手元に加える。いっぱいなら、預けるか別れるカードを選ぶまで pendingCard で待つ */
   private addCard(card: Card): void {
+    this.stats.cards++;
     if (this.cards.length < HAND_LIMIT) {
       this.cards.push(card);
       this.addLog(`${card.species.name}のカードを手に入れた（性格：${PERSONALITIES[card.personality].name}）`);

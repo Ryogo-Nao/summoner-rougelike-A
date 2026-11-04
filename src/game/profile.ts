@@ -35,6 +35,53 @@ export interface Profile {
   runes: number;
   /** 商店の、入れ替わる品。ダンジョンから戻るたびに選び直す */
   shopStock: ItemKind[];
+  /** 戦績と累積（拠点の［つよさ］に出す） */
+  records: Records;
+}
+
+/** ダンジョンごとの戦績 */
+export interface DungeonRecord {
+  tries: number;
+  cleared: number;
+  escaped: number;
+  failed: number;
+  gaveUp: number;
+  /** いちばん深く行った階 */
+  bestFloor: number;
+}
+
+/** これまでの累積。あきらめたダンジョンの分も、記録としては数える */
+export interface Records {
+  dungeons: Record<string, DungeonRecord>;
+  turns: number;
+  kills: number;
+  cards: number;
+  items: number;
+  /** ダンジョンで拾ったルーン（失った分も含む） */
+  runes: number;
+  /** ダンジョンの中で届いた、いちばん高い主人公のレベル */
+  bestLevel: number;
+}
+
+export const newRecords = (): Records => ({ dungeons: {}, turns: 0, kills: 0, cards: 0, items: 0, runes: 0, bestLevel: 1 });
+
+/** 終わったダンジョンを記録に足す */
+function recordRun(profile: Profile, state: GameState): void {
+  const r = profile.records;
+  const d = (r.dungeons[state.dungeon.id] ??= { tries: 0, cleared: 0, escaped: 0, failed: 0, gaveUp: 0, bestFloor: 0 });
+  d.tries++;
+  if (state.cleared) d.cleared++;
+  else if (state.escaped) d.escaped++;
+  else if (state.gaveUp) d.gaveUp++;
+  else d.failed++;
+  // 踏破したときは、いちばん下の階まで行ったと数える
+  d.bestFloor = Math.max(d.bestFloor, state.cleared ? state.dungeon.floors : state.floor);
+  r.turns += state.turn;
+  r.kills += state.stats.kills;
+  r.cards += state.stats.cards;
+  r.items += state.stats.items;
+  r.runes += state.runes;
+  r.bestLevel = Math.max(r.bestLevel, state.player.level);
 }
 
 /** ダンジョンの終わり方。踏破（いちばん下まで行った）・離脱（転送の印で出た）・失敗（力つきた） */
@@ -59,6 +106,7 @@ interface ProfileData {
   shortcuts?: Shortcuts;
   runes?: number;
   shopStock?: ItemKind[];
+  records?: Records;
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -78,6 +126,7 @@ export function newProfile(): Profile {
     shortcuts: noShortcuts(),
     runes: 0,
     shopStock: rollStock(),
+    records: newRecords(),
   };
 }
 
@@ -94,6 +143,7 @@ export function loadProfile(): Profile {
       shortcuts: data.shortcuts ?? noShortcuts(),
       runes: data.runes ?? 0,
       shopStock: data.shopStock ?? rollStock(),
+      records: { ...newRecords(), ...data.records },
     };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));
@@ -206,6 +256,7 @@ const HOLY_DOWNGRADE = 0.3;
  * 残ったカードは瀕死から戻し、HPを満タンにする。持っていたカードは次も持っていく
  */
 export function returnToBase(profile: Profile, state: GameState): Losses {
+  recordRun(profile, state);
   if (state.gaveUp) return giveUpToBase(profile, state);
   const brought = new Set(profile.hand);
   const runCards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])];

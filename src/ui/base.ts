@@ -4,12 +4,13 @@ import { ALWAYS_SOLD, buy, buyProblem, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
-import { SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
+import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
 import { SPELL_ICONS, cardIcon, cardSub, reorderRows } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
+import { artElement } from '../render/art';
 
-type Tab = 'cards' | 'bag' | 'warehouse' | 'spells' | 'shop';
+type Tab = 'cards' | 'bag' | 'warehouse' | 'status' | 'shop';
 
 /**
  * 拠点画面（requirements.md 10.4）。連れていく仲間を選び、バッグと倉庫の間でアイテムを出し入れして出発する。
@@ -128,7 +129,7 @@ export class BaseScreen {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
       if (this.tab === 'bag') children.push(...this.bagRows(p));
       if (this.tab === 'warehouse') children.push(...this.warehouseRows(p));
-      if (this.tab === 'spells') children.push(...this.spellRows(p));
+      if (this.tab === 'status') children.push(...this.statusRows(p));
       if (this.tab === 'shop') children.push(...this.shopRows(p));
     }
     document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
@@ -396,6 +397,59 @@ export class BaseScreen {
     ];
   }
 
+  /**
+   * 主人公のつよさ（requirements.md 10.4.2）。ダンジョンに入るときの能力、覚えている魔法、
+   * ダンジョンごとの戦績、これまでの累積
+   */
+  private statusRows(p: Profile): HTMLElement[] {
+    const portrait = document.createElement('div');
+    portrait.className = 'status-portrait';
+    portrait.append(artElement('player', '🧙', 'status-art'));
+    const title = note('召喚士', 'status-title');
+    const b = PLAYER_BASE;
+    const r = p.records;
+    const dungeonRows = DUNGEONS.filter((d) => r.dungeons[d.id] || isUnlocked(d, p.cleared)).map((d) => {
+      const rec = r.dungeons[d.id];
+      return renderRow({
+        icon: p.cleared.includes(d.id) ? '🏆' : '🚪',
+        name: d.name,
+        sub: rec
+          ? `挑戦${rec.tries}回　踏破${rec.cleared}　離脱${rec.escaped}\n力つきた${rec.failed}　あきらめた${rec.gaveUp}\n最高到達 B${rec.bestFloor}F（全${d.floors}階）`
+          : 'まだ挑んでいない',
+      });
+    });
+    const runs = Object.values(r.dungeons).reduce((n, d) => n + d.tries, 0);
+    return [
+      portrait,
+      title,
+      note('ダンジョンに入るときの能力', 'base-section'),
+      table([
+        ['レベル', '1（ダンジョンの中で上がる）'],
+        ['HP', `${b.hp}`],
+        ['MP', `${b.mp}`],
+        ['攻撃力', `${b.atk}`],
+        ['防御力', `${b.def}`],
+        ['満腹度', `${b.food}`],
+      ]),
+      note('覚えている魔法', 'base-section'),
+      ...this.spellRows(p),
+      note('戦績', 'base-section'),
+      ...dungeonRows,
+      note('累積', 'base-section'),
+      table([
+        ['潜った回数', `${runs}回`],
+        ['歩いたターン', `${r.turns}`],
+        ['たおした魔物', `${r.kills}体`],
+        ['手に入れたカード', `${r.cards}枚`],
+        ['拾った道具', `${r.items}個`],
+        ['拾ったルーン', `${r.runes}`],
+        ['最高レベル', `Lv${r.bestLevel}`],
+        ['仲間の数', `${p.cards.length}体`],
+        ['持っているルーン', `${p.runes}`],
+      ]),
+    ];
+  }
+
   private spellRows(p: Profile): HTMLElement[] {
     // 覚えている魔法だけを出す。仲間を召喚している間だけ使える魔法と、まだ読んでいない魔導書の魔法は出さない
     const rows: SheetRow[] = [
@@ -412,8 +466,22 @@ export class BaseScreen {
           };
         }),
     ];
-    return [note('覚えている魔法'), ...rows.map(renderRow)];
+    return rows.map(renderRow);
   }
+}
+
+/** 名前と値を2列に並べた表 */
+function table(rows: [string, string][]): HTMLElement {
+  const dl = document.createElement('dl');
+  dl.className = 'status-table base-table';
+  for (const [k, v] of rows) {
+    const dt = document.createElement('dt');
+    dt.textContent = k;
+    const dd = document.createElement('dd');
+    dd.textContent = v;
+    dl.append(dt, dd);
+  }
+  return dl;
 }
 
 function move(item: Item, from: Item[], to: Item[]): void {
