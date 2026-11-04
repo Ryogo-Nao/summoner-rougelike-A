@@ -1,6 +1,10 @@
+import { artElement, hasArt } from '../render/art';
+
 /** 1行ぶんの中身。button を省くと、ボタンのない行になる */
 export interface SheetRow {
   icon: string;
+  /** 絵の id。絵があれば icon の代わりに出す */
+  art?: string;
   name: string;
   sub: string;
   dim?: boolean;
@@ -71,7 +75,8 @@ export function renderRow(row: SheetRow): HTMLElement {
   el.className = ['sheet-row', row.dim ? 'dim' : '', row.className ?? ''].filter(Boolean).join(' ');
   const icon = document.createElement('span');
   icon.className = 'icon';
-  icon.textContent = row.icon;
+  if (row.art && hasArt(row.art)) icon.append(artElement(row.art, row.icon));
+  else icon.textContent = row.icon;
   const text = document.createElement('div');
   const name = document.createElement('div');
   name.className = 'name';

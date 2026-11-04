@@ -42,6 +42,7 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
     if (card.status === 'summoned') {
       return {
         icon: cardIcon(card),
+        art: card.species.id,
         name: card.species.name,
         sub: cardSub(card),
         button: { label: '戻す', onClick: act(() => state.recall(card)) },
@@ -51,6 +52,7 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
     const problem = state.summonProblem(card);
     return {
       icon: cardIcon(card),
+      art: card.species.id,
       name: card.species.name,
       sub: cardSub(card),
       dim: problem !== null,
@@ -294,6 +296,7 @@ function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: 
   const cards = revive ? state.reviveTargets() : state.summonTargets();
   const rows: SheetRow[] = cards.map((card) => ({
     icon: cardIcon(card),
+    art: card.species.id,
     name: card.species.name,
     sub: cardSub(card),
     button: {
@@ -552,6 +555,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
     const store = state.canStore(card);
     return {
       icon: cardIcon(card),
+      art: card.species.id,
       name: store ? `${name}（持ってきた）` : name,
       sub: cardSub(card),
       button: store

@@ -1,6 +1,7 @@
 import type { ActorView, GameState, Popup, Scene } from '../game/state';
 import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
+import { artImage } from './art';
 
 /**
  * 攻撃の場面を再生している途中の様子。
@@ -19,36 +20,41 @@ const LUNGE_DEPTH = 0.4;
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
 
+/** 色は style.css の色の決まりと合わせる（濃い紺の下地に、明るい寒色） */
 const COLORS = {
-  wall: '#3a3450',
-  wallEdge: '#4b4466',
-  floor: '#24212f',
-  outside: '#0c0b12',
+  /** 壁は薄紫がかった石。上のふちを明るく、下のふちを暗くして厚みを出す */
+  wall: '#3a4386',
+  wallTop: '#6b74c4',
+  wallBottom: '#262c5e',
+  floor: '#1a2452',
+  /** 床のマスの境目 */
+  floorLine: '#141c44',
+  outside: '#070b1f',
   /** 見たことはあるが今は見えていないマスに重ねる色 */
-  memory: 'rgba(8, 7, 14, 0.55)',
+  memory: 'rgba(5, 8, 24, 0.58)',
   /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
   miniBg: 'rgba(0, 0, 0, 0.72)',
   miniBorder: 'rgba(255, 255, 255, 0.25)',
   miniFloor: '#6f9dff',
   miniStairs: '#ffd84a',
   miniPlayer: '#3dff6e',
-  miniMonster: '#ff5fd2',
-  hpBar: '#e5534b',
-  allyHpBar: '#4fd18b',
+  miniMonster: '#ff7a8a',
+  hpBar: '#ff7a8a',
+  allyHpBar: '#6fe8b0',
   miniAlly: '#2f9e64',
   /** 足もとの影。味方（主人公と仲間）は緑、敵は赤 */
-  allyShadow: 'rgba(60, 220, 120, 0.8)',
-  enemyShadow: 'rgba(240, 70, 70, 0.8)',
+  allyShadow: 'rgba(90, 235, 160, 0.75)',
+  enemyShadow: 'rgba(255, 95, 115, 0.75)',
   miniItem: '#5ff0ff',
   hpBarBg: 'rgba(0, 0, 0, 0.7)',
-  hpBarEdge: '#000000',
+  hpBarEdge: '#070b1f',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(0, 0, 0, 0.82)',
 };
 
 const POPUP_COLORS: Record<Popup['kind'], string> = {
   damage: '#ffffff',
-  hurt: '#ff6b5e',
+  hurt: '#ff7a8a',
   miss: '#b8b2cc',
   info: '#ffd84a',
 };
@@ -123,13 +129,18 @@ export class Renderer {
         const sy = py0 + dy * ts;
         const tile = map.get(mx, my);
         if (tile === Tile.Wall) {
+          const edge = Math.max(2, Math.round(ts * 0.08));
           ctx.fillStyle = COLORS.wall;
           ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = COLORS.wallEdge;
-          ctx.fillRect(sx, sy, ts, 2);
+          ctx.fillStyle = COLORS.wallTop;
+          ctx.fillRect(sx, sy, ts, edge);
+          ctx.fillStyle = COLORS.wallBottom;
+          ctx.fillRect(sx, sy + ts - edge, ts, edge);
         } else {
-          ctx.fillStyle = COLORS.floor;
+          ctx.fillStyle = COLORS.floorLine;
           ctx.fillRect(sx, sy, ts, ts);
+          ctx.fillStyle = COLORS.floor;
+          ctx.fillRect(sx, sy, ts - 1, ts - 1);
           if (tile === Tile.Stairs) {
             ctx.fillText('🪜', sx + ts / 2, sy + ts / 2 + 1);
           }
@@ -224,8 +235,13 @@ export class Renderer {
     ctx.ellipse(sx + ts / 2, sy + ts * 0.75, ts * 0.42, ts * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
-    if (actor.isPartner) {
+    const img = artImage(actor.art);
+    if (img) {
+      // 絵は足もとを影の真ん中あたりにそろえ、マスより少し大きく描く
+      const size = ts * 1.08;
+      ctx.drawImage(img, sx + (ts - size) / 2, sy + ts * 0.8 - size, size, size);
+    } else ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
+    if (actor.isPartner && !img) {
       ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
@@ -285,7 +301,7 @@ export class Renderer {
     const { ctx, tileSize: ts } = this;
     const angle = (facing * Math.PI) / 4 - Math.PI / 2;
     const r = ts * 0.46;
-    ctx.fillStyle = '#f0d27a';
+    ctx.fillStyle = '#ffcf5a';
     ctx.beginPath();
     ctx.arc(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, Math.max(2, ts * 0.07), 0, Math.PI * 2);
     ctx.fill();

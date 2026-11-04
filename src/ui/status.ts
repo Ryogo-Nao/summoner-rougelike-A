@@ -1,6 +1,7 @@
 import { ORDER_LABEL, PERSONALITIES, STAT_LABEL, isPartner, type Ally, type Card } from '../game/cards';
 import { allyExpToNext } from '../game/combat';
 import type { Species } from '../game/monsters';
+import { artElement } from '../render/art';
 
 /** 速さの呼び名（balance.md 3.3） */
 const SPEED_LABEL: Record<Species['speed'], string> = { normal: '普通', fast: '倍速', slow: '鈍足' };
@@ -30,7 +31,7 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
 
   const portrait = document.createElement('div');
   portrait.className = 'status-portrait';
-  portrait.textContent = card.species.emoji;
+  portrait.append(artElement(card.species.id, card.species.emoji, 'status-art'));
 
   const title = document.createElement('div');
   title.className = 'status-title';

@@ -28,8 +28,9 @@
 | 輪郭線 | 太めでやさしい線。色は黒ではなく濃い紺（#2B3A67） |
 | 塗り | アニメ塗り（はっきりした影が1〜2段）。強いグラデーションや細かい描き込みはしない |
 | 光 | 左上から当たる、やわらかい光 |
-| 背景 | なし（透明）。地面の影も描かない（影はゲームが描く） |
-| 構図 | 1枚に1体だけ。全身。真ん中に置き、上下左右に少し余白を残す。足もとは下から10％くらい |
+| 背景 | 真緑（#00FF00）の一色。透明にはこちらで抜く。地面の影も描かない（影はゲームが描く） |
+| 効果 | キャラクターのまわりに、キラキラ・粒・光・オーラを描かない（小さくするとにじむため） |
+| 構図 | 正方形（1:1）。1枚に1体だけ。全身。真ん中に置き、上下左右に少し余白を残す。足もとは下から10％くらい |
 | サイズ | キャラクター：1024×1024 で作り、512×512 に縮める。アイテム：512×512 で作り、256×256 に縮める |
 | 文字 | 入れない（名前、サイン、透かしも入れない） |
 | ファイル名 | `monster_chuppi.png`、`item_herb.png` のように、英語の名前（下の表のID）で付ける |
@@ -59,7 +60,8 @@ Big head, round soft shapes, 2 to 2.5 heads tall.
 Thick soft outline in dark navy (#2B3A67), clean anime cel shading with 1-2 shadow tones, soft light from the top left.
 Bright cool color palette: sky blue, aqua, mint, pale lavender, with small gold accents.
 Cheerful, friendly, slightly magical mood. Not scary.
-Transparent background, no ground shadow, no text, no watermark, no border.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else in the background.
+No sparkles, no particles, no glow or aura around the character. No ground shadow, no text, no watermark, no border.
 ```
 
 **日本語**（Gemini などで日本語のほうが通るとき）
@@ -70,14 +72,17 @@ Transparent background, no ground shadow, no text, no watermark, no border.
 濃い紺色（#2B3A67）の太めでやさしい輪郭線。影が1〜2段のアニメ塗り。左上からやわらかい光。
 空色・水色・ミント・薄紫を中心にした明るい寒色。少しだけ金色の差し色。
 明るく親しみやすく、少し不思議な雰囲気。こわくしない。
-背景は透明。地面の影、文字、透かし、枠は入れない。
+正方形（1:1）。背景は真緑（#00FF00）の一色だけで、ほかには何も描かない。
+キャラクターのまわりに、キラキラ・粒・光・オーラを描かない。地面の影、文字、透かし、枠は入れない。
 ```
 
 ## 5. 作る順番
 1. **イヅツチを最初に作る**。これを「絵柄の見本」にする。気に入るまで何回か作り直す
 2. 2体目からは、イヅツチの絵を添えて「添付の絵と同じ絵柄、同じ線、同じ塗りで描いて」と頼む
 3. 1体できるごとに、下の「確かめること」を見る
-4. できた絵を送ってもらえれば、私がゲームに入れる（大きさの調整、表示の確認）
+4. できた絵を送ってもらえれば、私がゲームに入れる
+   - `scripts/key-art.ps1` で緑の背景を抜き、余白をそろえた 256×256 の PNG にして `public/art/` に置く
+   - `src/render/art.ts` の `ART_IDS` に id を足す。絵がないものは絵文字のまま出る
 
 ### 2体目からの指示文
 **英語**
@@ -98,7 +103,7 @@ Subject: [魔物の説明（下の表の英語）]
 | ID | 名前 | 日本語の説明 | 英語の説明 |
 |---|---|---|---|
 | player | 主人公（召喚士） | 若い召喚士。大きなとんがり帽子とケープ。先に光る宝石が付いた杖を持つ。空色と白の服、金色の飾り | A young summoner with a big pointed hat and a short cape, holding a staff topped with a glowing crystal. Sky blue and white clothes with gold trim. |
-| izutsuchi | イヅツチ（相棒） | 雷をまとう小さな猫。ふわふわの毛、しっぽの先が稲妻の形。体のまわりに小さな金色の火花。元気で頼もしい | A small fluffy cat wrapped in light electricity, tail tip shaped like a lightning bolt, tiny gold sparks around the body. Energetic and loyal. |
+| izutsuchi | イヅツチ（相棒） | 雷をまとう小さな猫。ふわふわの毛、しっぽの先が稲妻の形。首もとに小さな稲妻の飾り。元気で頼もしい | A small fluffy cat wrapped in light electricity, tail tip shaped like a lightning bolt, a small lightning charm at the neck. Energetic and loyal. |
 | chuppi | チュッピ | 小さなネズミ。大きな丸い耳、ふわふわの体、くりっとした目。すばしっこそう | A tiny mouse with big round ears, a fluffy body and bright round eyes. Quick and curious. |
 | berogg | ベロッグ | カエル。長い舌を少し出している。大きな目、つるっとした体。ミント色 | A frog with a long tongue slightly sticking out, big eyes and a smooth mint green body. |
 | patari | パタリ | 小さなコウモリ。大きな耳と小さな翼。ふらふら飛んでいる | A small bat with big ears and little wings, fluttering a bit clumsily in the air. |

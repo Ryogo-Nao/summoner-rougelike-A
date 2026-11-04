@@ -116,6 +116,8 @@ export type AllyMove = 'swap' | 'push';
 /** マップに描くもの1つぶん。主人公・仲間・見えている魔物 */
 export interface ActorView {
   emoji: string;
+  /** 絵の id（主人公は player、魔物は種類の id）。絵がなければ emoji で出す */
+  art: string;
   pos: Pos;
   facing: Dir;
   /** 足もとに出すHPの棒。null なら出さない */
@@ -1603,6 +1605,7 @@ export class GameState {
       if (!this.isVisible(m.pos.x, m.pos.y)) continue;
       views.push({
         emoji: m.species.emoji,
+        art: m.species.id,
         pos: { ...m.pos },
         facing: m.facing,
         hp: m.hp < m.maxHp ? { ratio: m.hp / m.maxHp, ally: false } : null,
@@ -1616,6 +1619,7 @@ export class GameState {
     for (const a of this.allies) {
       views.push({
         emoji: a.card.species.emoji,
+        art: a.card.species.id,
         pos: { ...a.pos },
         facing: a.facing,
         hp: { ratio: a.card.hp / a.card.maxHp, ally: true },
@@ -1625,7 +1629,7 @@ export class GameState {
         sick: sickMark(a.ailments),
       });
     }
-    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, enemy: false, sick: sickMark(p.ailments) });
+    views.push({ emoji: '🧙', art: 'player', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, enemy: false, sick: sickMark(p.ailments) });
     return views;
   }
 

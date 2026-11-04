@@ -4,6 +4,7 @@ import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
 import { DUNGEONS } from './game/dungeons';
 import { Renderer, type Playback } from './render/renderer';
+import { artElement, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { setupQuick } from './ui/quick';
@@ -144,7 +145,11 @@ function updateHud(moment?: HudMoment): void {
     // ついてくる以外の指示を出しているときは、指示も出す
     const order = a && a.order !== 'follow' ? ` ${ORDER_LABEL[a.order]}` : '';
     const sick = a ? sickMark(a.ailments) : '';
-    slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}${sick}${order}` : '召喚';
+    if (a) {
+      const text = document.createElement('span');
+      text.textContent = `${a.card.hp}/${a.card.maxHp}${sick}${order}`;
+      slot.replaceChildren(artElement(a.card.species.id, cardIcon(a.card), 'slot-art'), text);
+    } else slot.textContent = '召喚';
     slot.classList.toggle('filled', a !== undefined);
   });
 
@@ -171,6 +176,11 @@ const LUNGE_MS = 170;
 const HIT_MS = 280;
 const HIT_EMPTY_MS = 60;
 let playing = false;
+// 絵を読み込み終えたら描き直す。場面の再生中は、終わったあとに描き直される
+preloadArt();
+onArtLoaded(() => {
+  if (!playing) renderer.draw(state);
+});
 
 /** この行動で起きた攻撃を、起きた順に1つずつ見せる。見せ終わったら done を呼ぶ */
 function playScenes(done: () => void): void {

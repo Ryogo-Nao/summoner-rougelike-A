@@ -137,6 +137,7 @@ export class BaseScreen {
       const taking = p.hand.includes(card.id);
       return {
         icon: cardIcon(card),
+        art: card.species.id,
         name: card.species.name,
         sub: cardSub(card, false),
         className: taking ? 'taking' : undefined,

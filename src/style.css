@@ -1,14 +1,37 @@
+/*
+ * 色の決まり（docs/art-guide.md の色の見本と合わせる）。
+ * 下地は夜のダンジョンのような濃い紺、差し色は明るい寒色と金色
+ */
 :root {
-  --bg: #14121c;
-  --panel: #1f1c2b;
-  --line: #34304a;
-  --text: #ece8f6;
-  --muted: #9a94b0;
-  --hp: #e5534b;
-  --mp: #4b8be5;
-  --food: #d9a43b;
-  --btn: #2b2740;
-  --btn-active: #4a4370;
+  --bg: #0e1430;
+  --bg-deep: #070b1f;
+  --panel: #1b2654;
+  --line: #34478c;
+  --text: #f4fbff;
+  --muted: #a4b6e0;
+  --ink: #13204a;
+  --sky: #7cc8ff;
+  --aqua: #5fe3e0;
+  --mint: #8ff0c4;
+  --lavender: #b9b4ff;
+  --gold: #ffcf5a;
+  --coral: #ff7a8a;
+  --hp: linear-gradient(180deg, #a6f7d2, #45d39a);
+  --mp: linear-gradient(180deg, #a9dcff, #6a8cff);
+  --food: linear-gradient(180deg, #ffe08a, #f0a83a);
+  /* ふつうのボタン。下のふちを厚くして、押せる板のように見せる */
+  --btn: linear-gradient(180deg, #2f4386, #223268);
+  --btn-edge: #111a40;
+  --btn-active: linear-gradient(180deg, #3d56a6, #2d4184);
+  /* 目立たせるボタン（攻撃、決める） */
+  --btn-main: linear-gradient(180deg, #9ad9ff, #5aa9f2);
+  --btn-main-edge: #2f6db8;
+  --btn-go: linear-gradient(180deg, #a8f5d4, #4fcf98);
+  --btn-go-edge: #2a8f68;
+  /* 一覧や窓の下地 */
+  --sheet-bg: linear-gradient(180deg, #1e2b5e, #18224d);
+  --icon-bg: radial-gradient(circle at 40% 35%, #2f4590, #172152);
+  --font: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', -apple-system, sans-serif;
 }
 
 * {
@@ -26,7 +49,7 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  font-family: var(--font);
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
@@ -38,27 +61,71 @@ button {
   touch-action: manipulation;
 }
 
+/* 押せるボタンの共通の見た目。押している間は少し沈む */
+#pad button,
+#buttons button,
+.sheet-row button,
+.sheet-wide,
+.sheet-head button,
+.dialog-buttons button,
+#base-depart {
+  border: none;
+  border-bottom: 3px solid var(--btn-edge);
+  background: var(--btn);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+#pad button:active,
+#buttons button:active,
+#pad button.pressed,
+#buttons button.pressed,
+.sheet-row button:active,
+.sheet-wide:active,
+.sheet-head button:active,
+.dialog-buttons button:active,
+#base-depart:active {
+  transform: translateY(2px);
+  filter: brightness(1.12);
+}
+
 #app {
   display: flex;
   flex-direction: column;
   height: 100dvh;
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: radial-gradient(120% 60% at 50% 0%, #1a2760 0%, var(--bg) 60%);
 }
 
 /* ステータス */
 #status {
   /* 上端は iOS の時計表示の下にぼかしがかかるので、安全領域よりさらに下げる。
      背景色は画面の一番上まで塗る */
-  padding: calc(env(safe-area-inset-top) + 40px) 12px 4px;
+  padding: calc(env(safe-area-inset-top) + 40px) 12px 6px;
   font-size: 13px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #1f2d63, #18224d);
+  border-bottom: 2px solid var(--line);
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 .status-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 2px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
   font-weight: bold;
+}
+/* 階とレベルは小さな札にする */
+#floor,
+#level {
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--ink);
+}
+#floor {
+  background: var(--gold);
+}
+#level {
+  background: var(--lavender);
 }
 /* 状態異常と魔法の残りターン */
 #effects {
@@ -76,45 +143,52 @@ button {
   grid-template-columns: 32px 1fr 64px;
   align-items: center;
   gap: 6px;
-  height: 16px;
+  height: 17px;
 }
 .label {
   color: var(--muted);
+  font-size: 12px;
+  font-weight: bold;
 }
 .value {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .gauge {
-  height: 8px;
-  background: #0c0b12;
-  border-radius: 4px;
+  height: 10px;
+  background: var(--bg-deep);
+  border: 1px solid #0a102c;
+  border-radius: 999px;
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .gauge i {
   display: block;
   height: 100%;
   width: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  transition: width 0.2s;
 }
 /* HPが少ないときや空腹のときに、その段を赤く点滅させる */
 @keyframes danger-blink {
   0%, 100% { background: transparent; }
-  50% { background: rgba(229, 83, 75, 0.45); }
+  50% { background: rgba(255, 122, 138, 0.35); }
 }
 .gauge-row.danger {
-  border-radius: 4px;
+  border-radius: 6px;
   animation: danger-blink 0.9s ease-in-out infinite;
 }
 .gauge-row.danger .label,
 .gauge-row.danger .value {
-  color: #ff6b5e;
+  color: var(--coral);
   font-weight: bold;
 }
 .gauge.hp i { background: var(--hp); }
 .gauge.mp i { background: var(--mp); }
 .gauge.food i { background: var(--food); }
 
-/* 仲間の枠 */
+/* 仲間の枠。空いている枠は点線、召喚中はミントのふち */
 #allies {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -123,12 +197,31 @@ button {
   padding: 0 12px;
 }
 .ally-slot {
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 36px;
+  padding: 0 4px;
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  background: rgba(27, 38, 84, 0.6);
   font-size: 13px;
   color: var(--muted);
+}
+.ally-slot.filled {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  border: 2px solid var(--mint);
+  background: linear-gradient(180deg, #24407a, #1b2a5a);
+}
+.ally-slot .slot-art {
+  width: 28px;
+  height: 28px;
+  flex: none;
 }
 
 /* 仲間の枠とマップ。マップの大きさは main.ts で決める */
@@ -154,12 +247,14 @@ button {
 /* ログ */
 #log {
   height: 62px;
-  padding: 4px 12px;
+  margin: 0 8px;
+  padding: 5px 12px;
   font-size: 13px;
   line-height: 1.35;
   overflow: hidden;
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: rgba(14, 20, 48, 0.92);
+  border: 2px solid var(--line);
+  border-radius: 12px;
 }
 #log p {
   margin: 0;
@@ -175,7 +270,7 @@ button {
   display: flex;
   justify-content: center;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
-  background: rgba(8, 7, 14, 0.6);
+  background: rgba(5, 8, 22, 0.65);
 }
 #log-history[hidden] {
   display: none;
@@ -185,25 +280,27 @@ button {
   flex-direction: column;
   width: 100%;
   max-width: 480px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: var(--sheet-bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 .sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 8px 8px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 8px 8px 16px;
+  border-bottom: 2px solid var(--line);
+  background: linear-gradient(180deg, #2a3c80, #213068);
   font-weight: bold;
+  font-size: 16px;
 }
 .sheet-head button {
-  height: 40px;
-  padding: 0 18px;
-  border: none;
-  border-radius: 10px;
-  background: var(--btn-active);
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
 }
 #log-history-list {
   flex: 1;
@@ -231,13 +328,21 @@ button {
   align-items: flex-end;
   justify-content: center;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
-  background: rgba(8, 7, 14, 0.6);
+  background: rgba(5, 8, 22, 0.6);
 }
 #sheet[hidden] {
   display: none;
 }
 #sheet .sheet-box {
   max-height: 100%;
+  animation: sheet-up 0.16s ease-out;
+}
+/* 下から少し浮き上がって出る */
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
 }
 #sheet-body {
   overflow-y: auto;
@@ -249,24 +354,39 @@ button {
   font-size: 13px;
   color: var(--muted);
 }
+/* 1行ずつ、角の丸い札にする */
 .sheet-row {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 48px 1fr auto;
   align-items: center;
-  gap: 8px;
-  padding: 8px 4px;
-  border-bottom: 1px solid var(--line);
-}
-.sheet-row:last-child {
-  border-bottom: none;
+  gap: 10px;
+  margin: 6px 0;
+  padding: 6px;
+  border: 1px solid rgba(52, 71, 140, 0.7);
+  border-radius: 14px;
+  background: rgba(14, 20, 48, 0.45);
 }
 .sheet-row.dim {
   opacity: 0.45;
 }
+/* 絵や絵文字は丸い台に乗せる */
 .sheet-row .icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--icon-bg);
   font-size: 24px;
-  text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+}
+.sheet-row .icon:empty {
+  background: none;
+}
+.sheet-row .icon .art {
+  width: 46px;
+  height: 46px;
 }
 .sheet-row .name {
   font-weight: bold;
@@ -282,18 +402,24 @@ button {
 }
 .sheet-row button,
 .sheet-wide {
-  min-width: 84px;
+  min-width: 80px;
   height: 44px;
   padding: 0 14px;
-  border: none;
-  border-radius: 10px;
-  background: var(--btn-active);
+  border-radius: 12px;
+  background: var(--btn-main);
+  border-bottom-color: var(--btn-main-edge);
+  color: var(--ink);
   font-size: 15px;
+  font-weight: bold;
 }
 .sheet-row button:disabled,
 .sheet-wide:disabled {
   background: var(--btn);
+  border-bottom-color: var(--btn-edge);
   color: var(--muted);
+  font-weight: normal;
+  transform: none;
+  filter: none;
 }
 .sheet-wide {
   width: 100%;
@@ -311,10 +437,10 @@ button {
   font-weight: bold;
 }
 .stat-change .up {
-  color: #4fd18b;
+  color: var(--mint);
 }
 .stat-change .down {
-  color: #ff6b5e;
+  color: var(--coral);
 }
 
 /* 操作部。画面の幅に合わせて大きくする */
@@ -338,16 +464,24 @@ button {
 }
 #pad button,
 #buttons button {
-  border: none;
-  border-radius: 12px;
-  background: var(--btn);
+  border-radius: 14px;
 }
 #pad button {
-  font-size: 26px;
+  font-size: 24px;
+  color: var(--sky);
+}
+/* ななめと足踏みは丸くして、上下左右と見分けやすくする */
+#pad button[data-dir='7'],
+#pad button[data-dir='1'],
+#pad button[data-dir='5'],
+#pad button[data-dir='3'] {
+  font-size: 20px;
+  border-radius: 50%;
 }
 #pad button.center {
   font-size: 14px;
   color: var(--muted);
+  border-radius: 50%;
 }
 #pad button.pressed,
 #buttons button.pressed {
@@ -364,10 +498,18 @@ button {
 }
 #buttons button {
   font-size: 16px;
+  font-weight: bold;
   white-space: nowrap;
 }
 #buttons .wide {
   grid-column: span 2;
+}
+#buttons #btn-attack {
+  background: var(--btn-main);
+  border-bottom-color: var(--btn-main-edge);
+  color: var(--ink);
+  font-size: 18px;
+  letter-spacing: 0.1em;
 }
 
 /* ［攻撃］の長押しで出す、登録した道具の扇 */
@@ -383,13 +525,13 @@ button {
 .quick-slot {
   position: fixed;
   transform: translate(-50%, -50%);
-  width: 60px;
-  height: 60px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   align-content: center;
-  background: var(--panel);
+  background: var(--icon-bg);
   border: 2px solid var(--line);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
@@ -405,8 +547,9 @@ button {
   opacity: 0.4;
 }
 .quick-slot.hover {
-  background: var(--btn-active);
-  border-color: var(--text);
+  background: radial-gradient(circle at 40% 35%, #4a6bd0, #24357a);
+  border-color: var(--sky);
+  box-shadow: 0 0 0 4px rgba(124, 200, 255, 0.25), 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* 階に入ったときの画面。黒い画面にダンジョンの名前と階を出し、少し待って消える */
@@ -428,7 +571,7 @@ button {
 #floor-title-name {
   margin: 0;
   font-size: 18px;
-  color: var(--muted);
+  color: var(--sky);
   letter-spacing: 0.1em;
 }
 #floor-title-floor {
@@ -436,6 +579,8 @@ button {
   font-size: 44px;
   font-weight: bold;
   letter-spacing: 0.08em;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(255, 207, 90, 0.35);
 }
 /* 新しい階が先に見えないよう、最初から真っ黒にして、最後に薄くして消す */
 @keyframes floor-title {
@@ -457,31 +602,40 @@ button {
   display: flex;
   flex-direction: column;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
-  background: var(--bg);
+  background: radial-gradient(120% 60% at 50% 0%, #1f2f70 0%, var(--bg) 65%);
 }
 #base[hidden] {
   display: none;
 }
 .base-head {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: var(--gold);
+  letter-spacing: 0.05em;
 }
+/* タブは、ひとつながりの札にする */
 #base-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  border: 2px solid var(--line);
 }
 #base-tabs button {
-  height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: var(--muted);
+  font-weight: bold;
 }
 #base-tabs button.active {
-  background: var(--btn-active);
-  color: var(--text);
+  background: var(--btn-main);
+  color: var(--ink);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 #base-body {
   flex: 1;
@@ -489,11 +643,11 @@ button {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  margin: 8px 0;
-  padding: 0 4px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  margin: 10px 0;
+  padding: 0 8px;
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: var(--sheet-bg);
 }
 .base-message {
   color: var(--text);
@@ -501,7 +655,7 @@ button {
 }
 .base-section {
   margin-top: 14px;
-  color: var(--text);
+  color: var(--sky);
   font-weight: bold;
 }
 /* 並べ替えのボタンは、一覧をスクロールしても上に固定して見せる */
@@ -511,11 +665,20 @@ button {
   top: 0;
   z-index: 2;
   padding: 6px 0;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: #1d2a5c;
+  border-bottom: 2px solid var(--line);
 }
 .base-sort {
   margin: 0 0 4px;
+}
+/* 並べ替えは決めるボタンではないので、目立たせない */
+.base-sort button,
+.sheet-sticky button {
+  margin-top: 0;
+  background: var(--btn);
+  border-bottom-color: var(--btn-edge);
+  color: var(--text);
+  font-weight: normal;
 }
 /* 一覧の上の余白（#sheet-body の padding）の分だけ上に付ける */
 .sheet-sticky {
@@ -525,18 +688,22 @@ button {
   margin: 8px 0;
 }
 
-/* 仲間のつよさ。上の枠は、あとで魔物の絵に差し替える */
+/* 仲間のつよさ。上の枠に、魔物の絵（なければ絵文字）を出す */
 .status-view {
   padding: 8px 4px;
 }
 .status-portrait {
   display: grid;
   place-items: center;
-  height: 120px;
+  height: 150px;
   font-size: 72px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 40%, #2f4a9a, #121a42 75%);
+}
+.status-portrait .status-art {
+  width: 140px;
+  height: 140px;
 }
 .status-title {
   margin: 10px 0 6px;
@@ -559,29 +726,33 @@ button {
 }
 /* 連れていくカード */
 .sheet-row.taking {
-  background: rgba(79, 209, 139, 0.14);
-  box-shadow: inset 4px 0 0 #4fd18b;
+  background: rgba(143, 240, 196, 0.14);
+  border-color: var(--mint);
+  box-shadow: inset 4px 0 0 var(--mint);
 }
 .sheet-row.taking .name {
-  color: #4fd18b;
+  color: var(--mint);
 }
 .sheet-row.tappable {
   cursor: pointer;
 }
 .sheet-row.tappable:active {
-  background: var(--btn-active);
+  background: rgba(124, 200, 255, 0.18);
 }
 
 #base-depart {
-  height: 52px;
-  border: none;
-  border-radius: 12px;
-  background: #3f7a5c;
-  font-size: 17px;
+  height: 54px;
+  border-radius: 16px;
+  background: var(--btn-go);
+  border-bottom: 4px solid var(--btn-go-edge);
+  color: var(--ink);
+  font-size: 18px;
   font-weight: bold;
+  letter-spacing: 0.05em;
 }
 #base-depart:disabled {
   background: var(--btn);
+  border-bottom-color: var(--btn-edge);
   color: var(--muted);
 }
 
@@ -593,7 +764,7 @@ button {
   align-items: flex-end;
   justify-content: center;
   padding: 0 16px calc(env(safe-area-inset-bottom) + 240px);
-  background: rgba(8, 7, 14, 0.45);
+  background: rgba(5, 8, 22, 0.5);
 }
 #dialog[hidden] {
   display: none;
@@ -601,14 +772,17 @@ button {
 .dialog-box {
   width: 100%;
   max-width: 360px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  padding: 18px 16px 16px;
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #24346f, #1a2552);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   text-align: center;
+  animation: sheet-up 0.14s ease-out;
 }
 .dialog-box p {
   margin: 0 0 14px;
+  font-weight: bold;
   white-space: pre-line;
 }
 .dialog-buttons {
@@ -617,18 +791,12 @@ button {
   gap: 10px;
 }
 .dialog-buttons button {
-  height: 44px;
-  border: none;
-  border-radius: 10px;
-  background: var(--btn);
+  height: 46px;
+  border-radius: 12px;
+  font-weight: bold;
 }
 .dialog-buttons button:first-child {
-  background: var(--btn-active);
-}
-.ally-slot.filled {
-  color: var(--text);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  border-color: #3f7a5c;
+  background: var(--btn-main);
+  border-bottom-color: var(--btn-main-edge);
+  color: var(--ink);
 }
