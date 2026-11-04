@@ -35,9 +35,14 @@ export interface Profile {
   runes: number;
   /** 商店の、入れ替わる品。ダンジョンから戻るたびに選び直す */
   shopStock: ItemKind[];
-  /** 戦績と累積（拠点の［つよさ］に出す） */
+  /** 戦績と累積（拠点の［記録］に出す） */
   records: Records;
+  /** 何代目の召喚士か（requirements.md 9.1 世代継承）。今は継承の仕組みがないので、いつも1（初代） */
+  generation: number;
 }
+
+/** 「初代」「2代目」… */
+export const generationName = (g: number) => (g <= 1 ? '初代' : `${g}代目`);
 
 /** ダンジョンごとの戦績 */
 export interface DungeonRecord {
@@ -107,6 +112,7 @@ interface ProfileData {
   runes?: number;
   shopStock?: ItemKind[];
   records?: Records;
+  generation?: number;
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -127,6 +133,7 @@ export function newProfile(): Profile {
     runes: 0,
     shopStock: rollStock(),
     records: newRecords(),
+    generation: 1,
   };
 }
 
@@ -144,6 +151,7 @@ export function loadProfile(): Profile {
       runes: data.runes ?? 0,
       shopStock: data.shopStock ?? rollStock(),
       records: { ...newRecords(), ...data.records },
+      generation: data.generation ?? 1,
     };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));

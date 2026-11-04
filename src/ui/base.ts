@@ -3,17 +3,23 @@ import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, buyProblem, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
-import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
+import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
 import { SPELL_ICONS, cardIcon, cardSub, reorderRows } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
-import { artElement } from '../render/art';
+import { artElement, faceElement } from '../render/art';
 
-type Tab = 'cards' | 'bag' | 'warehouse' | 'status' | 'shop';
+/** 拠点のトップと、そこから移る3つの画面 */
+type View = 'hub' | 'prep' | 'shop' | 'records';
+/** 冒険の準備のタブ */
+type Tab = 'cards' | 'items';
+
+const VIEW_TITLE: Record<View, string> = { hub: '🏠 拠点', prep: '冒険の準備', shop: '商店', records: '記録' };
 
 /**
- * 拠点画面（requirements.md 10.4）。連れていく仲間を選び、バッグと倉庫の間でアイテムを出し入れして出発する。
+ * 拠点画面（requirements.md 10.4）。トップで目的を選ぶ。
+ * 冒険の準備：連れていく仲間を選び、バッグと倉庫の間でアイテムを出し入れして出発する。商店：売り買い。記録：つよさと戦績。
  * 変えるたびに保存する
  */
 export class BaseScreen {
@@ -21,7 +27,13 @@ export class BaseScreen {
   private readonly body = document.getElementById('base-body')!;
   private readonly depart = document.getElementById('base-depart')!;
   private readonly tabs = [...document.querySelectorAll<HTMLButtonElement>('#base-tabs button')];
+  private readonly tabBar = document.getElementById('base-tabs')!;
+  private readonly back = document.getElementById('base-back')!;
+  private readonly title = document.getElementById('base-title')!;
+  private view: View = 'hub';
   private tab: Tab = 'cards';
+  /** 持ち物のタブで、バッグを見ているか倉庫を見ているか */
+  private itemPlace: 'bag' | 'warehouse' = 'bag';
   private profile: Profile | null = null;
   /** つよさを見ているカード。null なら一覧を出す */
   private viewing: Card | null = null;
@@ -56,24 +68,33 @@ export class BaseScreen {
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
-        this.sellCount.clear();
-        this.shopNote = '';
         this.viewing = null;
         this.pouch = null;
         this.choosing = false;
         this.render();
       });
     }
+    this.back.addEventListener('click', () => this.go('hub'));
+  }
+
+  /** トップや、トップから移る画面へ。中で開いていたもの（つよさ・袋・ダンジョンの一覧）は閉じる */
+  private go(view: View): void {
+    this.view = view;
+    this.viewing = null;
+    this.pouch = null;
+    this.choosing = false;
+    this.reordering = false;
+    this.picked = null;
+    this.sellCount.clear();
+    this.shopNote = '';
+    this.render();
   }
 
   /** 戻ってきたときの知らせ（失ったものなど）は、終わりの知らせの窓で出すので、拠点には出さない */
   open(profile: Profile): void {
     this.profile = profile;
-    this.viewing = null;
-    this.pouch = null;
-    this.choosing = false;
     this.root.hidden = false;
-    this.render();
+    this.go('hub');
   }
 
   /** 一覧からつよさなどの画面へ移る。一覧のスクロールの位置を覚えておく */
@@ -116,8 +137,20 @@ export class BaseScreen {
     const p = this.profile!;
     const scroll = this.body.scrollTop;
     for (const b of this.tabs) b.classList.toggle('active', b.dataset.tab === this.tab);
+    const prep = this.view === 'prep';
+    this.title.textContent = VIEW_TITLE[this.view];
+    this.back.hidden = this.view === 'hub';
+    this.tabBar.hidden = !prep;
+    this.depart.hidden = !prep;
+    this.body.classList.toggle('hub', this.view === 'hub');
     const children: HTMLElement[] = [];
-    if (this.choosing) {
+    if (this.view === 'hub') {
+      children.push(...this.hubRows(p));
+    } else if (this.view === 'shop') {
+      children.push(...this.shopRows(p));
+    } else if (this.view === 'records') {
+      children.push(...this.statusRows(p));
+    } else if (this.choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.viewing) {
       // 仲間のつよさ。［戻る］でカードの一覧へ
@@ -129,10 +162,7 @@ export class BaseScreen {
       children.push(...this.pouchRows(p, this.pouch));
     } else {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
-      if (this.tab === 'bag') children.push(...this.bagRows(p));
-      if (this.tab === 'warehouse') children.push(...this.warehouseRows(p));
-      if (this.tab === 'status') children.push(...this.statusRows(p));
-      if (this.tab === 'shop') children.push(...this.shopRows(p));
+      else children.push(...(this.itemPlace === 'bag' ? this.bagRows(p) : this.warehouseRows(p)));
     }
     document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
     this.body.replaceChildren(...children);
@@ -140,6 +170,59 @@ export class BaseScreen {
     const hand = this.handCards().length;
     this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンに向かう';
     (this.depart as HTMLButtonElement).disabled = hand === 0;
+  }
+
+  /**
+   * 拠点のトップ（requirements.md 10.4）。主人公の札（何代目か、連れていく仲間）と、
+   * ［冒険の準備］［商店］［記録］の3つのメニュー
+   */
+  private hubRows(p: Profile): HTMLElement[] {
+    const hero = document.createElement('div');
+    hero.className = 'hub-hero';
+    const party = document.createElement('div');
+    party.className = 'hub-party';
+    const hand = this.handCards();
+    for (let i = 0; i < HAND_LIMIT; i++) {
+      const card = hand[i];
+      const face = document.createElement('span');
+      face.className = card ? 'face' : 'face empty';
+      if (card) face.append(faceElement(card.species.id, cardIcon(card)));
+      else face.textContent = '＋';
+      party.append(face);
+    }
+    hero.append(
+      artElement('player', '🧙', 'hub-art'),
+      note(`${generationName(p.generation)} 召喚士`, 'hub-name'),
+      party,
+    );
+    const item = (view: View, icon: string, name: string, desc: string, main = false): HTMLElement => {
+      const b = document.createElement('button');
+      b.className = main ? 'hub-item main' : 'hub-item';
+      const ic = document.createElement('span');
+      ic.className = 'hub-icon';
+      ic.textContent = icon;
+      const text = document.createElement('span');
+      text.className = 'hub-text';
+      const t = document.createElement('span');
+      t.className = 'hub-title';
+      t.textContent = name;
+      const d = document.createElement('span');
+      d.className = 'hub-desc';
+      d.textContent = desc;
+      text.append(t, d);
+      const go = document.createElement('span');
+      go.className = 'hub-go';
+      go.textContent = '›';
+      b.append(ic, text, go);
+      b.addEventListener('click', () => this.go(view));
+      return b;
+    };
+    return [
+      hero,
+      item('prep', '⚔️', '冒険の準備', '仲間・持ち物・ダンジョン選択', true),
+      item('shop', '⚖️', '商店', `道具の売り買い　今日の品 ${p.shopStock.length}`),
+      item('records', '📜', '記録', 'つよさ・戦績・累積'),
+    ];
   }
 
   /** ダンジョンを選ぶ。踏破していないダンジョンの次は、鍵がかかっている */
@@ -226,11 +309,29 @@ export class BaseScreen {
     ];
   }
 
+  /** 持ち物のタブの上に出す、［バッグ］［倉庫］の切り替え */
+  private placeButtons(p: Profile): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'sort-keys shop-modes';
+    for (const [place, label, list, limit] of [
+      ['bag', 'バッグ', p.bag, BAG_LIMIT],
+      ['warehouse', '倉庫', p.warehouse, WAREHOUSE_LIMIT],
+    ] as const) {
+      const b = wideButton(`${label} ${list.length}/${limit}`, false, () => {
+        this.itemPlace = place;
+        this.render();
+      });
+      if (this.itemPlace === place) b.classList.add('on');
+      box.append(b);
+    }
+    return box;
+  }
+
   /** バッグ（持っていくアイテム）。倉庫へしまえる */
   private bagRows(p: Profile): HTMLElement[] {
     return [
-      note(`バッグ ${p.bag.length}/${BAG_LIMIT}（持っていく）　倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}`),
-      this.sortButtons((by) => (p.bag = sortItems(p.bag, by))),
+      this.sortButtons((by) => (p.bag = sortItems(p.bag, by)), this.placeButtons(p)),
+      note('バッグの道具をダンジョンに持っていく'),
       ...p.bag.map((item) =>
         this.itemRow(item, '倉庫へ', p.warehouse.length >= WAREHOUSE_LIMIT, () => move(item, p.bag, p.warehouse)),
       ),
@@ -251,11 +352,7 @@ export class BaseScreen {
         : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
       return this.itemRow(first, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(first, p.warehouse, p.bag), name);
     });
-    return [
-      note(`倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}　バッグ ${p.bag.length}/${BAG_LIMIT}`),
-      this.sortButtons((by) => (p.warehouse = sortItems(p.warehouse, by))),
-      ...rows,
-    ];
+    return [this.sortButtons((by) => (p.warehouse = sortItems(p.warehouse, by)), this.placeButtons(p)), ...rows];
   }
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
@@ -290,14 +387,19 @@ export class BaseScreen {
     ];
   }
 
-  private sortButtons(sort: (by: 'kind' | 'name') => void): HTMLElement {
+  /** 並べ替えのボタン。一覧の上に固定して出す。top があれば、その上に置く */
+  private sortButtons(sort: (by: 'kind' | 'name') => void, top?: HTMLElement): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'base-sort';
     const pair = document.createElement('div');
-    pair.className = 'sheet-pair base-sort';
+    pair.className = 'sheet-pair';
     pair.append(
       wideButton('種類順に並べる', false, () => this.change(() => sort('kind'))),
       wideButton('名前順に並べる', false, () => this.change(() => sort('name'))),
     );
-    return pair;
+    if (top) box.append(top);
+    box.append(pair);
+    return box;
   }
 
   /**
@@ -416,7 +518,7 @@ export class BaseScreen {
     const portrait = document.createElement('div');
     portrait.className = 'status-portrait';
     portrait.append(artElement('player', '🧙', 'status-art'));
-    const title = note('召喚士', 'status-title');
+    const title = note(`${generationName(p.generation)} 召喚士`, 'status-title');
     const b = PLAYER_BASE;
     const r = p.records;
     const dungeonRows = DUNGEONS.filter((d) => r.dungeons[d.id] || isUnlocked(d, p.cleared)).map((d) => {
