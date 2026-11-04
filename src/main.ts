@@ -1,7 +1,7 @@
 import { clearRun, loadProfile, loadRunData, loadoutOf, returnToBase, saveRun } from './game/profile';
 import { randomSeed } from './game/rng';
 import type { Dir } from './game/dir';
-import { GameState, type RunData } from './game/state';
+import { GameState, sickMark, type RunData } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
@@ -106,8 +106,8 @@ function updateHud(moment?: HudMoment): void {
   document.getElementById('turn')!.textContent = `${state.turn}T`;
   // かかっている状態異常と魔法を、残りターンつきで出す
   const effects = [
-    p.ailments.confused > 0 ? `😵混乱${p.ailments.confused}` : '',
-    p.ailments.poisoned > 0 ? `☠️毒${p.ailments.poisoned}` : '',
+    p.ailments.confused > 0 ? `🌀${p.ailments.confused}` : '',
+    p.ailments.poisoned > 0 ? `☠️${p.ailments.poisoned}` : '',
     p.powerTurns > 0 ? `💪${p.powerTurns}` : '',
     p.guardTurns > 0 ? `🧱${p.guardTurns}` : '',
   ];
@@ -124,7 +124,7 @@ function updateHud(moment?: HudMoment): void {
     const a = state.allies[i];
     // ついてくる以外の指示を出しているときは、指示も出す
     const order = a && a.order !== 'follow' ? ` ${ORDER_LABEL[a.order]}` : '';
-    const sick = a ? `${a.ailments.confused > 0 ? '😵' : ''}${a.ailments.poisoned > 0 ? '☠️' : ''}` : '';
+    const sick = a ? sickMark(a.ailments) : '';
     slot.textContent = a ? `${cardIcon(a.card)} ${a.card.hp}/${a.card.maxHp}${sick}${order}` : '召喚';
     slot.classList.toggle('filled', a !== undefined);
   });

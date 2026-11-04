@@ -50,7 +50,7 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
     ['状態', STATUS_LABEL[card.status]],
   ];
   if (ally) {
-    const sick = [ally.ailments.confused > 0 ? `混乱${ally.ailments.confused}` : '', ally.ailments.poisoned > 0 ? `毒${ally.ailments.poisoned}` : '']
+    const sick = [ally.ailments.confused > 0 ? `🌀混乱 残り${ally.ailments.confused}` : '', ally.ailments.poisoned > 0 ? `☠️毒 残り${ally.ailments.poisoned}` : '']
       .filter(Boolean)
       .join('　');
     rows.push(['指示', ORDER_LABEL[ally.order]]);

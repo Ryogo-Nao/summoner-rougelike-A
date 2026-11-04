@@ -83,7 +83,10 @@ export const rankedName = (name: string, rank: number) => (rank > 0 ? `${name}+$
 const BIG_FIRE_RANGE = 5;
 /** 状態異常と特技（balance.md 3.5、4章） */
 const CONFUSE_TURNS = 5;
-const POISON_TURNS = 10;
+/** 毒は30ターン続き、3ターンに1回、最大HPの1％（最低1）のダメージを受ける */
+const POISON_TURNS = 30;
+const POISON_INTERVAL = 3;
+const POISON_RATE = 0.01;
 /** 攻撃が当たったときに、胞子で混乱させる・毒にする確率 */
 const AILMENT_CHANCE = 0.3;
 /** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
@@ -114,7 +117,7 @@ export interface ActorView {
   hp: { ratio: number; ally: boolean } | null;
   isPlayer: boolean;
   isPartner: boolean;
-  /** かかっている状態異常の印（😵☠️）。なければ空 */
+  /** かかっている状態異常の印（混乱🌀、毒☠️）。なければ空。あとで絵に差し替える */
   sick: string;
 }
 
@@ -218,8 +221,14 @@ export function speciesById(id: string): Species {
 }
 
 export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
-/** 状態異常の印。混乱は😵、毒は☠️ */
-const sickMark = (a: Ailments) => `${a.confused > 0 ? '😵' : ''}${a.poisoned > 0 ? '☠️' : ''}`;
+/** 状態異常の印。混乱は🌀、毒は☠️（仮の絵文字。あとで絵に差し替える） */
+export const sickMark = (a: Ailments) => `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}`;
+
+/** 毒のダメージ。残りターンが3の倍数のターンだけ、最大HPの1％（最低1）。毒では力つきず、HP1で止まる */
+function poisonHit(ailments: Ailments, hp: number, maxHp: number): number {
+  if (ailments.poisoned <= 0 || ailments.poisoned % POISON_INTERVAL !== 0) return 0;
+  return Math.min(Math.max(1, Math.round(maxHp * POISON_RATE)), hp - 1);
+}
 
 /**
  * 保存したカードを読み込み、能力を今の決まりで求め直す。
@@ -848,11 +857,22 @@ export class GameState {
     this.endTurn();
   }
 
-  /** 向いている方向を攻撃する。混乱しているときは、でたらめな方向を攻撃する。誰もいなくても1ターン使う */
+  /**
+   * 向いている方向を攻撃する。誰もいなくても1ターン使う。
+   * 混乱しているときは、まわり8方向と足もとの9か所からでたらめに選ぶ。足もとなら空振りする
+   */
   attack(): void {
     const p = this.player;
-    if (p.ailments.confused > 0) p.facing = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
     this.beginAction();
+    if (p.ailments.confused > 0) {
+      const pick = this.rng.int(0, 8);
+      if (pick === 8) {
+        this.addLog('あなたは混乱して空振りした');
+        this.endTurn();
+        return;
+      }
+      p.facing = pick as Dir;
+    }
     this.strike();
     this.endTurn();
   }
@@ -1286,16 +1306,15 @@ export class GameState {
     if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
     if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
     if (this.dead) return;
-    // 毒は毎ターンHPが1減る。毒では力つきず、HP1で止まる
-    if (p.ailments.poisoned > 0) p.hp = Math.max(1, p.hp - 1);
+    p.hp -= poisonHit(p.ailments, p.hp, p.maxHp);
     this.tickAilments(p.ailments, 'あなた');
     for (const a of this.allies) {
-      if (a.ailments.poisoned > 0) a.card.hp = Math.max(1, a.card.hp - 1);
+      a.card.hp -= poisonHit(a.ailments, a.card.hp, a.card.maxHp);
       this.tickAilments(a.ailments, a.card.species.name);
     }
     // 魔物の状態異常は、治ってもログには出さない
     for (const m of this.monsters) {
-      if (m.ailments.poisoned > 0) m.hp = Math.max(1, m.hp - 1);
+      m.hp -= poisonHit(m.ailments, m.hp, m.maxHp);
       if (m.ailments.confused > 0) m.ailments.confused--;
       if (m.ailments.poisoned > 0) m.ailments.poisoned--;
     }
