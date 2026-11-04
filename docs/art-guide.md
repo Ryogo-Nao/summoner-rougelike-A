@@ -83,7 +83,7 @@ No sparkles, no particles, no glow or aura around the character. No ground shado
 4. できた絵を送ってもらえれば、私がゲームに入れる
    - `scripts/key-art.ps1` で緑の背景を抜き、余白をそろえた 256×256 の PNG にして `public/art/` に置く
    - `src/render/art.ts` の `ART_IDS` に id を足す。絵がないものは絵文字のまま出る
-   - 顔のアイコンは `scripts/crop-face.ps1` で全身の絵から切り出し、`face_<id>.png` にする。`FACE_IDS` に id を足す
+   - 顔のアイコンは `scripts/crop-face.ps1` で全身の絵から切り出し、`face_<id>.png` にする。`FACE_IDS` に id を足す。切り出すときは、両目のまん中を横の中心に、目の高さを上から 45% にそろえる（幅は両目の間の約3倍）。こうすると、どの顔も丸い枠の中で同じ所に目が来る
 
 ### 2体目からの指示文
 **英語**
@@ -117,7 +117,7 @@ Subject: [魔物の説明（下の表の英語）]
 | goromu | ゴロム | 石のゴーレム。丸い石を積んだ体、苔が少し生えている。どっしりしていて、やさしい目 | A stone golem made of stacked round stones with a little moss. Heavy and sturdy, with kind eyes. |
 
 - 寒色の決まりがあるが、ヒダマリ（火）とポコタケ（キノコ）は暖色を使ってよい。輪郭線と塗り方をそろえれば、絵柄は保てる
-- 絵が入っているもの：主人公、イヅツチ、チュッピ、ベロッグ、ポコタケ、シュルル、ガルフ、カブラム、モヤリ、ヒダマリ（この絵柄で決まり）。まだのもの：パタリ、ゴロム
+- 絵が入っているもの：主人公、イヅツチと、6の表の魔物すべて（この絵柄で決まり）
 
 ## 7. アイテムとアイコン（Recraft）
 Recraft では、最初に絵柄（スタイル）を1つ作り、すべてのアイコンをその絵柄で作る。
