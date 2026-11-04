@@ -8,10 +8,14 @@ export interface ItemEntry {
   floors?: [number, number];
 }
 
-/** 出てくる魔物1行ぶん */
+/**
+ * 出てくる魔物1行ぶん。level を省くとダンジョンの monsterLevel。
+ * 深い階ほどレベルを上げて、弱い魔物も手ごわい敵として出せる（同じ魔物を階ごとに分けて書いてよい）
+ */
 export interface MonsterEntry {
   species: string;
   floors: [number, number];
+  level?: number;
 }
 
 /**
@@ -26,7 +30,7 @@ export interface Dungeon {
   allyStairsHeal: number;
   /** 1階に落ちているアイテムの数 */
   itemsPerFloor: [number, number];
-  /** 出てくる魔物のレベル。難しいダンジョンほど上げる（2つ目以降は2ずつなど） */
+  /** 出てくる魔物の基本のレベル。難しいダンジョンほど上げる（2つ目以降は2ずつなど） */
   monsterLevel: number;
   items: ItemEntry[];
   monsters: MonsterEntry[];
@@ -61,6 +65,10 @@ const FIRST: Dungeon = {
     { kind: 'sealSleep', weight: 1 },
     { kind: 'sealDoom', weight: 0.5 },
     { kind: 'pot', weight: 1 },
+    // 袋はめったに出ない
+    { kind: 'pouch', weight: 0.5 },
+    { kind: 'finePouch', weight: 0.2 },
+    { kind: 'holyPouch', weight: 0.15 },
     { kind: 'club', weight: 4 },
     { kind: 'bronzeSword', weight: 3 },
     { kind: 'ironSword', weight: 1.5 },
@@ -107,10 +115,15 @@ export function randomItem(dungeon: Dungeon, floor: number, rng: Rng): Item {
       break;
     }
   }
-  return createItem(kind, ITEMS[kind].arrow ? rng.int(...ARROW_DROP) : undefined);
+  const def = ITEMS[kind];
+  if (def.arrow) return createItem(kind, rng.int(...ARROW_DROP));
+  if (def.pouch) return createItem(kind, rng.int(...def.pouch.capacity));
+  return createItem(kind);
 }
 
-/** その階に出る魔物の種類の id */
-export function monstersForFloor(dungeon: Dungeon, floor: number): string[] {
-  return dungeon.monsters.filter((e) => onFloor(e.floors, floor)).map((e) => e.species);
+/** その階に出る魔物と、そのレベル */
+export function monstersForFloor(dungeon: Dungeon, floor: number): { species: string; level: number }[] {
+  return dungeon.monsters
+    .filter((e) => onFloor(e.floors, floor))
+    .map((e) => ({ species: e.species, level: e.level ?? dungeon.monsterLevel }));
 }

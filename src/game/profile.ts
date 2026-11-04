@@ -1,5 +1,5 @@
 import { HAND_LIMIT, IZUTSUCHI, createCard, isPartner, reserveCardIds, type Card } from './cards';
-import { BAG_LIMIT, START_ITEMS, createItem, noShortcuts, reserveItemIds, type Item, type Shortcuts } from './items';
+import { BAG_LIMIT, ITEMS, START_ITEMS, allItems, createItem, noShortcuts, reserveItemIds, type Item, type Shortcuts } from './items';
 import {
   cardFromData,
   cardToData,
@@ -70,7 +70,7 @@ export function loadProfile(): Profile {
     const data = JSON.parse(raw) as ProfileData;
     const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {}, cleared: data.cleared ?? [], shortcuts: data.shortcuts ?? noShortcuts() };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
-    reserveItemIds(Math.max(0, ...profile.bag.map((i) => i.id), ...profile.warehouse.map((i) => i.id)));
+    reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));
     return profile;
   } catch {
     return newProfile();
@@ -119,11 +119,15 @@ export function clearRun(): void {
   }
 }
 
-/** ダンジョンから戻ったときに失ったもの */
+/** ダンジョンから戻ったときに失ったもの。downgraded は、ふつうの袋に戻った聖なる袋の数 */
 export interface Losses {
   cards: Card[];
   items: Item[];
+  downgraded: number;
 }
+
+/** 力つきたときに、聖なる袋がふつうの袋に戻る確率 */
+const HOLY_DOWNGRADE = 0.3;
 
 /**
  * ダンジョンから拠点に戻る。力つきたときは、そのダンジョンで手に入れたカードと、
@@ -134,13 +138,23 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   const brought = new Set(profile.hand);
   const leftAtBase = profile.cards.filter((c) => !brought.has(c.id));
   const runCards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])];
-  const losses: Losses = { cards: [], items: [] };
+  const losses: Losses = { cards: [], items: [], downgraded: 0 };
   let bag = [...state.bag];
   if (state.dead) {
     losses.cards = runCards.filter((c) => c.obtainedHere && !isPartner(c));
-    const shuffled = [...bag].sort(() => Math.random() - 0.5);
-    losses.items = shuffled.slice(0, Math.floor(bag.length / 2));
+    // 聖なる袋（と中の道具）は失わない。それ以外の半分を失う。ほかの袋は、失えば中身ごとなくなる
+    const holy = (i: Item) => ITEMS[i.kind].pouch?.holy === true;
+    const pool = bag.filter((i) => !holy(i));
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    losses.items = shuffled.slice(0, Math.floor(pool.length / 2));
     bag = bag.filter((i) => !losses.items.includes(i));
+    // 聖なる袋は、30％でふつうの袋に戻る（中の道具はそのまま）
+    for (const i of bag) {
+      if (holy(i) && Math.random() < HOLY_DOWNGRADE) {
+        i.kind = 'pouch';
+        losses.downgraded++;
+      }
+    }
   }
   const kept = runCards
     .filter((c) => !losses.cards.includes(c))

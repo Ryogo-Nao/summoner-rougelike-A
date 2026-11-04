@@ -22,6 +22,8 @@ export class BaseScreen {
   private profile: Profile | null = null;
   /** つよさを見ているカード。null なら一覧を出す */
   private viewing: Card | null = null;
+  /** 中を見ている袋（バッグか倉庫にある）。null なら一覧を出す */
+  private pouch: Item | null = null;
 
   /** onDepart は［出発］を押したときに呼ぶ */
   constructor(onDepart: () => void) {
@@ -32,6 +34,7 @@ export class BaseScreen {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
         this.viewing = null;
+        this.pouch = null;
         this.render();
       });
     }
@@ -42,6 +45,7 @@ export class BaseScreen {
     this.profile = profile;
     this.message = message ?? '';
     this.viewing = null;
+    this.pouch = null;
     this.root.hidden = false;
     this.render();
   }
@@ -80,6 +84,8 @@ export class BaseScreen {
           this.render();
         }),
       );
+    } else if (this.pouch) {
+      children.push(...this.pouchRows(p, this.pouch));
     } else {
       if (this.message) children.push(note(this.message, 'base-message'));
       if (this.tab === 'cards') children.push(...this.cardRows(p));
@@ -146,12 +152,43 @@ export class BaseScreen {
   }
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void): HTMLElement {
+    const pouch = ITEMS[item.kind].pouch !== undefined;
     return renderRow({
       icon: ITEMS[item.kind].emoji,
       name: itemName(item),
-      sub: ITEMS[item.kind].desc,
+      sub: pouch ? `${ITEMS[item.kind].desc}\n押すと中を見る` : ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
+      onSelect: pouch
+        ? () => {
+            this.pouch = item;
+            this.render();
+          }
+        : undefined,
     });
+  }
+
+  /** 袋の中。［出す］でバッグへ、バッグの道具は［しまう］で袋へ */
+  private pouchRows(p: Profile, pouch: Item): HTMLElement[] {
+    const contents = pouch.contents ?? [];
+    const room = contents.length < (pouch.capacity ?? 0);
+    const holy = ITEMS[pouch.kind].pouch?.holy ? '\n力つきても中の道具は失わない' : '';
+    return [
+      note(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}${holy}`, 'base-section'),
+      ...contents.map((item) =>
+        this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => {
+          pouch.contents = contents.filter((i) => i !== item);
+          p.bag.push(item);
+        }),
+      ),
+      note('バッグからしまう', 'base-section'),
+      ...p.bag
+        .filter((i) => i !== pouch && !ITEMS[i.kind].pouch)
+        .map((item) => this.itemRow(item, 'しまう', !room, () => move(item, p.bag, contents))),
+      wideButton('戻る', false, () => {
+        this.pouch = null;
+        this.render();
+      }),
+    ];
   }
 
   private sortButtons(sort: (by: 'kind' | 'name') => void): HTMLElement {

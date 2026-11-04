@@ -1,7 +1,7 @@
 import type { Pos } from './dir';
 
 /** バッグに入るアイテムの数（requirements.md 11章）。まとまった矢は1つと数える */
-export const BAG_LIMIT = 20;
+export const BAG_LIMIT = 40;
 /** 魔導書・食料など以外を魔物に投げたときのダメージ */
 export const THROW_DAMAGE = 1;
 /** 矢が1つにまとまる本数の上限と、床に落ちているときの本数 */
@@ -39,6 +39,9 @@ export type ItemKind =
   | 'tomePower'
   | 'tomeGuard'
   | 'pot'
+  | 'pouch'
+  | 'finePouch'
+  | 'holyPouch'
   | 'club'
   | 'bronzeSword'
   | 'ironSword'
@@ -77,6 +80,8 @@ export interface ItemDef {
   seal?: SealKind;
   /** 印が部屋の敵に効かない確率 */
   miss?: number;
+  /** 袋。中に道具をしまえる。入る数は1つずつ違う（この幅の中で決まる） */
+  pouch?: { capacity: [number, number]; holy?: boolean };
 }
 
 /** 並べる順は、種類順に並べたときの順でもある */
@@ -102,6 +107,15 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3 },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard' },
+  pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる\nバッグでは1つと数える', pouch: { capacity: [2, 4] } },
+  finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる\nバッグでは1つと数える', pouch: { capacity: [5, 7] } },
+  holyPouch: {
+    kana: 'せいなるふくろ',
+    name: '聖なる袋',
+    emoji: '👛',
+    desc: '道具を2〜3個しまえる\n力つきても中の道具は失わない\n力つきると30％でふつうの袋に戻る',
+    pouch: { capacity: [2, 3], holy: true },
+  },
   pot: { kana: 'れんきんがま', name: '錬金釜', emoji: '⚱️', desc: '同じ名前の装備2つを合わせて\n強くする（大きいほうの＋に＋1）' },
   club: { kana: 'こんぼう', name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2 },
   bronzeSword: { kana: 'どうのけん', name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4 },
@@ -118,6 +132,9 @@ export interface Item {
   count?: number;
   /** 錬金釜で強くした分（装備だけ） */
   plus?: number;
+  /** 袋に入る数と、中の道具（袋だけ） */
+  capacity?: number;
+  contents?: Item[];
 }
 
 /** 床に落ちているアイテム */
@@ -130,7 +147,8 @@ export interface FloorItem {
 export function itemName(item: Item): string {
   const plus = item.plus ? `+${item.plus}` : '';
   const count = item.count !== undefined ? `（${item.count}本）` : '';
-  return `${ITEMS[item.kind].name}${plus}${count}`;
+  const pouch = item.contents ? `［${item.contents.length}/${item.capacity ?? 0}］` : '';
+  return `${ITEMS[item.kind].name}${plus}${count}${pouch}`;
 }
 
 /** 装備で上がる攻撃力・防御力。錬金釜の＋を含む */
@@ -146,11 +164,21 @@ export function reserveItemIds(maxId: number): void {
 /** 初めて遊ぶときのバッグの中身（balance.md 8章） */
 export const START_ITEMS: ItemKind[] = ['bread', 'herb', 'blank', 'blank'];
 
-/** count は矢の本数。矢で省くと1本 */
+/** count は矢の本数（省くと1本）、袋なら入る数（省くといちばん少ない数） */
 export function createItem(kind: ItemKind, count?: number): Item {
   const item: Item = { id: nextItemId++, kind };
-  if (ITEMS[kind].arrow) item.count = count ?? 1;
+  const def = ITEMS[kind];
+  if (def.arrow) item.count = count ?? 1;
+  if (def.pouch) {
+    item.capacity = count ?? def.pouch.capacity[0];
+    item.contents = [];
+  }
   return item;
+}
+
+/** 袋の中も含めた、すべての道具（保存データの番号を確かめるときなどに使う） */
+export function allItems(items: Item[]): Item[] {
+  return items.flatMap((i) => [i, ...(i.contents ?? [])]);
 }
 
 /** 並べ替える。種類順はアイテムの表の順、名前順は読みの五十音順。同じなら手に入れた順 */

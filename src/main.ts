@@ -81,7 +81,8 @@ function endRun(): void {
       ? `\n失ったもの：カード${losses.cards.length}枚　アイテム${losses.items.length}個`
       : '\n失ったものはない'
     : '';
-  ending = title + lost;
+  const downgraded = losses.downgraded > 0 ? `\n聖なる袋${losses.downgraded}つがふつうの袋に戻った` : '';
+  ending = title + lost + downgraded;
   showEnding();
 }
 

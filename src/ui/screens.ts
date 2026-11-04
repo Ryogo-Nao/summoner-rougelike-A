@@ -194,6 +194,64 @@ function startUse(state: GameState, sheet: Sheet, item: Item, after: AfterAction
   }
 }
 
+/** 袋の中。出すとバッグへ、［道具をしまう］でバッグの道具を入れる。どちらも1ターン */
+function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction): void {
+  const contents = pouch.contents ?? [];
+  const full = state.bag.length >= BAG_LIMIT;
+  const rows: SheetRow[] = contents.map((item) => ({
+    icon: ITEMS[item.kind].emoji,
+    name: itemName(item),
+    sub: ITEMS[item.kind].desc,
+    button: {
+      label: '出す',
+      disabled: full,
+      onClick: () => {
+        sheet.close();
+        state.takeFromPouch(pouch, item);
+        after();
+      },
+    },
+  }));
+  const footer = document.createElement('div');
+  footer.className = 'sheet-pair';
+  const room = contents.length < (pouch.capacity ?? 0);
+  footer.append(
+    wideButton(room ? '道具をしまう' : 'いっぱい', !room || state.pouchable(pouch).length === 0, () =>
+      openPouchPutSheet(state, sheet, pouch, after),
+    ),
+    wideButton('戻る', false, () => openItemSheet(state, sheet, pouch, after)),
+  );
+  const lines = [
+    contents.length === 0 ? '中は空' : full ? 'バッグがいっぱいで出せない' : '',
+    ITEMS[pouch.kind].pouch?.holy ? '力つきても中の道具は失わない' : '',
+  ];
+  sheet.open(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}`, rows, {
+    note: lines.filter(Boolean).join('\n'),
+    footer,
+  });
+}
+
+/** 袋にしまう道具を選ぶ */
+function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction): void {
+  const rows: SheetRow[] = state.pouchable(pouch).map((item) => ({
+    icon: ITEMS[item.kind].emoji,
+    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
+    sub: ITEMS[item.kind].desc,
+    button: {
+      label: 'しまう',
+      onClick: () => {
+        sheet.close();
+        state.putInPouch(pouch, item);
+        after();
+      },
+    },
+  }));
+  sheet.open(`${itemName(pouch)}にしまう`, rows, {
+    note: '袋は袋にしまえない',
+    footer: wideButton('戻る', false, () => openPouchSheet(state, sheet, pouch, after)),
+  });
+}
+
 /** 道具を［攻撃］の長押しの枠に登録する。種類で登録するので、なくなっても同じ種類を使う */
 function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: AfterAction): void {
   const kind = item.kind;
@@ -328,6 +386,7 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
   if (preview) buttons.append(statChange(preview));
   const use = useButton(state, sheet, item, after, () => openItemSheet(state, sheet, item, after));
   if (use) buttons.append(use);
+  if (def.pouch) buttons.append(wideButton('中を見る', false, () => openPouchSheet(state, sheet, item, after)));
   if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
   if (state.canRegister(item)) {
     const slot = state.shortcuts.indexOf(item.kind);

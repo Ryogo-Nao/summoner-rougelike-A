@@ -38,6 +38,7 @@ import {
   itemName,
   reserveItemIds,
   sortItems,
+  allItems,
   type FloorItem,
   type Item,
   type SealKind,
@@ -431,7 +432,7 @@ export class GameState {
     s.popups = [];
     const cards = [...s.cards, ...s.storage, ...(s.pendingCard ? [s.pendingCard] : [])];
     reserveCardIds(Math.max(0, ...cards.map((c) => c.id)));
-    reserveItemIds(Math.max(0, ...s.bag.map((i) => i.id), ...s.floorItems.map((f) => f.item.id)));
+    reserveItemIds(Math.max(0, ...allItems([...s.bag, ...s.floorItems.map((f) => f.item)]).map((i) => i.id)));
     s.updateVisibility();
     return s;
   }
@@ -483,11 +484,12 @@ export class GameState {
 
   /** 部屋の空いているマスに、この階に出る魔物を1体置く。置けなければ何もしない */
   private spawnMonster(room: Room): void {
-    const kinds = monstersForFloor(this.dungeon, this.floor).map(speciesById);
+    const kinds = monstersForFloor(this.dungeon, this.floor);
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       if (this.isOccupied(pos.x, pos.y)) continue;
-      this.monsters.push(createMonster(this.rng.pick(kinds), pos, this.dungeon.monsterLevel));
+      const kind = this.rng.pick(kinds);
+      this.monsters.push(createMonster(speciesById(kind.species), pos, kind.level));
       return;
     }
   }
@@ -714,7 +716,8 @@ export class GameState {
     if (def.spell) return '読む';
     if (def.slot) return this.isEquipped(item) ? '外す' : '装備';
     if (def.arrow) return '撃つ（向いている方向）';
-    if (item.kind === 'blank') return null;
+    // 袋は「中を見る」で開く（画面の側で扱う）
+    if (item.kind === 'blank' || def.pouch) return null;
     return '使う';
   }
 
@@ -770,6 +773,36 @@ export class GameState {
   /** バッグにあるその種類の数。矢は本数を足す */
   countInBag(kind: ItemKind): number {
     return this.bag.filter((i) => i.kind === kind).reduce((n, i) => n + (i.count ?? 1), 0);
+  }
+
+  // ---- 袋 ----
+
+  /** 袋にしまえる道具（バッグの、袋でない道具） */
+  pouchable(pouch: Item): Item[] {
+    return this.bag.filter((i) => i !== pouch && !ITEMS[i.kind].pouch);
+  }
+
+  /** バッグの道具を袋にしまう。装備していれば外す。1ターンかかる */
+  putInPouch(pouch: Item, item: Item): void {
+    const contents = pouch.contents;
+    if (!contents || !this.bag.includes(pouch) || !this.pouchable(pouch).includes(item)) return;
+    if (contents.length >= (pouch.capacity ?? 0)) return;
+    this.beginAction();
+    this.removeFromBag(item);
+    contents.push(item);
+    this.addLog(`${itemName(item)}を${ITEMS[pouch.kind].name}にしまった`);
+    this.endTurn();
+  }
+
+  /** 袋から道具を出してバッグに入れる。バッグがいっぱいならできない。1ターンかかる */
+  takeFromPouch(pouch: Item, item: Item): void {
+    const contents = pouch.contents;
+    if (!contents?.includes(item) || this.bag.length >= BAG_LIMIT) return;
+    this.beginAction();
+    pouch.contents = contents.filter((i) => i !== item);
+    this.bag.push(item);
+    this.addLog(`${ITEMS[pouch.kind].name}から${itemName(item)}を出した`);
+    this.endTurn();
   }
 
   /** 復活の印で選べるカード（瀕死のカード） */
