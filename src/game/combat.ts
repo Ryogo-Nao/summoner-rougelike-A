@@ -13,6 +13,23 @@ export function rollDamage(rng: Rng, atk: number, def: number): number {
 /** 次のレベルに必要な累計経験値（balance.md 1.3）。index 0 が Lv2 */
 const EXP_TABLE = [10, 30, 60, 100, 150, 220, 300, 400, 520, 660];
 
+/** 仲間が次のレベルに必要な累計経験値は、主人公の何倍か（balance.md 4.2） */
+export const ALLY_EXP_RATE = 2;
+
+/** 仲間の累計経験値 exp のときのレベル */
+export const allyLevelForExp = (exp: number) => levelForExp(exp / ALLY_EXP_RATE);
+
+/** 仲間が次のレベルまでに必要な経験値。いちばん上のレベルなら null */
+export function allyExpToNext(exp: number): number | null {
+  const next = expToNext(exp / ALLY_EXP_RATE);
+  return next === null ? null : next * ALLY_EXP_RATE;
+}
+
+/** 仲間がそのレベルになったばかりのときの累計経験値 */
+export function allyExpForLevel(level: number): number {
+  return level <= 1 ? 0 : (EXP_TABLE[Math.min(level, EXP_TABLE.length + 1) - 2] ?? 0) * ALLY_EXP_RATE;
+}
+
 /** 次のレベルまでに必要な経験値。いちばん上のレベルなら null */
 export function expToNext(exp: number): number | null {
   const need = EXP_TABLE.find((n) => exp < n);

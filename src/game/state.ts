@@ -19,12 +19,12 @@ import {
   type AllyOrder,
   type Card,
 } from './cards';
-import { HIT_RATE, levelForExp, rollDamage } from './combat';
+import { HIT_RATE, allyLevelForExp, levelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { dungeonById, monstersForFloor, randomItem, type Dungeon } from './dungeons';
 import { GameMap, Tile, type Room } from './map';
-import { SPECIES, createMonster, type Monster, type Species } from './monsters';
+import { SPECIES, createMonster, monsterExp, type Monster, type Species } from './monsters';
 import {
   ARROW_STACK,
   BAG_LIMIT,
@@ -398,7 +398,18 @@ export class GameState {
       shield: itemById(data.player.shield),
       ailments: { ...noAilments(), ...data.player.ailments },
     };
-    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species), ailments: { ...noAilments(), ...m.ailments } }));
+    s.monsters = data.monsters.map((m) => {
+      const species = speciesById(m.species);
+      // 古い保存データの魔物には、レベルと攻撃力・防御力がない
+      return {
+        ...m,
+        species,
+        level: m.level ?? 1,
+        atk: m.atk ?? species.atk,
+        def: m.def ?? species.def,
+        ailments: { ...noAilments(), ...m.ailments },
+      };
+    });
     s.cards = data.cards.map(cardFromData);
     s.storage = data.storage.map(cardFromData);
     s.pendingCard = data.pendingCard ? cardFromData(data.pendingCard) : null;
@@ -474,7 +485,7 @@ export class GameState {
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       if (this.isOccupied(pos.x, pos.y)) continue;
-      this.monsters.push(createMonster(this.rng.pick(kinds), pos));
+      this.monsters.push(createMonster(this.rng.pick(kinds), pos, this.dungeon.monsterLevel));
       return;
     }
   }
@@ -1059,7 +1070,7 @@ export class GameState {
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (monster && this.rng.chance(HIT_RATE)) {
         const atk = Math.round(this.attackPower() * (def.arrow ?? 1));
-        this.damageMonster(monster, rollDamage(this.rng, atk, monster.species.def), null, def.name);
+        this.damageMonster(monster, rollDamage(this.rng, atk, monster.def), null, def.name);
         return;
       }
       if (monster) {
@@ -1144,7 +1155,7 @@ export class GameState {
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (!target || !reachable) return;
       if (this.rng.chance(HIT_RATE)) {
-        this.damageMonster(target, rollDamage(this.rng, this.attackPower(), target.species.def), null, '攻撃');
+        this.damageMonster(target, rollDamage(this.rng, this.attackPower(), target.def), null, '攻撃');
       } else {
         this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
@@ -1171,11 +1182,12 @@ export class GameState {
   private defeatMonster(m: Monster, by: Ally | null, byPlayer: boolean, drop = true): void {
     this.monsters = this.monsters.filter((x) => x !== m);
     if (this.provoker === m) this.provoker = null;
-    this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${m.species.exp}）` : `${m.species.name}は毒でたおれた（経験値${m.species.exp}）`);
-    this.shareExp(m.species.exp, by, byPlayer);
+    const exp = monsterExp(m);
+    this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${exp}）` : `${m.species.name}は毒でたおれた（経験値${exp}）`);
+    this.shareExp(exp, by, byPlayer);
     if (drop && this.rng.chance(dropChance(m.species))) {
       this.addLog(`${m.species.name}がカードを落とした`);
-      this.addCard(createCard(m.species, true, this.rng.pick(PERSONALITY_IDS)));
+      this.addCard(createCard(m.species, true, this.rng.pick(PERSONALITY_IDS), m.level));
     }
   }
 
@@ -1206,7 +1218,7 @@ export class GameState {
   private gainAllyExp(a: Ally, amount: number): void {
     const card = a.card;
     card.exp += amount;
-    const next = levelForExp(card.exp);
+    const next = allyLevelForExp(card.exp);
     while (card.level < next) {
       growCard(card);
       this.addLog(`${card.species.name}はLv${card.level}になった！`);
@@ -1309,7 +1321,7 @@ export class GameState {
       this.monsters = this.monsters.filter((m) => m !== target);
       this.popups.push({ pos: target.pos, text: '封印', kind: 'info' });
       this.addLog(`${target.species.name}を封印した！`);
-      this.addCard(createCard(target.species, true, this.rng.pick(PERSONALITY_IDS)));
+      this.addCard(createCard(target.species, true, this.rng.pick(PERSONALITY_IDS), target.level));
     } else {
       target.lastSeen = { ...this.player.pos };
       this.popups.push({ pos: target.pos, text: '失敗', kind: 'miss' });
@@ -1845,7 +1857,7 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    this.hurtPlayer(m, rollDamage(this.rng, m.species.atk, this.defensePower()), how);
+    this.hurtPlayer(m, rollDamage(this.rng, m.atk, this.defensePower()), how);
     if (!this.dead) this.afflict(m.species, p.ailments, 'あなた');
   }
 
@@ -1870,7 +1882,7 @@ export class GameState {
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = rollDamage(this.rng, m.species.atk, a.card.def);
+    const dmg = rollDamage(this.rng, m.atk, a.card.def);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
@@ -1914,7 +1926,7 @@ export class GameState {
       a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
       this.scene(a.pos, target.pos, () => {
         if (this.rng.chance(HIT_RATE)) {
-          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
+          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.def), a, '攻撃');
           // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
           if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
         } else {
@@ -1930,7 +1942,7 @@ export class GameState {
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
         this.scene(a.pos, target.pos, () =>
-          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, 'いかずち'),
+          this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.def), a, 'いかずち'),
         );
         return;
       }

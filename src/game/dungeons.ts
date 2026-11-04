@@ -26,6 +26,8 @@ export interface Dungeon {
   allyStairsHeal: number;
   /** 1階に落ちているアイテムの数 */
   itemsPerFloor: [number, number];
+  /** 出てくる魔物のレベル。難しいダンジョンほど上げる（2つ目以降は2ずつなど） */
+  monsterLevel: number;
   items: ItemEntry[];
   monsters: MonsterEntry[];
 }
@@ -36,7 +38,8 @@ const FIRST: Dungeon = {
   name: 'はじまりの洞窟',
   floors: 10,
   allyStairsHeal: 0.25,
-  itemsPerFloor: [4, 8],
+  itemsPerFloor: [4, 6],
+  monsterLevel: 1,
   items: [
     { kind: 'herb', weight: 20 },
     { kind: 'bigHerb', weight: 6, floors: [4, 10] },

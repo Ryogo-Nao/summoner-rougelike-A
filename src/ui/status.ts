@@ -1,5 +1,5 @@
 import { ORDER_LABEL, PERSONALITIES, STAT_LABEL, isPartner, type Ally, type Card } from '../game/cards';
-import { expToNext } from '../game/combat';
+import { allyExpToNext } from '../game/combat';
 import type { Species } from '../game/monsters';
 
 /** 速さの呼び名（balance.md 3.3） */
@@ -37,7 +37,7 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
   title.textContent = `${card.species.name}　Lv${card.level}`;
 
   const { name, up, down } = PERSONALITIES[card.personality];
-  const next = expToNext(card.exp);
+  const next = allyExpToNext(card.exp);
   const rows: [string, string][] = [
     ['HP', `${card.hp}/${card.maxHp}`],
     ['攻撃力', `${card.atk}`],

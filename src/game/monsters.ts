@@ -1,4 +1,4 @@
-import type { Ailments } from './cards';
+import { monsterStats, type Ailments } from './cards';
 import type { Dir, Pos } from './dir';
 
 export type Speed = 'normal' | 'fast' | 'slow';
@@ -51,6 +51,10 @@ export const SPECIES: readonly Species[] = [
 
 export interface Monster {
   species: Species;
+  /** レベル。ダンジョンごとに決まる（はじまりの洞窟は1）。能力と経験値はレベルで上がる */
+  level: number;
+  atk: number;
+  def: number;
   pos: Pos;
   facing: Dir;
   hp: number;
@@ -63,6 +67,22 @@ export interface Monster {
   ailments: Ailments;
 }
 
-export function createMonster(species: Species, pos: Pos): Monster {
-  return { species, pos, facing: 4, hp: species.hp, maxHp: species.hp, lastSeen: null, wanderTarget: null, ailments: { confused: 0, poisoned: 0, pinned: 0, asleep: 0 } };
+export function createMonster(species: Species, pos: Pos, level = 1): Monster {
+  const { maxHp, atk, def } = monsterStats(species, level);
+  return {
+    species,
+    level,
+    atk,
+    def,
+    pos,
+    facing: 4,
+    hp: maxHp,
+    maxHp,
+    lastSeen: null,
+    wanderTarget: null,
+    ailments: { confused: 0, poisoned: 0, pinned: 0, asleep: 0 },
+  };
 }
+
+/** たおしたときの経験値。レベルが1上がるごとに5割増える（balance.md 4.5） */
+export const monsterExp = (m: Monster) => Math.round(m.species.exp * (1 + 0.5 * (m.level - 1)));

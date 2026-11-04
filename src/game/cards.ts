@@ -1,4 +1,5 @@
 import type { Dir, Pos } from './dir';
+import { allyExpForLevel } from './combat';
 import type { GrowthPace, GrowthType, Species } from './monsters';
 
 /** 手元に持てるカードの数と、同時に召喚できる数（requirements.md 5.3） */
@@ -146,6 +147,18 @@ function growthSteps(pace: GrowthPace, level: number): number {
  * （Lv1の値 ＋ 1レベルの伸び × 成長の型 × 成長の早さ） × 性格 ＋ 足し算の補正
  */
 export function cardStats(species: Species, level: number, personality: PersonalityId = 'sunao', bonus?: Stats): Stats {
+  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus);
+}
+
+/**
+ * 敵の魔物の、あるレベルでの能力（balance.md 4.5）。Lv1は表の値そのままで、
+ * そこから仲間と同じ伸び方（成長の型・早さ）で強くなる
+ */
+export function monsterStats(species: Species, level: number): Stats {
+  return statsAt(species, level, 1, 'sunao');
+}
+
+function statsAt(species: Species, level: number, startRate: number, personality: PersonalityId, bonus?: Stats): Stats {
   const steps = growthSteps(species.pace, level);
   const type = GROWTH_TYPES[species.growth];
   const { up, down } = PERSONALITIES[personality];
@@ -153,7 +166,7 @@ export function cardStats(species: Species, level: number, personality: Personal
   const stat = (s: Stat) => {
     const gain = (BASE_GAIN[s].flat + base[s] * BASE_GAIN[s].rate) * type[s];
     const mood = s === up ? 1 + PERSONALITY_RATE : s === down ? 1 - PERSONALITY_RATE : 1;
-    const value = (base[s] * (species.allyRate ?? CAPTURED_RATE) + gain * steps) * mood;
+    const value = (base[s] * startRate + gain * steps) * mood;
     return Math.max(1, Math.round(value) + (bonus?.[s] ?? 0));
   };
   return { maxHp: stat('maxHp'), atk: stat('atk'), def: stat('def') };
@@ -167,13 +180,14 @@ export function refreshStats(card: Card): void {
 
 export const noBonus = (): Stats => ({ maxHp: 0, atk: 0, def: 0 });
 
-export function createCard(species: Species, obtainedHere: boolean, personality: PersonalityId = 'sunao'): Card {
-  const stats = cardStats(species, 1, personality);
+/** level は封印した魔物のレベル。そのレベルになったばかりの経験値で始める */
+export function createCard(species: Species, obtainedHere: boolean, personality: PersonalityId = 'sunao', level = 1): Card {
+  const stats = cardStats(species, level, personality);
   return {
     id: nextCardId++,
     species,
-    level: 1,
-    exp: 0,
+    level,
+    exp: allyExpForLevel(level),
     hp: stats.maxHp,
     ...stats,
     personality,
