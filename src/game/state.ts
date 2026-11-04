@@ -224,10 +224,10 @@ export const cardToData = (card: Card): CardData => ({ ...card, species: card.sp
 /** 状態異常の印。混乱は🌀、毒は☠️（仮の絵文字。あとで絵に差し替える） */
 export const sickMark = (a: Ailments) => `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}`;
 
-/** 毒のダメージ。残りターンが3の倍数のターンだけ、最大HPの1％（最低1）。毒では力つきず、HP1で止まる */
-function poisonHit(ailments: Ailments, hp: number, maxHp: number): number {
+/** 毒のダメージ。残りターンが3の倍数のターンだけ、最大HPの1％（最低1）。毒で力つきることもある */
+function poisonHit(ailments: Ailments, maxHp: number): number {
   if (ailments.poisoned <= 0 || ailments.poisoned % POISON_INTERVAL !== 0) return 0;
-  return Math.min(Math.max(1, Math.round(maxHp * POISON_RATE)), hp - 1);
+  return Math.max(1, Math.round(maxHp * POISON_RATE));
 }
 
 /**
@@ -904,9 +904,18 @@ export class GameState {
     m.lastSeen = { ...this.player.pos };
     this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}ダメージ`);
     if (m.hp > 0) return;
+    this.defeatMonster(m, by, true);
+  }
+
+  /**
+   * 魔物をたおしたとき。経験値を山分けし、ときどきカードを落とす。
+   * byPlayer が false（毒でたおれたなど）なら、とどめの上乗せはない
+   */
+  private defeatMonster(m: Monster, by: Ally | null, byPlayer: boolean): void {
     this.monsters = this.monsters.filter((x) => x !== m);
-    this.addLog(`${m.species.name}をたおした（経験値${m.species.exp}）`);
-    this.shareExp(m.species.exp, by);
+    if (this.provoker === m) this.provoker = null;
+    this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${m.species.exp}）` : `${m.species.name}は毒でたおれた（経験値${m.species.exp}）`);
+    this.shareExp(m.species.exp, by, byPlayer);
     if (this.rng.chance(dropChance(m.species))) {
       this.addLog(`${m.species.name}がカードを落とした`);
       this.addCard(createCard(m.species, true, this.rng.pick(PERSONALITY_IDS)));
@@ -914,10 +923,10 @@ export class GameState {
   }
 
   /** 経験値を主人公と召喚中の仲間で山分けし、とどめを刺した者は1.5倍もらう（balance.md 4.3） */
-  private shareExp(total: number, killer: Ally | null): void {
+  private shareExp(total: number, killer: Ally | null, bonus = true): void {
     const share = total / (1 + this.allies.length);
-    this.gainExp(killer === null ? share * 1.5 : share);
-    for (const a of [...this.allies]) this.gainAllyExp(a, a === killer ? share * 1.5 : share);
+    this.gainExp(bonus && killer === null ? share * 1.5 : share);
+    for (const a of [...this.allies]) this.gainAllyExp(a, bonus && a === killer ? share * 1.5 : share);
   }
 
   private gainExp(amount: number): void {
@@ -1306,15 +1315,30 @@ export class GameState {
     if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
     if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
     if (this.dead) return;
-    p.hp -= poisonHit(p.ailments, p.hp, p.maxHp);
+    p.hp = Math.max(0, p.hp - poisonHit(p.ailments, p.maxHp));
+    if (p.hp === 0) {
+      this.dead = true;
+      this.addLog('あなたは毒で力つきてしまった…');
+      return;
+    }
     this.tickAilments(p.ailments, 'あなた');
-    for (const a of this.allies) {
-      a.card.hp -= poisonHit(a.ailments, a.card.hp, a.card.maxHp);
+    for (const a of [...this.allies]) {
+      a.card.hp = Math.max(0, a.card.hp - poisonHit(a.ailments, a.card.maxHp));
+      if (a.card.hp === 0) {
+        this.allies = this.allies.filter((x) => x !== a);
+        a.card.status = 'dying';
+        this.addLog(`${a.card.species.name}は毒で瀕死になりカードに戻った`);
+        continue;
+      }
       this.tickAilments(a.ailments, a.card.species.name);
     }
     // 魔物の状態異常は、治ってもログには出さない
-    for (const m of this.monsters) {
-      m.hp -= poisonHit(m.ailments, m.hp, m.maxHp);
+    for (const m of [...this.monsters]) {
+      m.hp -= poisonHit(m.ailments, m.maxHp);
+      if (m.hp <= 0) {
+        this.defeatMonster(m, null, false);
+        continue;
+      }
       if (m.ailments.confused > 0) m.ailments.confused--;
       if (m.ailments.poisoned > 0) m.ailments.poisoned--;
     }
