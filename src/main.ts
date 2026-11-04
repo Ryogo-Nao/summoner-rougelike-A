@@ -78,7 +78,7 @@ function endRun(): void {
       : outcome === 'escaped'
         ? `B${state.floor}Fから${name}を離脱した`
         : state.gaveUp
-          ? `B${state.floor}Fで${name}をあきらめた`
+          ? `B${state.floor}Fで${name}をあきらめた\nダンジョンに入る前に戻った`
           : `B${state.floor}Fで力つきた…`;
   const firstClear = outcome === 'cleared' && !profile.cleared.includes(state.dungeon.id);
   const losses = returnToBase(profile, state);
@@ -86,14 +86,16 @@ function endRun(): void {
   const opened = firstClear
     ? DUNGEONS.filter((d) => d.requires === state.dungeon.id).map((d) => `\n${d.name}に挑めるようになった`).join('')
     : '';
-  const lost = state.dead
+  const lost = state.gaveUp
+    ? `\n失ったもの：アイテム${losses.items.length}個　${losses.runesLost}ルーン`
+    : state.dead
     ? losses.cards.length + losses.items.length > 0
       ? `\n失ったもの：カード${losses.cards.length}枚　アイテム${losses.items.length}個`
       : '\n失ったものはない'
     : '';
   const downgraded = losses.downgraded > 0 ? `\n聖なる袋${losses.downgraded}つがふつうの袋に戻った` : '';
   const runes =
-    losses.runesKept + losses.runesLost > 0
+    !state.gaveUp && losses.runesKept + losses.runesLost > 0
       ? `\n持ち帰ったルーン：${losses.runesKept}${losses.runesLost > 0 ? `（${losses.runesLost}を失った）` : ''}`
       : '';
   ending = title + lost + runes + downgraded + opened;
@@ -462,9 +464,9 @@ onButton('btn-menu', () =>
       saveSettings(settings);
       applyPadSide();
     },
-    // あきらめると、力つきたときと同じく、ここで手に入れたカードとバッグの半分を失う
+    // あきらめると、ダンジョンに入る前に戻ったうえで、持っているルーンと持っていった道具の半分を失う
     () =>
-      dialog.open('ダンジョンをあきらめる？\n力つきたときと同じく\nここで手に入れたカードと\nバッグの道具の半分を失う', 'あきらめる', 'やめる', () => {
+      dialog.open('ダンジョンをあきらめる？\nダンジョンに入る前に戻り\n持っているルーンと\n持っていった道具の半分を失う', 'あきらめる', 'やめる', () => {
         state.giveUp();
         afterAction();
       }),

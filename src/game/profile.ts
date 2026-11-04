@@ -158,6 +158,45 @@ export interface Losses {
   runesLost: number;
 }
 
+/**
+ * ダンジョンをあきらめて拠点に戻る（requirements.md 5.8）。ダンジョンに入る前に戻す。
+ * 拠点の中身はダンジョンの間は変わらないので、そのまま使う（ダンジョンで手に入れたもの・上がったレベルは残らない）。
+ * そのうえで、持っているルーンと、持っていったバッグの道具の半分を失う
+ */
+function giveUpToBase(profile: Profile, state: GameState): Losses {
+  const found = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])].filter(
+    (c) => c.obtainedHere,
+  );
+  const runesLost = Math.ceil(profile.runes / 2);
+  const { bag, lost, downgraded } = halveBag(profile.bag);
+  profile.bag = bag;
+  profile.runes -= runesLost;
+  profile.shopStock = rollStock();
+  saveProfile(profile);
+  clearRun();
+  return { cards: found, items: lost, downgraded, runesKept: 0, runesLost };
+}
+
+/**
+ * バッグの道具の半分（ランダム）を失う。聖なる袋（と中の道具）は失わない。ほかの袋は、失えば中身ごとなくなる。
+ * 残った聖なる袋は、30％でふつうの袋に戻る（中の道具はそのまま）
+ */
+function halveBag(items: Item[]): { bag: Item[]; lost: Item[]; downgraded: number } {
+  const holy = (i: Item) => ITEMS[i.kind].pouch?.holy === true;
+  const pool = items.filter((i) => !holy(i));
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const lost = shuffled.slice(0, Math.floor(pool.length / 2));
+  const bag = items.filter((i) => !lost.includes(i));
+  let downgraded = 0;
+  for (const i of bag) {
+    if (holy(i) && Math.random() < HOLY_DOWNGRADE) {
+      i.kind = 'pouch';
+      downgraded++;
+    }
+  }
+  return { bag, lost, downgraded };
+}
+
 /** 力つきたときに、聖なる袋がふつうの袋に戻る確率 */
 const HOLY_DOWNGRADE = 0.3;
 
@@ -167,6 +206,7 @@ const HOLY_DOWNGRADE = 0.3;
  * 残ったカードは瀕死から戻し、HPを満タンにする。持っていたカードは次も持っていく
  */
 export function returnToBase(profile: Profile, state: GameState): Losses {
+  if (state.gaveUp) return giveUpToBase(profile, state);
   const brought = new Set(profile.hand);
   const runCards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])];
   // 力つきたら、拾ったルーンの半分を失う
@@ -175,19 +215,10 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   let bag = [...state.bag];
   if (state.dead) {
     losses.cards = runCards.filter((c) => c.obtainedHere && !isPartner(c));
-    // 聖なる袋（と中の道具）は失わない。それ以外の半分を失う。ほかの袋は、失えば中身ごとなくなる
-    const holy = (i: Item) => ITEMS[i.kind].pouch?.holy === true;
-    const pool = bag.filter((i) => !holy(i));
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    losses.items = shuffled.slice(0, Math.floor(pool.length / 2));
-    bag = bag.filter((i) => !losses.items.includes(i));
-    // 聖なる袋は、30％でふつうの袋に戻る（中の道具はそのまま）
-    for (const i of bag) {
-      if (holy(i) && Math.random() < HOLY_DOWNGRADE) {
-        i.kind = 'pouch';
-        losses.downgraded++;
-      }
-    }
+    const halved = halveBag(bag);
+    bag = halved.bag;
+    losses.items = halved.lost;
+    losses.downgraded = halved.downgraded;
   }
   const kept = runCards
     .filter((c) => !losses.cards.includes(c))
