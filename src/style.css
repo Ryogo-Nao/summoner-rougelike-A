@@ -846,6 +846,25 @@ button {
 .sheet-sticky button {
   margin-top: 0;
 }
+/* カードの並べ替え。4つ並べ、押したボタンには ↑↓ を付けて目立たせる */
+.sort-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.sort-keys .sheet-wide {
+  min-width: 0;
+  height: 36px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.sort-keys .sheet-wide.on {
+  border-color: var(--gold);
+  background: #fff3d8;
+  color: #7a5414;
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
 /* 一覧の上の余白（#sheet-body の padding）の分だけ上に付ける */
 .sheet-sticky {
   top: -6px;

@@ -1,4 +1,5 @@
 import { HAND_LIMIT, swapInList, type Card } from '../game/cards';
+import { SPECIES } from '../game/monsters';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
@@ -29,6 +30,10 @@ export class BaseScreen {
   /** カードの並べ替え中か。picked は入れ替える1枚目 */
   private reordering = false;
   private picked: Card | null = null;
+  /** 最後に押した並べ替えのボタンと、その向き（desc なら降順）。手で入れ替えたら消す */
+  private cardSort: { key: CardSortKey; desc: boolean } | null = null;
+  /** つよさ・袋の中・ダンジョンの一覧を開く前の、一覧のスクロールの位置。戻ったときにそこへ戻す */
+  private listScroll = 0;
   private readonly onDepart: (dungeonId: string) => void;
 
   /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ */
@@ -36,10 +41,8 @@ export class BaseScreen {
     this.onDepart = onDepart;
     this.depart.addEventListener('click', () => {
       if (!this.profile || this.handCards().length === 0) return;
-      this.choosing = !this.choosing;
-      this.viewing = null;
-      this.pouch = null;
-      this.render();
+      if (this.choosing) this.leave(() => (this.choosing = false));
+      else this.enter(() => (this.choosing = true));
     });
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
@@ -61,6 +64,20 @@ export class BaseScreen {
     this.choosing = false;
     this.root.hidden = false;
     this.render();
+  }
+
+  /** 一覧からつよさなどの画面へ移る。一覧のスクロールの位置を覚えておく */
+  private enter(f: () => void): void {
+    this.listScroll = this.body.scrollTop;
+    f();
+    this.render();
+  }
+
+  /** つよさなどの画面から一覧へ戻る。覚えておいたスクロールの位置へ戻す */
+  private leave(f: () => void): void {
+    f();
+    this.render();
+    this.body.scrollTop = this.listScroll;
   }
 
   close(): void {
@@ -97,10 +114,7 @@ export class BaseScreen {
       // 仲間のつよさ。［戻る］でカードの一覧へ
       children.push(
         statusView(this.viewing),
-        wideButton('戻る', false, () => {
-          this.viewing = null;
-          this.render();
-        }),
+        wideButton('戻る', false, () => this.leave(() => (this.viewing = null))),
       );
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
@@ -114,7 +128,7 @@ export class BaseScreen {
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     const hand = this.handCards().length;
-    this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンを選ぶ';
+    this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンに向かう';
     (this.depart as HTMLButtonElement).disabled = hand === 0;
   }
 
@@ -138,8 +152,22 @@ export class BaseScreen {
     const hand = this.handCards().length;
     const toggle = document.createElement('div');
     toggle.className = 'base-sort';
+    // 並べ替えのボタン。1回目は昇順（↑）、同じボタンをもう一度押すと降順（↓）
+    const sorts = document.createElement('div');
+    sorts.className = 'sort-keys';
+    for (const key of CARD_SORT_KEYS) {
+      const on = this.cardSort?.key === key;
+      const b = wideButton(`${CARD_SORT_LABEL[key]}${on ? (this.cardSort!.desc ? ' ↓' : ' ↑') : ''}`, this.reordering, () => {
+        const desc = on ? !this.cardSort!.desc : false;
+        this.cardSort = { key, desc };
+        this.change(() => (p.cards = sortCards(p.cards, key, desc)));
+      });
+      if (on) b.classList.add('on');
+      sorts.append(b);
+    }
     toggle.append(
-      wideButton(this.reordering ? '並べ替えを終える' : '並べ替える', p.cards.length < 2, () => {
+      sorts,
+      wideButton(this.reordering ? '入れ替えを終える' : '手で入れ替える', p.cards.length < 2, () => {
         this.reordering = !this.reordering;
         this.picked = null;
         this.render(true);
@@ -149,7 +177,10 @@ export class BaseScreen {
       const rows = reorderRows(p.cards, this.picked, (card) => {
         if (!this.picked) this.picked = card;
         else {
-          if (this.picked !== card) swapInList(p.cards, this.picked, card);
+          if (this.picked !== card) {
+            swapInList(p.cards, this.picked, card);
+            this.cardSort = null;
+          }
           this.picked = null;
         }
         this.change(() => {});
@@ -175,10 +206,7 @@ export class BaseScreen {
               disabled: hand >= HAND_LIMIT,
               onClick: () => this.change(() => p.hand.push(card.id)),
             },
-        onSelect: () => {
-          this.viewing = card;
-          this.render();
-        },
+        onSelect: () => this.enter(() => (this.viewing = card)),
       };
     });
     return [
@@ -233,12 +261,7 @@ export class BaseScreen {
       name,
       sub: pouch ? `${ITEMS[item.kind].desc}\n押すと中を見る` : ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
-      onSelect: pouch
-        ? () => {
-            this.pouch = item;
-            this.render();
-          }
-        : undefined,
+      onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
     });
   }
 
@@ -259,10 +282,7 @@ export class BaseScreen {
       ...p.bag
         .filter((i) => i !== pouch && !ITEMS[i.kind].pouch)
         .map((item) => this.itemRow(item, 'しまう', !room, () => move(item, p.bag, contents))),
-      wideButton('戻る', false, () => {
-        this.pouch = null;
-        this.render();
-      }),
+      wideButton('戻る', false, () => this.leave(() => (this.pouch = null))),
     ];
   }
 
@@ -306,4 +326,28 @@ function note(text: string, className = 'sheet-note'): HTMLElement {
   el.className = className === 'sheet-note' ? 'sheet-note' : `sheet-note ${className}`;
   el.textContent = text;
   return el;
+}
+
+type CardSortKey = 'level' | 'obtained' | 'name' | 'kind';
+const CARD_SORT_KEYS: CardSortKey[] = ['level', 'obtained', 'name', 'kind'];
+const CARD_SORT_LABEL: Record<CardSortKey, string> = { level: 'レベル', obtained: '入手', name: '名前', kind: '種類' };
+
+/**
+ * カードを並べ替える（昇順。desc なら逆にする）。
+ * 入手順はカードの番号（手に入れた順に増える）、種類順は魔物の図鑑の順。同じなら入手順にする
+ */
+function sortCards(cards: Card[], key: CardSortKey, desc: boolean): Card[] {
+  const kind = (c: Card) => {
+    const i = SPECIES.findIndex((s) => s.id === c.species.id);
+    // 相棒は図鑑にいないので、いちばん前にする
+    return i < 0 ? -1 : i;
+  };
+  const by: Record<CardSortKey, (a: Card, b: Card) => number> = {
+    level: (a, b) => a.level - b.level,
+    obtained: () => 0,
+    name: (a, b) => a.species.name.localeCompare(b.species.name, 'ja'),
+    kind: (a, b) => kind(a) - kind(b),
+  };
+  const sign = desc ? -1 : 1;
+  return [...cards].sort((a, b) => sign * (by[key](a, b) || a.id - b.id));
 }

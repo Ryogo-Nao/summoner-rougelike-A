@@ -23,6 +23,11 @@ export class Sheet {
   private readonly closeButton = document.getElementById('sheet-close')!;
   private readonly onOpen: () => void;
   private closable = true;
+  /**
+   * 一覧ごとのスクロールの位置（見出しで見分ける）。つよさなどを見て同じ一覧へ戻ったときに、もとの位置へ戻す。
+   * 閉じたら忘れる
+   */
+  private readonly scrolls = new Map<string, number>();
 
   /** onOpen は開くたびに呼ぶ。押しっぱなしのパッドを離すのに使う */
   constructor(onOpen: () => void) {
@@ -40,6 +45,7 @@ export class Sheet {
     rows: SheetRow[],
     options: { note?: string; header?: HTMLElement; footer?: HTMLElement; closable?: boolean } = {},
   ): void {
+    if (!this.root.hidden) this.scrolls.set(this.title.textContent ?? '', this.body.scrollTop);
     this.title.textContent = title;
     this.closable = options.closable ?? true;
     this.closeButton.hidden = !this.closable;
@@ -58,11 +64,13 @@ export class Sheet {
     if (options.footer) children.push(options.footer);
     this.body.replaceChildren(...children);
     this.root.hidden = false;
+    this.body.scrollTop = this.scrolls.get(title) ?? 0;
     this.onOpen();
   }
 
   close(): void {
     this.root.hidden = true;
+    this.scrolls.clear();
   }
 
   isOpen(): boolean {
