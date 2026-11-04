@@ -41,6 +41,7 @@ const COLORS = {
   enemyShadow: 'rgba(240, 70, 70, 0.8)',
   miniItem: '#5ff0ff',
   hpBarBg: 'rgba(0, 0, 0, 0.7)',
+  hpBarEdge: '#000000',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(0, 0, 0, 0.82)',
 };
@@ -219,7 +220,8 @@ export class Renderer {
     ctx.save();
     ctx.fillStyle = actor.enemy ? COLORS.enemyShadow : COLORS.allyShadow;
     ctx.beginPath();
-    ctx.ellipse(sx + ts / 2, sy + ts * 0.82, ts * 0.44, ts * 0.17, 0, 0, Math.PI * 2);
+    // HPの棒（マスの下端）に重ならないよう、棒より上で終わらせる
+    ctx.ellipse(sx + ts / 2, sy + ts * 0.75, ts * 0.42, ts * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
@@ -242,6 +244,9 @@ export class Renderer {
   private drawHpBar(sx: number, sy: number, ratio: number, color: string): void {
     const { ctx, tileSize: ts } = this;
     const h = Math.max(3, Math.floor(ts * 0.1));
+    // 影の色と混ざらないよう、黒いふちを付ける
+    ctx.fillStyle = COLORS.hpBarEdge;
+    ctx.fillRect(sx + 2, sy + ts - h - 2, ts - 4, h + 2);
     ctx.fillStyle = COLORS.hpBarBg;
     ctx.fillRect(sx + 3, sy + ts - h - 1, ts - 6, h);
     ctx.fillStyle = color;
