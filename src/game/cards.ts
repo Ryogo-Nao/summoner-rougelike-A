@@ -4,8 +4,6 @@ import type { GrowthPace, GrowthType, Species } from './monsters';
 /** 手元に持てるカードの数と、同時に召喚できる数（requirements.md 5.3） */
 export const HAND_LIMIT = 5;
 export const SUMMON_LIMIT = 3;
-/** 階段を降りたときに仲間が回復する割合（balance.md 7章） */
-export const ALLY_STAIRS_HEAL = 0.25;
 /** イヅツチの「いかずち」を使う確率 */
 export const LIGHTNING_CHANCE = 0.35;
 
@@ -14,7 +12,6 @@ export const IZUTSUCHI: Species = {
   id: 'izutsuchi',
   name: 'イヅツチ',
   emoji: '🐈',
-  floors: [0, -1],
   hp: 20,
   atk: 5,
   def: 3,
@@ -93,13 +90,17 @@ export interface Ally {
   ailments: Ailments;
 }
 
-/** 混乱と毒の残りターン（balance.md 3.5）。0 ならかかっていない */
+/** 状態異常の残りターン（balance.md 3.5）。0 ならかかっていない */
 export interface Ailments {
   confused: number;
   poisoned: number;
+  /** はりつけ。魔物は攻撃されるまで（1のまま減らない）、主人公と仲間は3〜5ターン。攻撃されると解ける */
+  pinned: number;
+  /** 昏睡。2〜4ターン行動できない。攻撃されると起きる */
+  asleep: number;
 }
 
-export const noAilments = (): Ailments => ({ confused: 0, poisoned: 0 });
+export const noAilments = (): Ailments => ({ confused: 0, poisoned: 0, pinned: 0, asleep: 0 });
 
 let nextCardId = 1;
 

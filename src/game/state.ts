@@ -1,5 +1,4 @@
 import {
-  ALLY_STAIRS_HEAL,
   HAND_LIMIT,
   IZUTSUCHI,
   LIGHTNING_CHANCE,
@@ -23,28 +22,28 @@ import {
 import { HIT_RATE, levelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
+import { dungeonById, monstersForFloor, randomItem, type Dungeon } from './dungeons';
 import { GameMap, Tile, type Room } from './map';
-import { SPECIES, createMonster, speciesForFloor, type Monster, type Species } from './monsters';
+import { SPECIES, createMonster, type Monster, type Species } from './monsters';
 import {
+  ARROW_STACK,
   BAG_LIMIT,
-  HERB_HEAL,
   ITEMS,
-  ITEMS_PER_FLOOR,
+  PLUS_LIMIT,
   THROW_DAMAGE,
-  WATER_MP,
   START_ITEMS,
   createItem,
-  randomItemKind,
+  equipBonus,
+  itemName,
   reserveItemIds,
   sortItems,
   type FloorItem,
   type Item,
+  type SealKind,
 } from './items';
 import { distanceField, firstStepToward } from './path';
 import { Rng } from './rng';
 
-/** MVPのダンジョンの階数（requirements.md 8章） */
-export const MAX_FLOOR = 10;
 /** 階に入ったときの魔物の数と、増える間隔（balance.md 6.1） */
 const INITIAL_MONSTERS: [number, number] = [5, 7];
 const SPAWN_INTERVAL = 40;
@@ -87,6 +86,8 @@ const CONFUSE_TURNS = 5;
 const POISON_TURNS = 30;
 const POISON_INTERVAL = 3;
 const POISON_RATE = 0.01;
+/** 昏睡の印で眠るターン数 */
+const SLEEP_TURNS: [number, number] = [2, 4];
 /** 攻撃が当たったときに、胞子で混乱させる・毒にする確率 */
 const AILMENT_CHANCE = 0.3;
 /** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
@@ -190,6 +191,10 @@ export type CardData = Omit<Card, 'species'> & { species: string };
 /** ダンジョンの途中の保存データ（requirements.md 2章：毎ターン自動保存） */
 export interface RunData {
   version: 1;
+  /** どのダンジョンか。古い保存データにはないので、最初のダンジョンとして読む */
+  dungeon?: string;
+  /** 千里の印を使った階か */
+  revealed?: boolean;
   rng: number;
   floor: number;
   turn: number;
@@ -222,7 +227,8 @@ export function speciesById(id: string): Species {
 
 export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
 /** 状態異常の印。混乱は🌀、毒は☠️（仮の絵文字。あとで絵に差し替える） */
-export const sickMark = (a: Ailments) => `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}`;
+export const sickMark = (a: Ailments) =>
+  `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}${a.pinned > 0 ? '📌' : ''}${a.asleep > 0 ? '💤' : ''}`;
 
 /** 毒のダメージ。残りターンが3の倍数のターンだけ、最大HPの1％（最低1）。毒で力つきることもある */
 function poisonHit(ailments: Ailments, maxHp: number): number {
@@ -282,8 +288,14 @@ export class GameState {
   explored!: Uint8Array;
   /** 今見えているマス */
   visible!: Uint8Array;
+  /** 遊んでいるダンジョン */
+  readonly dungeon: Dungeon;
+  /** ダンジョンの終わり方。踏破（いちばん下の階段を降りた）・離脱（転送の印）・失敗（力つきた） */
   cleared = false;
+  escaped = false;
   dead = false;
+  /** 千里の印で、この階の地図と、階段・道具・敵の場所がわかっている */
+  revealed = false;
   /** 1回目のタップで振り向くか。オフなら、押した方向へすぐ進む（メニューで切り替える） */
   turnFirst = true;
   /** 仲間のいるマスへ進んだとき、入れ替わるか押すか（メニューで切り替える） */
@@ -296,8 +308,9 @@ export class GameState {
   private slowRest = false;
 
   /** loadout を省くと、初めて遊ぶときの持ち物で始める */
-  constructor(seed: number, loadout?: Loadout) {
+  constructor(seed: number, loadout?: Loadout, dungeonId = 'first') {
     this.rng = new Rng(seed);
+    this.dungeon = dungeonById(dungeonId);
     if (loadout) {
       this.cards = loadout.cards;
       this.bag = loadout.bag;
@@ -332,6 +345,8 @@ export class GameState {
     const p = this.player;
     return {
       version: 1,
+      dungeon: this.dungeon.id,
+      revealed: this.revealed,
       rng: this.rng.save(),
       floor: this.floor,
       turn: this.turn,
@@ -358,7 +373,8 @@ export class GameState {
   /** 保存データから、ダンジョンの途中の状態を作り直す */
   static fromData(data: RunData): GameState {
     if (data.version !== 1) throw new Error('保存データの形式が違う');
-    const s = new GameState(1);
+    const s = new GameState(1, undefined, data.dungeon ?? 'first');
+    s.revealed = data.revealed ?? false;
     s.rng.load(data.rng);
     s.floor = data.floor;
     s.turn = data.turn;
@@ -371,15 +387,15 @@ export class GameState {
       ...data.player,
       weapon: itemById(data.player.weapon),
       shield: itemById(data.player.shield),
-      ailments: data.player.ailments ?? noAilments(),
+      ailments: { ...noAilments(), ...data.player.ailments },
     };
-    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species), ailments: m.ailments ?? noAilments() }));
+    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species), ailments: { ...noAilments(), ...m.ailments } }));
     s.cards = data.cards.map(cardFromData);
     s.storage = data.storage.map(cardFromData);
     s.pendingCard = data.pendingCard ? cardFromData(data.pendingCard) : null;
     s.allies = data.allies.flatMap((a) => {
       const card = s.cards.find((c) => c.id === a.card);
-      return card ? [{ card, pos: a.pos, facing: a.facing, order: a.order, ailments: a.ailments ?? noAilments() }] : [];
+      return card ? [{ card, pos: a.pos, facing: a.facing, order: a.order, ailments: { ...noAilments(), ...a.ailments } }] : [];
     });
     s.floorItems = data.floorItems;
     s.learned = new Set(data.learned);
@@ -404,6 +420,7 @@ export class GameState {
     this.monsters = [];
     this.popups = [];
     this.provoker = null;
+    this.revealed = false;
     // 召喚している仲間は、主人公のまわりに一緒に降りてくる
     const allies = this.allies;
     this.allies = [];
@@ -421,7 +438,7 @@ export class GameState {
     const count = this.rng.int(...INITIAL_MONSTERS);
     for (let i = 0; i < count; i++) this.spawnMonster(this.rng.pick(rooms));
     this.floorItems = [];
-    const items = this.rng.int(...ITEMS_PER_FLOOR);
+    const items = this.rng.int(...this.dungeon.itemsPerFloor);
     for (let i = 0; i < items; i++) this.placeItem(this.rng.pick(map.rooms));
     this.updateVisibility();
   }
@@ -432,7 +449,7 @@ export class GameState {
       const pos = randomFreePointIn(this.rng, this.map, room);
       const p = this.player.pos;
       if ((pos.x === p.x && pos.y === p.y) || this.itemAt(pos.x, pos.y)) continue;
-      this.floorItems.push({ item: createItem(randomItemKind(this.rng)), pos });
+      this.floorItems.push({ item: randomItem(this.dungeon, this.floor, this.rng), pos });
       return;
     }
   }
@@ -443,7 +460,7 @@ export class GameState {
 
   /** 部屋の空いているマスに、この階に出る魔物を1体置く。置けなければ何もしない */
   private spawnMonster(room: Room): void {
-    const kinds = speciesForFloor(this.floor);
+    const kinds = monstersForFloor(this.dungeon, this.floor).map(speciesById);
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       if (this.isOccupied(pos.x, pos.y)) continue;
@@ -622,26 +639,47 @@ export class GameState {
     const { x, y } = this.player.pos;
     const found = this.itemAt(x, y);
     if (!found) return;
-    const { name } = ITEMS[found.item.kind];
-    if (this.bag.length >= BAG_LIMIT) {
+    const name = itemName(found.item);
+    if (!this.canPickUp(found.item)) {
       this.addLog(`バッグがいっぱいで${name}を拾えない`);
       return;
     }
-    this.floorItems = this.floorItems.filter((f) => f !== found);
-    this.bag.push(found.item);
     this.addLog(`${name}を拾った`);
+    // 矢は、バッグの同じ矢に99本までまとめる。入りきらない分は別の1つにする
+    const item = found.item;
+    if (item.count !== undefined) {
+      for (const stack of this.bag) {
+        if (stack.kind !== item.kind || stack.count === undefined) continue;
+        const add = Math.min(ARROW_STACK - stack.count, item.count);
+        stack.count += add;
+        item.count -= add;
+      }
+      if (item.count === 0) {
+        this.floorItems = this.floorItems.filter((f) => f !== found);
+        return;
+      }
+      if (this.bag.length >= BAG_LIMIT) return;
+    }
+    this.floorItems = this.floorItems.filter((f) => f !== found);
+    this.bag.push(item);
+  }
+
+  /** 拾えるか。バッグがいっぱいでも、同じ矢にまとめられるなら拾える */
+  canPickUp(item: Item): boolean {
+    if (this.bag.length < BAG_LIMIT) return true;
+    return item.count !== undefined && this.bag.some((i) => i.kind === item.kind && (i.count ?? ARROW_STACK) < ARROW_STACK);
   }
 
   /** 攻撃力と防御力。装備と、力の魔法の分を含む */
   attackPower(): number {
     const p = this.player;
-    const atk = p.atk + (p.weapon ? (ITEMS[p.weapon.kind].bonus ?? 0) : 0);
+    const atk = p.atk + (p.weapon ? equipBonus(p.weapon) : 0);
     return p.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
   }
 
   defensePower(): number {
     const p = this.player;
-    return p.def + (p.shield ? (ITEMS[p.shield.kind].bonus ?? 0) : 0);
+    return p.def + (p.shield ? equipBonus(p.shield) : 0);
   }
 
   // ---- バッグ ----
@@ -652,6 +690,7 @@ export class GameState {
     if (def.food) return '食べる';
     if (def.spell) return '読む';
     if (def.slot) return this.isEquipped(item) ? '外す' : '装備';
+    if (def.arrow) return '撃つ（向いている方向）';
     if (item.kind === 'blank') return null;
     return '使う';
   }
@@ -681,7 +720,31 @@ export class GameState {
       return `${this.spellName(def.spell)}は最大ランク`;
     }
     if (def.slot && !this.bag.includes(item) && this.bag.length >= BAG_LIMIT) return 'バッグがいっぱいで装備できない';
+    if (def.seal === 'revive' && this.reviveTargets().length === 0) return '瀕死の仲間がいない';
+    if (def.seal === 'summon' && this.summonTargets().length === 0) return '召喚できる仲間がいない';
+    if (item.kind === 'pot' && this.potBases().length === 0) return '同じ名前の装備が2つない';
     return null;
+  }
+
+  /** 復活の印で選べるカード（瀕死のカード） */
+  reviveTargets(): Card[] {
+    return this.cards.filter((c) => c.status === 'dying');
+  }
+
+  /** 召喚の印で選べるカード。召喚の上限と、隣の空きはふつうの召喚と同じ */
+  summonTargets(): Card[] {
+    if (this.allies.length >= SUMMON_LIMIT || !this.freeSpotNear(this.player.pos)) return [];
+    return this.cards.filter((c) => c.status === 'ready');
+  }
+
+  /** 錬金釜で強くできる装備（バッグに同じ名前の装備がもう1つあるもの） */
+  potBases(): Item[] {
+    return this.bag.filter((i) => ITEMS[i.kind].slot && this.potPartners(i).length > 0);
+  }
+
+  /** base と合わせられる、同じ名前の装備 */
+  potPartners(base: Item): Item[] {
+    return this.bag.filter((i) => i !== base && i.kind === base.kind);
   }
 
   /** バッグか足もとにあるアイテムか */
@@ -689,34 +752,51 @@ export class GameState {
     return this.bag.includes(item) || this.itemUnderfoot() === item;
   }
 
-  /** アイテムを使う（食べる・飲む・読む・装備する・外す）。足もとのアイテムも使える。1ターンかかる */
-  useItem(item: Item): void {
-    if (!this.isAtHand(item) || this.useLabel(item) === null || this.useProblem(item)) return;
+  /**
+   * アイテムを使う（食べる・飲む・読む・装備する・外す・撃つ・印を使う）。足もとのアイテムも使える。1ターンかかる。
+   * target は、復活の印・召喚の印で選んだカード。錬金釜は alchemy() で使う
+   */
+  useItem(item: Item, target?: Card): void {
+    if (!this.isAtHand(item) || this.useLabel(item) === null || this.useProblem(item) || item.kind === 'pot') return;
     const p = this.player;
     const def = ITEMS[item.kind];
+    const name = itemName(item);
+    if (def.seal === 'revive' && !(target && this.reviveTargets().includes(target))) return;
+    if (def.seal === 'summon' && !(target && this.summonTargets().includes(target))) return;
     this.beginAction();
+    if (def.arrow) {
+      this.shoot(item);
+      this.endTurn();
+      return;
+    }
     if (def.slot && !this.bag.includes(item)) {
       // 足もとの装備は拾って装備する
       this.release(item);
       this.bag.push(item);
       p[def.slot] = item;
-      this.addLog(`${def.name}を拾って装備した`);
+      this.addLog(`${name}を拾って装備した`);
       this.endTurn();
       return;
     }
     if (def.slot) {
-      const key = def.slot === 'weapon' ? 'weapon' : 'shield';
+      const key = def.slot;
       if (p[key] === item) {
         p[key] = null;
-        this.addLog(`${def.name}を外した`);
+        this.addLog(`${name}を外した`);
       } else {
         p[key] = item;
-        this.addLog(`${def.name}を装備した`);
+        this.addLog(`${name}を装備した`);
       }
       this.endTurn();
       return;
     }
     this.release(item);
+    if (def.seal) {
+      this.addLog(`${def.name}を使った`);
+      this.useSeal(def.seal, def.miss ?? 0, target);
+      this.endTurn();
+      return;
+    }
     if (def.food) {
       p.food = Math.min(p.maxFood, p.food + def.food);
       this.addLog(`${def.name}を食べた`);
@@ -727,16 +807,108 @@ export class GameState {
     } else if (def.spell) {
       this.learned.add(def.spell);
       this.addLog(`${SPELLS[def.spell].name}を覚えた！`);
-    } else if (item.kind === 'herb') {
-      const heal = Math.min(HERB_HEAL, p.maxHp - p.hp);
+    } else if (def.heal) {
+      const heal = Math.min(this.rng.int(...def.heal), p.maxHp - p.hp);
       p.hp += heal;
-      this.addLog(`薬草を使った（HP+${heal}）`);
+      this.addLog(`${def.name}を使った（HP+${heal}）`);
       this.popups.push({ pos: p.pos, text: `+${heal}`, kind: 'info' });
-    } else if (item.kind === 'water') {
-      const gain = Math.min(WATER_MP, p.maxMp - p.mp);
+    } else if (def.cure) {
+      this.addLog(`${def.name}を使った`);
+      this.cure(def.cure, p.ailments, 'あなた');
+    } else if (def.mp) {
+      const gain = Math.min(def.mp, p.maxMp - p.mp);
       p.mp += gain;
-      this.addLog(`魔力の水を飲んだ（MP+${gain}）`);
+      this.addLog(`${def.name}を飲んだ（MP+${gain}）`);
     }
+    this.endTurn();
+  }
+
+  /** 毒消し草・キツケソウで治す。who はログに出す名前 */
+  private cure(kind: 'poison' | 'confusion', ailments: Ailments, who: string): void {
+    const key = kind === 'poison' ? 'poisoned' : 'confused';
+    const label = kind === 'poison' ? '毒' : '混乱';
+    if (ailments[key] === 0) {
+      this.addLog(`${who}は${label}になっていない`);
+      return;
+    }
+    ailments[key] = 0;
+    this.addLog(`${who}の${label}が治った`);
+  }
+
+  /**
+   * 印の効き目。部屋の敵に効く印は、1体ごとに miss の確率で外れる。
+   * 通路で使ったときは、まわり1マスの敵に効く
+   */
+  private useSeal(kind: SealKind, miss: number, target?: Card): void {
+    const p = this.player;
+    if (kind === 'revive' && target) {
+      target.status = 'ready';
+      target.hp = Math.ceil(target.maxHp / 2);
+      this.addLog(`${target.species.name}が復活した`);
+      return;
+    }
+    if (kind === 'summon' && target) {
+      this.placeAlly(target);
+      return;
+    }
+    if (kind === 'escape') {
+      this.escaped = true;
+      this.addLog('ダンジョンから脱出した');
+      return;
+    }
+    if (kind === 'reveal') {
+      this.explored.fill(1);
+      this.revealed = true;
+      this.addLog('この階の様子がわかった');
+      return;
+    }
+    const room = this.map.roomAt(p.pos.x, p.pos.y);
+    const targets = this.monsters.filter((m) =>
+      room ? this.map.roomAt(m.pos.x, m.pos.y) === room : distance(m.pos, p.pos) === 1,
+    );
+    if (targets.length === 0) {
+      this.addLog('何も起きなかった');
+      return;
+    }
+    for (const m of targets) {
+      const name = m.species.name;
+      if (this.rng.chance(miss)) {
+        this.addLog(`${name}には効かなかった`);
+        this.popups.push({ pos: m.pos, text: 'ミス', kind: 'miss' });
+        continue;
+      }
+      m.lastSeen = { ...p.pos };
+      if (kind === 'poison') {
+        m.ailments.poisoned = POISON_TURNS;
+        this.addLog(`${name}は毒を受けた`);
+      } else if (kind === 'confuse') {
+        m.ailments.confused = CONFUSE_TURNS;
+        this.addLog(`${name}は混乱した`);
+      } else if (kind === 'pin') {
+        m.ailments.pinned = 1;
+        this.addLog(`${name}ははりつけになった`);
+      } else if (kind === 'sleep') {
+        m.ailments.asleep = this.rng.int(...SLEEP_TURNS);
+        this.addLog(`${name}は眠った`);
+      } else if (kind === 'doom') {
+        this.defeatMonster(m, null, true, false);
+      }
+    }
+  }
+
+  /**
+   * 錬金釜で、同じ名前の装備2つを1つにまとめて強くする。＋は2つのうち大きいほうに＋1（最大+10）。
+   * 装備しているほうを残す。釜はなくなる。1ターンかかる
+   */
+  alchemy(pot: Item, base: Item, other: Item): void {
+    if (pot.kind !== 'pot' || !this.isAtHand(pot) || !this.potPartners(base).includes(other)) return;
+    this.beginAction();
+    this.release(pot);
+    const keep = this.isEquipped(other) && !this.isEquipped(base) ? other : base;
+    const gone = keep === base ? other : base;
+    keep.plus = Math.min(PLUS_LIMIT, Math.max(base.plus ?? 0, other.plus ?? 0) + 1);
+    this.removeFromBag(gone);
+    this.addLog(`錬金釜で${itemName(keep)}になった`);
     this.endTurn();
   }
 
@@ -747,7 +919,8 @@ export class GameState {
 
   /** 足もとのアイテムを拾う。1ターンかかる */
   pickUpHere(): void {
-    if (!this.itemUnderfoot() || this.bag.length >= BAG_LIMIT) return;
+    const item = this.itemUnderfoot();
+    if (!item || !this.canPickUp(item)) return;
     this.beginAction();
     this.pickUp();
     this.endTurn();
@@ -762,7 +935,7 @@ export class GameState {
     this.floorItems = this.floorItems.filter((f) => f !== found);
     this.bag.push(found.item);
     this.floorItems.push({ item, pos: { ...this.player.pos } });
-    this.addLog(`${ITEMS[found.item.kind].name}を拾って${ITEMS[item.kind].name}を置いた`);
+    this.addLog(`${itemName(found.item)}を拾って${itemName(item)}を置いた`);
     this.endTurn();
   }
 
@@ -784,36 +957,45 @@ export class GameState {
     this.beginAction();
     this.removeFromBag(item);
     this.floorItems.push({ item, pos: { ...this.player.pos } });
-    this.addLog(`${ITEMS[item.kind].name}を置いた`);
+    this.addLog(`${itemName(item)}を置いた`);
     this.endTurn();
   }
 
   /**
-   * 向いている方向に投げる。白紙カードは魔物の封印を試み、薬草は当たった相手（仲間も）を回復し、
-   * それ以外は魔物に小さなダメージを与える。何にも当たらなければ、止まったところに落ちる
+   * 向いている方向に投げる（balance.md 6章）。白紙カードは魔物の封印を試み、
+   * 薬草・上薬草は当たった相手（仲間も）を回復し、毒消し草・キツケソウは治す。
+   * 武器・盾は強さに応じたダメージ、印は効かずに落ちる。矢は撃つのと同じ。
+   * 何にも当たらなければ、止まったところに落ちる
    */
   throwItem(item: Item): void {
     if (!this.isAtHand(item)) return;
     const p = this.player;
-    const { name } = ITEMS[item.kind];
+    const def = ITEMS[item.kind];
+    const name = def.name;
     this.beginAction();
+    if (def.arrow) {
+      this.shoot(item);
+      this.endTurn();
+      return;
+    }
     this.release(item);
-    const { monster, ally, landing } = this.traceThrow(item.kind === 'herb');
+    const { monster, ally, landing } = this.traceThrow(def.heal !== undefined || def.cure !== undefined);
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
+      const hitName = ally ? ally.card.species.name : monster?.species.name;
+      const hitPos = ally?.pos ?? monster?.pos;
       if (item.kind === 'blank' && monster) {
         this.seal(monster);
-      } else if (item.kind === 'herb' && ally) {
-        const heal = Math.min(HERB_HEAL, ally.card.maxHp - ally.card.hp);
-        ally.card.hp += heal;
-        this.addLog(`薬草を投げた → ${ally.card.species.name}のHP+${heal}`);
-        this.popups.push({ pos: ally.pos, text: `+${heal}`, kind: 'info' });
-      } else if (item.kind === 'herb' && monster) {
-        const heal = Math.min(HERB_HEAL, monster.maxHp - monster.hp);
-        monster.hp += heal;
-        this.addLog(`薬草を投げた → ${monster.species.name}のHP+${heal}`);
-        this.popups.push({ pos: monster.pos, text: `+${heal}`, kind: 'info' });
-      } else if (monster) {
-        this.damageMonster(monster, THROW_DAMAGE, null, `投げた${name}`);
+      } else if (def.heal && hitName && hitPos) {
+        const target = ally ? ally.card : monster!;
+        const heal = Math.min(this.rng.int(...def.heal), target.maxHp - target.hp);
+        target.hp += heal;
+        this.addLog(`${name}を投げた → ${hitName}のHP+${heal}`);
+        this.popups.push({ pos: hitPos, text: `+${heal}`, kind: 'info' });
+      } else if (def.cure && hitName) {
+        this.addLog(`${name}を投げた`);
+        this.cure(def.cure, ally ? ally.ailments : monster!.ailments, hitName);
+      } else if (monster && !def.seal) {
+        this.damageMonster(monster, this.throwDamage(item), null, `投げた${name}`);
       } else {
         this.landItem(item, landing);
       }
@@ -821,11 +1003,50 @@ export class GameState {
     this.endTurn();
   }
 
+  /** 投げたときのダメージ。武器は上がる攻撃力、盾は上がる防御力の半分、それ以外は1 */
+  private throwDamage(item: Item): number {
+    const slot = ITEMS[item.kind].slot;
+    if (slot === 'weapon') return equipBonus(item);
+    if (slot === 'shield') return Math.max(1, Math.floor(equipBonus(item) / 2));
+    return THROW_DAMAGE;
+  }
+
+  /**
+   * 矢を1本、向いている方向に撃つ。通常攻撃のダメージに矢の倍率をかける。命中率は通常攻撃と同じ。
+   * 外れたり何にも当たらなかった矢は床に落ちる
+   */
+  private shoot(stack: Item): void {
+    const p = this.player;
+    const def = ITEMS[stack.kind];
+    // 1本だけ取り出す。最後の1本なら、まとまりごとなくなる
+    if ((stack.count ?? 1) > 1) stack.count! -= 1;
+    else this.release(stack);
+    const arrow = createItem(stack.kind, 1);
+    const { monster, landing } = this.traceThrow(false);
+    this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
+      if (monster && this.rng.chance(HIT_RATE)) {
+        const atk = Math.round(this.attackPower() * (def.arrow ?? 1));
+        this.damageMonster(monster, rollDamage(this.rng, atk, monster.species.def), null, def.name);
+        return;
+      }
+      if (monster) {
+        this.addLog(`${monster.species.name}はかわした`);
+        this.popups.push({ pos: monster.pos, text: 'ミス', kind: 'miss' });
+      }
+      this.landItem(arrow, landing);
+    });
+  }
+
   /** 床に落とす。そのマスに置けなければまわりに落とし、どこにも置けなければなくなる */
   private landItem(item: Item, at: Pos): void {
     const { name } = ITEMS[item.kind];
+    // 矢は、同じ矢が落ちているマスならそこにまとめる
+    const sameArrow = (x: number, y: number) => {
+      const there = this.itemAt(x, y)?.item;
+      return item.count !== undefined && there?.kind === item.kind && (there.count ?? 0) + item.count <= ARROW_STACK;
+    };
     const canLand = (x: number, y: number) =>
-      this.map.isWalkable(x, y) && this.map.get(x, y) !== Tile.Stairs && !this.itemAt(x, y);
+      this.map.isWalkable(x, y) && this.map.get(x, y) !== Tile.Stairs && (!this.itemAt(x, y) || sameArrow(x, y));
     let spot: Pos | null = canLand(at.x, at.y) ? at : null;
     for (const v of DIR_VECTORS) {
       if (spot) break;
@@ -835,7 +1056,9 @@ export class GameState {
       this.addLog(`${name}は消えた`);
       return;
     }
-    this.floorItems.push({ item, pos: spot });
+    const there = this.itemAt(spot.x, spot.y)?.item;
+    if (there && there.count !== undefined) there.count += item.count ?? 1;
+    else this.floorItems.push({ item, pos: spot });
     this.addLog(item.kind === 'blank' ? '白紙カードは外れた' : `${name}は床に落ちた`);
   }
 
@@ -899,6 +1122,7 @@ export class GameState {
   /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前 */
   private damageMonster(m: Monster, dmg: number, by: Ally | null, how: string): void {
     m.hp -= dmg;
+    this.wake(m.ailments);
     this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage' });
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
@@ -911,12 +1135,12 @@ export class GameState {
    * 魔物をたおしたとき。経験値を山分けし、ときどきカードを落とす。
    * byPlayer が false（毒でたおれたなど）なら、とどめの上乗せはない
    */
-  private defeatMonster(m: Monster, by: Ally | null, byPlayer: boolean): void {
+  private defeatMonster(m: Monster, by: Ally | null, byPlayer: boolean, drop = true): void {
     this.monsters = this.monsters.filter((x) => x !== m);
     if (this.provoker === m) this.provoker = null;
     this.addLog(byPlayer ? `${m.species.name}をたおした（経験値${m.species.exp}）` : `${m.species.name}は毒でたおれた（経験値${m.species.exp}）`);
     this.shareExp(m.species.exp, by, byPlayer);
-    if (this.rng.chance(dropChance(m.species))) {
+    if (drop && this.rng.chance(dropChance(m.species))) {
       this.addLog(`${m.species.name}がカードを落とした`);
       this.addCard(createCard(m.species, true, this.rng.pick(PERSONALITY_IDS)));
     }
@@ -974,10 +1198,15 @@ export class GameState {
     if (this.summonProblem(card)) return;
     this.beginAction();
     this.player.mp -= card.species.cost;
+    this.placeAlly(card);
+    this.endTurn();
+  }
+
+  /** カードの魔物を主人公の隣に出す */
+  private placeAlly(card: Card): void {
     card.status = 'summoned';
     this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing, order: 'follow', ailments: noAilments() });
     this.addLog(`${card.species.name}を召喚した`);
-    this.endTurn();
   }
 
   /** 仲間をカードに戻す。MPは使わないが、1ターンかかる */
@@ -1158,7 +1387,7 @@ export class GameState {
 
   /** 階段を降りる。最下層の階段なら踏破 */
   descend(): void {
-    if (this.floor >= MAX_FLOOR) {
+    if (this.floor >= this.dungeon.floors) {
       this.cleared = true;
       this.addLog('ダンジョンを踏破した！');
       return;
@@ -1167,7 +1396,7 @@ export class GameState {
     // 階段を降りると、主人公と仲間の混乱・毒は治る
     this.player.ailments = noAilments();
     for (const a of this.allies) {
-      a.card.hp = Math.min(a.card.maxHp, a.card.hp + Math.ceil(a.card.maxHp * ALLY_STAIRS_HEAL));
+      a.card.hp = Math.min(a.card.maxHp, a.card.hp + Math.ceil(a.card.maxHp * this.dungeon.allyStairsHeal));
       a.ailments = noAilments();
     }
     this.enterFloor();
@@ -1344,12 +1573,28 @@ export class GameState {
       }
       if (m.ailments.confused > 0) m.ailments.confused--;
       if (m.ailments.poisoned > 0) m.ailments.poisoned--;
+      // 魔物のはりつけは、攻撃されるまで解けない
+      if (m.ailments.asleep > 0) m.ailments.asleep--;
     }
   }
 
   private tickAilments(ailments: Ailments, who: string): void {
     if (ailments.confused > 0 && --ailments.confused === 0) this.addLog(`${who}の混乱が治った`);
     if (ailments.poisoned > 0 && --ailments.poisoned === 0) this.addLog(`${who}の毒が消えた`);
+    if (ailments.pinned > 0 && --ailments.pinned === 0) this.addLog(`${who}のはりつけが解けた`);
+    if (ailments.asleep > 0 && --ailments.asleep === 0) this.addLog(`${who}は目を覚ました`);
+  }
+
+  /** 攻撃されると、はりつけと昏睡は解ける */
+  private wake(ailments: Ailments): void {
+    ailments.pinned = 0;
+    ailments.asleep = 0;
+  }
+
+  /** 主人公がはりつけ・昏睡で動けない。画面は足踏みを続けて、ターンを進める */
+  get helpless(): boolean {
+    const a = this.player.ailments;
+    return !this.dead && (a.pinned > 0 || a.asleep > 0);
   }
 
   /** 攻撃が当たったあと、攻撃した側（from）の特技の胞子や毒を受けるか。who はログに出す名前 */
@@ -1458,6 +1703,8 @@ export class GameState {
     if (!this.monsters.includes(m)) return;
     const p = this.player.pos;
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
+    // はりつけ・昏睡の魔物は動けない
+    if (m.ailments.pinned > 0 || m.ailments.asleep > 0) return;
     // 混乱している魔物は、でたらめな方向へ1歩動くだけ
     if (m.ailments.confused > 0) {
       const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
@@ -1574,6 +1821,7 @@ export class GameState {
     const p = this.player;
     const dmg = p.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
     p.hp = Math.max(0, p.hp - dmg);
+    this.wake(p.ailments);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
     this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
     if (p.hp === 0) {
@@ -1591,6 +1839,7 @@ export class GameState {
     }
     const dmg = rollDamage(this.rng, m.species.atk, a.card.def);
     a.card.hp = Math.max(0, a.card.hp - dmg);
+    this.wake(a.ailments);
     this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
     this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
     if (a.card.hp === 0) {
@@ -1613,6 +1862,8 @@ export class GameState {
   private allyAct(a: Ally): void {
     if (!this.allies.includes(a)) return;
     const species = a.card.species;
+    // はりつけ・昏睡の仲間は動けない
+    if (a.ailments.pinned > 0 || a.ailments.asleep > 0) return;
     // 混乱している仲間は、でたらめな方向へ1歩動くだけ
     if (a.ailments.confused > 0) {
       const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(species, a.pos, d));

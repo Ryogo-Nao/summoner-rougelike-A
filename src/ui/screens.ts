@@ -1,5 +1,5 @@
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
-import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, PLUS_LIMIT, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
@@ -110,7 +110,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   const p = state.player;
   const rows: SheetRow[] = state.bag.map((item) => ({
     icon: ITEMS[item.kind].emoji,
-    name: state.isEquipped(item) ? `${ITEMS[item.kind].name}（装備中）` : ITEMS[item.kind].name,
+    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
     sub: ITEMS[item.kind].desc,
     button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
   }));
@@ -151,19 +151,100 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
   const buttons = document.createElement('div');
   const preview = state.equipPreview(item);
   if (preview) buttons.append(statChange(preview, '装備すると'));
-  const label = state.useLabel(item);
-  if (label) {
-    const problem = state.useProblem(item);
-    buttons.append(wideButton(problem ?? label, problem !== null, act(() => state.useItem(item))));
-  }
-  buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
-  const full = state.bag.length >= BAG_LIMIT;
+  const use = useButton(state, sheet, item, after, () => openFloorSheet(state, sheet, after));
+  if (use) buttons.append(use);
+  // 矢は撃つのと投げるのが同じなので、投げるは出さない
+  if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
+  const full = !state.canPickUp(item);
   buttons.append(wideButton(full ? 'バッグがいっぱいで拾えない' : '拾う', full, act(() => state.pickUpHere())));
   buttons.append(
     wideButton('バッグの道具と入れ替える', state.bag.length === 0, () => openFloorSwapSheet(state, sheet, after)),
   );
   buttons.append(wideButton('足踏みする', false, act(() => state.wait())));
-  sheet.open(`足元：${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
+  sheet.open(`足元：${def.emoji} ${itemName(item)}`, [], { note: def.desc, footer: buttons });
+}
+
+/**
+ * ［使う］などのボタン。選ぶものがある道具は、選ぶ画面を出す
+ * （復活の印・召喚の印は仲間、錬金釜は装備）。back は選ぶ画面の［戻る］で開き直す画面
+ */
+function useButton(state: GameState, sheet: Sheet, item: Item, after: AfterAction, back: () => void): HTMLElement | null {
+  const label = state.useLabel(item);
+  if (!label) return null;
+  const problem = state.useProblem(item);
+  return wideButton(problem ?? label, problem !== null, () => {
+    const seal = ITEMS[item.kind].seal;
+    if (item.kind === 'pot') {
+      openPotSheet(state, sheet, item, after, back);
+    } else if (seal === 'revive' || seal === 'summon') {
+      openSealTargetSheet(state, sheet, item, after, back);
+    } else {
+      sheet.close();
+      state.useItem(item);
+      after();
+    }
+  });
+}
+
+/** 復活の印・召喚の印を使う仲間を選ぶ */
+function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: AfterAction, back: () => void): void {
+  const revive = ITEMS[item.kind].seal === 'revive';
+  const cards = revive ? state.reviveTargets() : state.summonTargets();
+  const rows: SheetRow[] = cards.map((card) => ({
+    icon: cardIcon(card),
+    name: card.species.name,
+    sub: cardSub(card),
+    button: {
+      label: revive ? '復活させる' : '召喚する',
+      onClick: () => {
+        sheet.close();
+        state.useItem(item, card);
+        after();
+      },
+    },
+  }));
+  sheet.open(`${ITEMS[item.kind].name}を使う仲間`, rows, {
+    note: revive ? 'HP半分で戻る' : 'MPを使わずに召喚する',
+    footer: wideButton('戻る', false, back),
+  });
+}
+
+/** 錬金釜。強くする装備を選び、次に合わせる同じ名前の装備を選ぶ */
+function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAction, back: () => void, base?: Item): void {
+  const label = (i: Item) => (state.isEquipped(i) ? `${itemName(i)}（装備中）` : itemName(i));
+  if (!base) {
+    const rows: SheetRow[] = state.potBases().map((item) => ({
+      icon: ITEMS[item.kind].emoji,
+      name: label(item),
+      sub: ITEMS[item.kind].desc,
+      button: { label: '選ぶ', onClick: () => openPotSheet(state, sheet, pot, after, back, item) },
+    }));
+    sheet.open('錬金釜：1つ目の装備', rows, {
+      note: '同じ名前の装備を2つ合わせる\n大きいほうの＋に＋1（最大+10）',
+      footer: wideButton('戻る', false, back),
+    });
+    return;
+  }
+  const rows: SheetRow[] = state.potPartners(base).map((other) => {
+    const plus = Math.min(PLUS_LIMIT, Math.max(base.plus ?? 0, other.plus ?? 0) + 1);
+    return {
+      icon: ITEMS[other.kind].emoji,
+      name: label(other),
+      sub: `合わせると ${ITEMS[base.kind].name}+${plus}`,
+      button: {
+        label: '合わせる',
+        onClick: () => {
+          sheet.close();
+          state.alchemy(pot, base, other);
+          after();
+        },
+      },
+    };
+  });
+  sheet.open(`錬金釜：${itemName(base)}と合わせる`, rows, {
+    note: '合わせた装備は1つになる\n装備しているほうが残る',
+    footer: wideButton('戻る', false, () => openPotSheet(state, sheet, pot, after, back)),
+  });
 }
 
 /** 足もとのアイテムと入れ替える、バッグのアイテムを選ぶ */
@@ -172,7 +253,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
   if (!floor) return;
   const rows: SheetRow[] = state.bag.map((item) => ({
     icon: ITEMS[item.kind].emoji,
-    name: state.isEquipped(item) ? `${ITEMS[item.kind].name}（装備中）` : ITEMS[item.kind].name,
+    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
     sub: ITEMS[item.kind].desc,
     button: {
       label: '入れ替える',
@@ -184,7 +265,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
     },
   }));
   const back = wideButton('戻る', false, () => openFloorSheet(state, sheet, after));
-  sheet.open(`${ITEMS[floor.kind].emoji} ${ITEMS[floor.kind].name}と入れ替える`, rows, {
+  sheet.open(`${ITEMS[floor.kind].emoji} ${itemName(floor)}と入れ替える`, rows, {
     note: '選んだ道具を足元に置いて拾う',
     footer: back,
   });
@@ -201,23 +282,20 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
   const buttons = document.createElement('div');
   const preview = state.equipPreview(item);
   if (preview) buttons.append(statChange(preview));
-  const label = state.useLabel(item);
-  if (label) {
-    const problem = state.useProblem(item);
-    buttons.append(wideButton(problem ?? label, problem !== null, act(() => state.useItem(item))));
-  }
-  buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
+  const use = useButton(state, sheet, item, after, () => openItemSheet(state, sheet, item, after));
+  if (use) buttons.append(use);
+  if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
   const underfoot = state.itemUnderfoot();
   if (underfoot) {
     // 足もとに道具があれば、置く代わりに入れ替える
-    const name = ITEMS[underfoot.kind].name;
+    const name = itemName(underfoot);
     buttons.append(wideButton(`足元の${name}と入れ替える`, false, act(() => state.swapWithFloor(item))));
   } else {
     const dropProblem = state.dropProblem();
     buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
   }
   buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
-  sheet.open(`${def.emoji} ${def.name}`, [], { note: def.desc, footer: buttons });
+  sheet.open(`${def.emoji} ${itemName(item)}`, [], { note: def.desc, footer: buttons });
 }
 
 /** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */

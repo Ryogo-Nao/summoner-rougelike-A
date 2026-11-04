@@ -26,6 +26,18 @@ export interface Profile {
   learned: SpellId[];
   /** 魔法のランク（無印は0） */
   ranks: SpellRanks;
+  /** 踏破したダンジョンの id。次のダンジョンに挑めるかなどに使う */
+  cleared: string[];
+}
+
+/** ダンジョンの終わり方。踏破（いちばん下まで行った）・離脱（転送の印で出た）・失敗（力つきた） */
+export type Outcome = 'cleared' | 'escaped' | 'failed';
+
+export function outcomeOf(state: GameState): Outcome | null {
+  if (state.cleared) return 'cleared';
+  if (state.escaped) return 'escaped';
+  if (state.dead) return 'failed';
+  return null;
 }
 
 interface ProfileData {
@@ -36,6 +48,7 @@ interface ProfileData {
   warehouse: Item[];
   learned: SpellId[];
   ranks?: SpellRanks;
+  cleared?: string[];
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -44,7 +57,7 @@ const RUN_KEY = 'summoner-run';
 /** 初めて遊ぶとき。イヅツチのカードと、最初の持ち物だけを持っている（balance.md 8章） */
 export function newProfile(): Profile {
   const partner = createCard(IZUTSUCHI, false);
-  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {} };
+  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {}, cleared: [] };
 }
 
 export function loadProfile(): Profile {
@@ -52,7 +65,7 @@ export function loadProfile(): Profile {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return newProfile();
     const data = JSON.parse(raw) as ProfileData;
-    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {} };
+    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {}, cleared: data.cleared ?? [] };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...profile.bag.map((i) => i.id), ...profile.warehouse.map((i) => i.id)));
     return profile;
@@ -135,6 +148,7 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.bag = bag.slice(0, BAG_LIMIT);
   profile.learned = [...state.learned];
   profile.ranks = { ...state.ranks };
+  if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
   saveProfile(profile);
   clearRun();
   return losses;

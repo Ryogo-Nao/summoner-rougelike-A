@@ -304,7 +304,8 @@ export class Renderer {
     }
     ctx.fillStyle = COLORS.miniMonster;
     for (const m of state.monsters) {
-      if (state.isVisible(m.pos.x, m.pos.y)) ctx.fillRect(left + m.pos.x * tile, top + m.pos.y * tile, tile, tile);
+      // 千里の印を使った階では、見えていない敵の場所もわかる
+      if (state.revealed || state.isVisible(m.pos.x, m.pos.y)) ctx.fillRect(left + m.pos.x * tile, top + m.pos.y * tile, tile, tile);
     }
     ctx.fillStyle = COLORS.miniAlly;
     for (const a of state.allies) ctx.fillRect(left + a.pos.x * tile, top + a.pos.y * tile, tile, tile);

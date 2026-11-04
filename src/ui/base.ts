@@ -1,7 +1,8 @@
 import { HAND_LIMIT, type Card } from '../game/cards';
-import { BAG_LIMIT, ITEMS, sortItems, type Item } from '../game/items';
+import { DUNGEONS } from '../game/dungeons';
+import { BAG_LIMIT, ITEMS, itemName, sortItems, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
-import { MAX_FLOOR, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
+import { SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
 import { SPELL_ICONS, cardIcon, cardSub } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
@@ -89,7 +90,9 @@ export class BaseScreen {
     this.body.replaceChildren(...children);
     this.body.scrollTop = 0;
     const hand = this.handCards().length;
-    this.depart.textContent = hand > 0 ? `ダンジョンへ出発（全${MAX_FLOOR}階）` : 'カードを1枚以上選ぶ';
+    const dungeon = DUNGEONS[0];
+    const cleared = p.cleared.includes(dungeon.id) ? '　踏破済み' : '';
+    this.depart.textContent = hand > 0 ? `${dungeon.name}へ出発（全${dungeon.floors}階）${cleared}` : 'カードを1枚以上選ぶ';
     (this.depart as HTMLButtonElement).disabled = hand === 0;
   }
 
@@ -145,7 +148,7 @@ export class BaseScreen {
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void): HTMLElement {
     return renderRow({
       icon: ITEMS[item.kind].emoji,
-      name: ITEMS[item.kind].name,
+      name: itemName(item),
       sub: ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
     });

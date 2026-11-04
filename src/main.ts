@@ -1,4 +1,4 @@
-import { clearRun, loadProfile, loadRunData, loadoutOf, returnToBase, saveRun } from './game/profile';
+import { clearRun, loadProfile, loadRunData, loadoutOf, outcomeOf, returnToBase, saveRun } from './game/profile';
 import { randomSeed } from './game/rng';
 import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
@@ -65,7 +65,14 @@ function startRun(): void {
  * 力つきたときは、そのダンジョンで手に入れたカードとバッグの半分を失う
  */
 function endRun(): void {
-  const title = state.cleared ? 'ダンジョンを踏破した！' : `B${state.floor}Fで力つきた…`;
+  const outcome = outcomeOf(state);
+  const name = state.dungeon.name;
+  const title =
+    outcome === 'cleared'
+      ? `${name}を踏破した！`
+      : outcome === 'escaped'
+        ? `B${state.floor}Fから${name}を離脱した`
+        : `B${state.floor}Fで力つきた…`;
   const losses = returnToBase(profile, state);
   const lost = state.dead
     ? losses.cards.length + losses.items.length > 0
@@ -108,6 +115,8 @@ function updateHud(moment?: HudMoment): void {
   const effects = [
     p.ailments.confused > 0 ? `🌀${p.ailments.confused}` : '',
     p.ailments.poisoned > 0 ? `☠️${p.ailments.poisoned}` : '',
+    p.ailments.pinned > 0 ? `📌${p.ailments.pinned}` : '',
+    p.ailments.asleep > 0 ? `💤${p.ailments.asleep}` : '',
     p.powerTurns > 0 ? `💪${p.powerTurns}` : '',
     p.guardTurns > 0 ? `🧱${p.guardTurns}` : '',
   ];
@@ -284,7 +293,9 @@ const acceptsInput = () =>
   !sheet.isOpen() &&
   logHistory.hidden &&
   !state.cleared &&
-  !state.dead;
+  !state.escaped &&
+  !state.dead &&
+  !state.helpless;
 
 /**
  * 行動のあとに、起きた攻撃を順に見せる。そのあと、カードがあふれていれば保管庫へ送るカードを選ばせ、
@@ -297,15 +308,27 @@ function afterAction(next?: () => void): void {
       openSwapSheet(state, sheet, () => afterAction());
       return;
     }
-    if (state.dead) {
+    if (state.dead || state.escaped) {
       endRun();
       return;
     }
     // 毎ターン自動で保存し、閉じても続きから遊べるようにする
     saveRun(state);
+    // はりつけ・昏睡で動けない間は、自動で足踏みしてターンを進める
+    if (state.helpless) {
+      window.setTimeout(() => {
+        if (!state.helpless || dialog.isOpen() || sheet.isOpen()) return;
+        state.wait();
+        afterAction(next);
+      }, HELPLESS_DELAY);
+      return;
+    }
     next?.();
   });
 }
+
+/** 動けないときに、1ターン進めるまでの間（ミリ秒） */
+const HELPLESS_DELAY = 300;
 
 /** 右側のボタン。touchstart を止めているので click ではなく pointerdown で受ける */
 function onButton(id: string, handler: () => void): void {
@@ -414,6 +437,8 @@ window.visualViewport?.addEventListener('resize', layout);
 layout();
 // 途中のダンジョンがなければ、拠点から始める
 if (!loadRunData()) base.open(profile);
+// はりつけ・昏睡のまま閉じていたら、続きのターンを自動で進める
+else if (state.helpless) afterAction();
 
 // 公開したものだけ、オフラインでも遊べるようにする（開発中は毎回新しいファイルを読むので使わない）
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
