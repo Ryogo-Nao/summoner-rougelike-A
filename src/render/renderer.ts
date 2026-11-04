@@ -20,20 +20,21 @@ const LUNGE_DEPTH = 0.4;
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
 
-/** 色は style.css の色の決まりと合わせる（濃い紺の下地に、明るい寒色） */
+/** 色は style.css の色の決まりと合わせる（淡い石の床と、青みがかった石の壁） */
 const COLORS = {
-  /** 壁は薄紫がかった石。上のふちを明るく、下のふちを暗くして厚みを出す */
-  wall: '#3a4386',
-  wallTop: '#6b74c4',
-  wallBottom: '#262c5e',
-  floor: '#1a2452',
+  /** 壁。上のふちを明るく、下のふちを暗くして厚みを出す */
+  wall: '#8796bf',
+  wallTop: '#b4c0e0',
+  wallBottom: '#6b7aa6',
+  floor: '#dfe8f3',
   /** 床のマスの境目 */
-  floorLine: '#141c44',
-  outside: '#070b1f',
+  floorLine: '#c9d6e7',
+  /** まだ見ていないところ */
+  outside: '#b9c5dc',
   /** 見たことはあるが今は見えていないマスに重ねる色 */
-  memory: 'rgba(5, 8, 24, 0.58)',
+  memory: 'rgba(80, 98, 148, 0.3)',
   /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
-  miniBg: 'rgba(0, 0, 0, 0.72)',
+  miniBg: 'rgba(36, 52, 94, 0.7)',
   miniBorder: 'rgba(255, 255, 255, 0.25)',
   miniFloor: '#6f9dff',
   miniStairs: '#ffd84a',
@@ -43,13 +44,13 @@ const COLORS = {
   allyHpBar: '#6fe8b0',
   miniAlly: '#2f9e64',
   /** 足もとの影。味方（主人公と仲間）は緑、敵は赤 */
-  allyShadow: 'rgba(90, 235, 160, 0.75)',
-  enemyShadow: 'rgba(255, 95, 115, 0.75)',
+  allyShadow: 'rgba(40, 200, 120, 0.6)',
+  enemyShadow: 'rgba(235, 70, 95, 0.6)',
   miniItem: '#5ff0ff',
-  hpBarBg: 'rgba(0, 0, 0, 0.7)',
-  hpBarEdge: '#070b1f',
+  hpBarBg: 'rgba(43, 58, 103, 0.55)',
+  hpBarEdge: '#2b3a67',
   /** 拡大したミニマップの後ろに敷く色 */
-  expandedBg: 'rgba(0, 0, 0, 0.82)',
+  expandedBg: 'rgba(36, 52, 94, 0.85)',
 };
 
 const POPUP_COLORS: Record<Popup['kind'], string> = {

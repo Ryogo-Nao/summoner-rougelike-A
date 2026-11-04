@@ -77,7 +77,9 @@ function endRun(): void {
       ? `${name}を踏破した！`
       : outcome === 'escaped'
         ? `B${state.floor}Fから${name}を離脱した`
-        : `B${state.floor}Fで力つきた…`;
+        : state.gaveUp
+          ? `B${state.floor}Fで${name}をあきらめた`
+          : `B${state.floor}Fで力つきた…`;
   const firstClear = outcome === 'cleared' && !profile.cleared.includes(state.dungeon.id);
   const losses = returnToBase(profile, state);
   // 初めて踏破したら、次に挑めるようになったダンジョンを知らせる
@@ -413,12 +415,23 @@ onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
 onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
-  openMenuSheet(state, sheet, settings, () => {
-    settings.turnFirst = state.turnFirst;
-    settings.allyMove = state.allyMove;
-    saveSettings(settings);
-    applyPadSide();
-  }),
+  openMenuSheet(
+    state,
+    sheet,
+    settings,
+    () => {
+      settings.turnFirst = state.turnFirst;
+      settings.allyMove = state.allyMove;
+      saveSettings(settings);
+      applyPadSide();
+    },
+    // あきらめると、力つきたときと同じく、ここで手に入れたカードとバッグの半分を失う
+    () =>
+      dialog.open('ダンジョンをあきらめる？\n力つきたときと同じく\nここで手に入れたカードと\nバッグの道具の半分を失う', 'あきらめる', 'やめる', () => {
+        state.giveUp();
+        afterAction();
+      }),
+  ),
 );
 
 /** 設定に合わせて、パッドを左右どちらかに置く */

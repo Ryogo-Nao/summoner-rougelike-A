@@ -269,6 +269,12 @@ export function cardFromData(data: CardData): Card {
   return card;
 }
 
+/** ログに出す、まとめて動かした道具の名前。4つ以上は「〇〇など4個」にする */
+function namesOf(items: Item[]): string {
+  if (items.length <= 3) return items.map(itemName).join('と');
+  return `${itemName(items[0])}など${items.length}個`;
+}
+
 export class GameState {
   readonly rng: Rng;
   map!: GameMap;
@@ -308,6 +314,8 @@ export class GameState {
   cleared = false;
   escaped = false;
   dead = false;
+  /** 自分でダンジョンをあきらめた（dead と一緒に立てる） */
+  gaveUp = false;
   /** 千里の印で、この階の地図と、階段・道具・敵の場所がわかっている */
   revealed = false;
   /** この階のモンスターハウスの部屋。ない・もう起きたなら null */
@@ -850,26 +858,39 @@ export class GameState {
   }
 
   /** バッグの道具を袋にしまう。装備していれば外す。1ターンかかる */
-  putInPouch(pouch: Item, item: Item): void {
+  putInPouch(pouch: Item, items: Item[]): void {
     const contents = pouch.contents;
-    if (!contents || !this.bag.includes(pouch) || !this.pouchable(pouch).includes(item)) return;
-    if (contents.length >= (pouch.capacity ?? 0)) return;
+    if (!contents || !this.bag.includes(pouch) || items.length === 0) return;
+    const able = this.pouchable(pouch);
+    if (!items.every((i) => able.includes(i))) return;
+    if (contents.length + items.length > (pouch.capacity ?? 0)) return;
     this.beginAction();
-    this.removeFromBag(item);
-    contents.push(item);
-    this.addLog(`${itemName(item)}を${ITEMS[pouch.kind].name}にしまった`);
+    for (const item of items) {
+      this.removeFromBag(item);
+      contents.push(item);
+    }
+    this.addLog(`${namesOf(items)}を${ITEMS[pouch.kind].name}にしまった`);
     this.endTurn();
   }
 
-  /** 袋から道具を出してバッグに入れる。バッグがいっぱいならできない。1ターンかかる */
-  takeFromPouch(pouch: Item, item: Item): void {
+  /** 袋から道具を出してバッグに入れる。まとめて出しても1ターン。バッグに入りきらなければできない */
+  takeFromPouch(pouch: Item, items: Item[]): void {
     const contents = pouch.contents;
-    if (!contents?.includes(item) || this.bag.length >= BAG_LIMIT) return;
+    if (!contents || items.length === 0 || !items.every((i) => contents.includes(i))) return;
+    if (this.bag.length + items.length > BAG_LIMIT) return;
     this.beginAction();
-    pouch.contents = contents.filter((i) => i !== item);
-    this.bag.push(item);
-    this.addLog(`${ITEMS[pouch.kind].name}から${itemName(item)}を出した`);
+    pouch.contents = contents.filter((i) => !items.includes(i));
+    this.bag.push(...items);
+    this.addLog(`${ITEMS[pouch.kind].name}から${namesOf(items)}を出した`);
     this.endTurn();
+  }
+
+  /** ダンジョンをあきらめる。力つきたときと同じ扱いにする */
+  giveUp(): void {
+    if (this.dead || this.cleared || this.escaped) return;
+    this.dead = true;
+    this.gaveUp = true;
+    this.addLog('ダンジョンをあきらめた');
   }
 
   /** 復活の印で選べるカード（瀕死のカード） */

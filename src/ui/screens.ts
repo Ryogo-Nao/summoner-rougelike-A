@@ -196,35 +196,69 @@ function startUse(state: GameState, sheet: Sheet, item: Item, after: AfterAction
   }
 }
 
-/** 袋の中。出すとバッグへ、［道具をしまう］でバッグの道具を入れる。どちらも1ターン */
-function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction): void {
+/** 決めるボタン。紺の板にして目立たせる */
+function mainButton(button: HTMLButtonElement): HTMLButtonElement {
+  button.classList.add('main');
+  return button;
+}
+
+/**
+ * 選んだ道具に印を付けて並べる。行を押すと選ぶ・外す。limit より多くは選べない。
+ * 選び終えたら、まとめて動かす（1ターン）
+ */
+function choiceRows(
+  items: Item[],
+  chosen: Set<Item>,
+  limit: number,
+  label: (item: Item) => string,
+  reopen: () => void,
+): SheetRow[] {
+  return items.map((item) => {
+    const on = chosen.has(item);
+    const toggle = () => {
+      if (on) chosen.delete(item);
+      else if (chosen.size < limit) chosen.add(item);
+      reopen();
+    };
+    return {
+      icon: ITEMS[item.kind].emoji,
+      name: label(item),
+      sub: ITEMS[item.kind].desc,
+      className: on ? 'chosen' : undefined,
+      onSelect: toggle,
+      button: { label: on ? '✓' : '選ぶ', disabled: !on && chosen.size >= limit, onClick: toggle },
+    };
+  });
+}
+
+/** 袋の中。選んだ道具をまとめてバッグへ出す。［道具をしまう］でバッグの道具を入れる。どちらも1ターン */
+function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, chosen = new Set<Item>()): void {
   const contents = pouch.contents ?? [];
-  const full = state.bag.length >= BAG_LIMIT;
-  const rows: SheetRow[] = contents.map((item) => ({
-    icon: ITEMS[item.kind].emoji,
-    name: itemName(item),
-    sub: ITEMS[item.kind].desc,
-    button: {
-      label: '出す',
-      disabled: full,
-      onClick: () => {
-        sheet.close();
-        state.takeFromPouch(pouch, item);
-        after();
-      },
-    },
-  }));
-  const footer = document.createElement('div');
-  footer.className = 'sheet-pair';
+  const space = BAG_LIMIT - state.bag.length;
+  const reopen = () => openPouchSheet(state, sheet, pouch, after, chosen);
+  const rows = choiceRows(contents, chosen, space, itemName, reopen);
   const room = contents.length < (pouch.capacity ?? 0);
+  const footer = document.createElement('div');
   footer.append(
+    mainButton(
+      wideButton(chosen.size > 0 ? `${chosen.size}個を出す` : '出す道具を選ぶ', chosen.size === 0, () => {
+        sheet.close();
+        state.takeFromPouch(pouch, [...chosen]);
+        after();
+      }),
+    ),
+  );
+  const pair = document.createElement('div');
+  pair.className = 'sheet-pair';
+  pair.append(
     wideButton(room ? '道具をしまう' : 'いっぱい', !room || state.pouchable(pouch).length === 0, () =>
       openPouchPutSheet(state, sheet, pouch, after),
     ),
     wideButton('戻る', false, () => openItemSheet(state, sheet, pouch, after)),
   );
+  footer.append(pair);
   const lines = [
-    contents.length === 0 ? '中は空' : full ? 'バッグがいっぱいで出せない' : '',
+    contents.length === 0 ? '中は空' : space <= 0 ? 'バッグがいっぱいで出せない' : `押して選ぶ（あと${space}個まで出せる）`,
     ITEMS[pouch.kind].pouch?.holy ? '力つきても中の道具は失わない' : '',
   ];
   sheet.open(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}`, rows, {
@@ -233,24 +267,26 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
   });
 }
 
-/** 袋にしまう道具を選ぶ */
-function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction): void {
-  const rows: SheetRow[] = state.pouchable(pouch).map((item) => ({
-    icon: ITEMS[item.kind].emoji,
-    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
-    sub: ITEMS[item.kind].desc,
-    button: {
-      label: 'しまう',
-      onClick: () => {
+/** 袋にしまう道具を選ぶ。まとめてしまっても1ターン */
+function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, chosen = new Set<Item>()): void {
+  const space = (pouch.capacity ?? 0) - (pouch.contents?.length ?? 0);
+  const reopen = () => openPouchPutSheet(state, sheet, pouch, after, chosen);
+  const name = (item: Item) => (state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item));
+  const rows = choiceRows(state.pouchable(pouch), chosen, space, name, reopen);
+  const footer = document.createElement('div');
+  footer.append(
+    mainButton(
+      wideButton(chosen.size > 0 ? `${chosen.size}個をしまう` : 'しまう道具を選ぶ', chosen.size === 0, () => {
         sheet.close();
-        state.putInPouch(pouch, item);
+        state.putInPouch(pouch, [...chosen]);
         after();
-      },
-    },
-  }));
+      }),
+    ),
+    wideButton('戻る', false, () => openPouchSheet(state, sheet, pouch, after)),
+  );
   sheet.open(`${itemName(pouch)}にしまう`, rows, {
-    note: '袋は袋にしまえない',
-    footer: wideButton('戻る', false, () => openPouchSheet(state, sheet, pouch, after)),
+    note: `押して選ぶ（あと${space}個しまえる）\n袋は袋にしまえない`,
+    footer,
   });
 }
 
@@ -432,8 +468,14 @@ function statChange(
 }
 
 /** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
-export function openMenuSheet(state: GameState, sheet: Sheet, settings: Settings, onChange: () => void): void {
-  const reopen = () => openMenuSheet(state, sheet, settings, onChange);
+export function openMenuSheet(
+  state: GameState,
+  sheet: Sheet,
+  settings: Settings,
+  onChange: () => void,
+  onGiveUp: () => void,
+): void {
+  const reopen = () => openMenuSheet(state, sheet, settings, onChange, onGiveUp);
   const rows: SheetRow[] = [
     {
       icon: '↻',
@@ -479,6 +521,10 @@ export function openMenuSheet(state: GameState, sheet: Sheet, settings: Settings
   ];
   sheet.open('メニュー', rows, {
     note: '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる',
+    footer: wideButton('ダンジョンをあきらめる', false, () => {
+      sheet.close();
+      onGiveUp();
+    }),
   });
 }
 
