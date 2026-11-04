@@ -31,11 +31,14 @@ const COLORS = {
   miniBorder: 'rgba(255, 255, 255, 0.25)',
   miniFloor: '#6f9dff',
   miniStairs: '#ffd84a',
-  miniPlayer: '#ff4d3d',
+  miniPlayer: '#3dff6e',
   miniMonster: '#ff5fd2',
   hpBar: '#e5534b',
   allyHpBar: '#4fd18b',
-  miniAlly: '#4fd18b',
+  miniAlly: '#2f9e64',
+  /** 足もとの影。味方（主人公と仲間）は緑、敵は赤 */
+  allyShadow: 'rgba(60, 220, 120, 0.8)',
+  enemyShadow: 'rgba(240, 70, 70, 0.8)',
   miniItem: '#5ff0ff',
   hpBarBg: 'rgba(0, 0, 0, 0.7)',
   /** 拡大したミニマップの後ろに敷く色 */
@@ -212,6 +215,13 @@ export class Renderer {
 
   private drawActor(actor: ActorView, sx: number, sy: number): void {
     const { ctx, tileSize: ts } = this;
+    // 足もとの影で、味方と敵を見分けやすくする。アイテムには付けない
+    ctx.save();
+    ctx.fillStyle = actor.enemy ? COLORS.enemyShadow : COLORS.allyShadow;
+    ctx.beginPath();
+    ctx.ellipse(sx + ts / 2, sy + ts * 0.82, ts * 0.44, ts * 0.17, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
     if (actor.isPartner) {
       ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;

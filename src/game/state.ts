@@ -19,7 +19,7 @@ import {
   type AllyOrder,
   type Card,
 } from './cards';
-import { HIT_RATE, allyLevelForExp, levelForExp, rollDamage } from './combat';
+import { HIT_RATE, allyLevelForExp, playerLevelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { dungeonById, monstersForFloor, randomItem, type Dungeon } from './dungeons';
@@ -121,6 +121,8 @@ export interface ActorView {
   hp: { ratio: number; ally: boolean } | null;
   isPlayer: boolean;
   isPartner: boolean;
+  /** 敵の魔物か。足もとの影の色を分ける（味方は緑、敵は赤） */
+  enemy: boolean;
   /** かかっている状態異常の印（混乱🌀、毒☠️）。なければ空。あとで絵に差し替える */
   sick: string;
 }
@@ -1201,7 +1203,7 @@ export class GameState {
   private gainExp(amount: number): void {
     const p = this.player;
     p.exp += amount;
-    const next = levelForExp(p.exp);
+    const next = playerLevelForExp(p.exp);
     while (p.level < next) {
       p.level++;
       p.maxHp += 5;
@@ -1505,6 +1507,7 @@ export class GameState {
         hp: m.hp < m.maxHp ? { ratio: m.hp / m.maxHp, ally: false } : null,
         isPlayer: false,
         isPartner: false,
+        enemy: true,
         sick: sickMark(m.ailments),
       });
     }
@@ -1517,10 +1520,11 @@ export class GameState {
         hp: { ratio: a.card.hp / a.card.maxHp, ally: true },
         isPlayer: false,
         isPartner: isPartner(a.card),
+        enemy: false,
         sick: sickMark(a.ailments),
       });
     }
-    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, sick: sickMark(p.ailments) });
+    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, enemy: false, sick: sickMark(p.ailments) });
     return views;
   }
 
