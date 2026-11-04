@@ -14,6 +14,8 @@ import { artElement, faceElement } from '../render/art';
 type View = 'hub' | 'prep' | 'shop' | 'records';
 /** 冒険の準備のタブ */
 type Tab = 'cards' | 'items';
+/** 道具を置く場所 */
+type Place = 'bag' | 'warehouse';
 
 const VIEW_TITLE: Record<View, string> = { hub: '🏠 拠点', prep: '冒険の準備', shop: '商店', records: '記録' };
 
@@ -33,7 +35,9 @@ export class BaseScreen {
   private view: View = 'hub';
   private tab: Tab = 'cards';
   /** 持ち物のタブで、バッグを見ているか倉庫を見ているか */
-  private itemPlace: 'bag' | 'warehouse' = 'bag';
+  private itemPlace: Place = 'bag';
+  /** 持ち物の並べ方 */
+  private itemSort: ItemSortKey = 'kind';
   private profile: Profile | null = null;
   /** つよさを見ているカード。null なら一覧を出す */
   private viewing: Card | null = null;
@@ -43,7 +47,7 @@ export class BaseScreen {
   private choosing = false;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
-  private sellFrom: 'bag' | 'warehouse' = 'bag';
+  private sellFrom: Place = 'bag';
   /** 売る数（まとめた道具の key ごと） */
   private sellCount = new Map<string, number>();
   /** 商店で最後にしたこと（「薬草を買った」など） */
@@ -157,7 +161,7 @@ export class BaseScreen {
       children.push(...this.pouchRows(p, this.pouch));
     } else {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
-      else children.push(...(this.itemPlace === 'bag' ? this.bagRows(p) : this.warehouseRows(p)));
+      else children.push(...this.itemListRows(p));
     }
     document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
     this.body.replaceChildren(...children);
@@ -281,50 +285,42 @@ export class BaseScreen {
     ];
   }
 
-  /** 持ち物のタブの上に出す、［バッグ］［倉庫］の切り替え */
-  private placeButtons(p: Profile): HTMLElement {
-    const box = document.createElement('div');
-    box.className = 'sort-keys shop-modes';
-    for (const [place, label, list, limit] of [
-      ['bag', 'バッグ', p.bag, BAG_LIMIT],
-      ['warehouse', '倉庫', p.warehouse, WAREHOUSE_LIMIT],
-    ] as const) {
-      const b = wideButton(`${label} ${list.length}/${limit}`, false, () => {
-        this.itemPlace = place;
-        this.render();
-      });
-      if (this.itemPlace === place) b.classList.add('on');
-      box.append(b);
-    }
-    return box;
-  }
-
-  /** バッグ（持っていくアイテム）。倉庫へしまえる */
-  private bagRows(p: Profile): HTMLElement[] {
-    return [
-      this.sortButtons((by) => (p.bag = sortItems(p.bag, by)), this.placeButtons(p)),
-      note('バッグの道具をダンジョンに持っていく'),
-      ...p.bag.map((item) =>
-        this.itemRow(item, '倉庫へ', p.warehouse.length >= WAREHOUSE_LIMIT, () => move(item, p.bag, p.warehouse)),
-      ),
-    ];
-  }
-
-  /** 倉庫。バッグへ出せる */
   /**
-   * 倉庫。同じ道具は1行にまとめて数を出す（＋の違う装備、入る数の違う袋、中身のある袋は分ける）。
-   * ［バッグへ］で1つずつ出す
+   * 持ち物（バッグと倉庫）。上で［バッグ］［倉庫］を切り替え、並べ替えは1つのボタンから選ぶ。
+   * 同じ道具は1行にまとめて数を出す（＋の違う装備、入る数の違う袋、中身のある袋は分ける）。
+   * バッグは［倉庫へ送る］、倉庫は［バッグへ入れる］で1つずつ動かす
    */
-  private warehouseRows(p: Profile): HTMLElement[] {
-    const rows = groupItems(p.warehouse).map((g) => {
+  private itemListRows(p: Profile): HTMLElement[] {
+    const bag = this.itemPlace === 'bag';
+    const from = bag ? p.bag : p.warehouse;
+    const to = bag ? p.warehouse : p.bag;
+    const full = bag ? p.warehouse.length >= WAREHOUSE_LIMIT : p.bag.length >= BAG_LIMIT;
+    const head = document.createElement('div');
+    head.className = 'base-sort';
+    head.append(
+      placeTabs(
+        this.itemPlace,
+        { bag: `🎒 バッグ（${p.bag.length}/${BAG_LIMIT}）`, warehouse: `📦 倉庫（${p.warehouse.length}/${WAREHOUSE_LIMIT}）` },
+        (place) => {
+          this.itemPlace = place;
+          this.render();
+        },
+      ),
+      this.sortSelect((by) => {
+        if (bag) p.bag = sortStock(p.bag, by);
+        else p.warehouse = sortStock(p.warehouse, by);
+      }),
+    );
+    // 選んでいる並べ方で出す（あとから入れた道具も、その並びに入る）
+    const rows = groupItems(sortStock(from, this.itemSort)).map((g) => {
       const first = g.items[0];
       // 矢は本数を足して出す
       const name = ITEMS[first.kind].arrow
         ? `${ITEMS[first.kind].name}（${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
         : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
-      return this.itemRow(first, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(first, p.warehouse, p.bag), name);
+      return this.itemRow(first, bag ? '倉庫へ送る' : 'バッグへ入れる', full, () => move(first, from, to), name);
     });
-    return [this.sortButtons((by) => (p.warehouse = sortItems(p.warehouse, by)), this.placeButtons(p)), ...rows];
+    return [head, ...(rows.length > 0 ? rows : [note(bag ? 'バッグは空' : '倉庫は空')])];
   }
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
@@ -358,18 +354,25 @@ export class BaseScreen {
     ];
   }
 
-  /** 並べ替えのボタン。一覧の上に固定して出す。top があれば、その上に置く */
-  private sortButtons(sort: (by: 'kind' | 'name') => void, top?: HTMLElement): HTMLElement {
-    const box = document.createElement('div');
-    box.className = 'base-sort';
-    const pair = document.createElement('div');
-    pair.className = 'sheet-pair';
-    pair.append(
-      wideButton('種類順に並べる', false, () => this.change(() => sort('kind'))),
-      wideButton('名前順に並べる', false, () => this.change(() => sort('name'))),
-    );
-    if (top) box.append(top);
-    box.append(pair);
+  /** 並べ替えのボタン。押すと種類順・名前順・個数順から選べる（iPhone では下に選ぶ輪が出る） */
+  private sortSelect(sort: (by: ItemSortKey) => void): HTMLElement {
+    const box = document.createElement('label');
+    box.className = 'sort-select';
+    const text = document.createElement('span');
+    text.textContent = `⇅ ソート：${ITEM_SORT_LABEL[this.itemSort]}`;
+    const select = document.createElement('select');
+    for (const key of ITEM_SORT_KEYS) {
+      const o = document.createElement('option');
+      o.value = key;
+      o.textContent = ITEM_SORT_LABEL[key];
+      o.selected = key === this.itemSort;
+      select.append(o);
+    }
+    select.addEventListener('change', () => {
+      this.itemSort = select.value as ItemSortKey;
+      this.change(() => sort(this.itemSort));
+    });
+    box.append(text, select);
     return box;
   }
 
@@ -428,20 +431,15 @@ export class BaseScreen {
     const groups = groupItems(from, true);
     const picked = groups.flatMap((g) => g.items.slice(0, this.sellCount.get(g.key) ?? 0));
     const total = picked.reduce((n, i) => n + sellPrice(i), 0);
-    const places = document.createElement('div');
-    places.className = 'sort-keys shop-modes';
-    for (const [place, label, list] of [
-      ['bag', 'バッグから売る', p.bag],
-      ['warehouse', '倉庫から売る', p.warehouse],
-    ] as const) {
-      const b = wideButton(`${label}（${list.length}）`, false, () => {
+    const places = placeTabs(
+      this.sellFrom,
+      { bag: `🎒 バッグから（${p.bag.length}）`, warehouse: `📦 倉庫から（${p.warehouse.length}）` },
+      (place) => {
         this.sellFrom = place;
         this.sellCount.clear();
         this.render();
-      });
-      if (this.sellFrom === place) b.classList.add('on');
-      places.append(b);
-    }
+      },
+    );
     const sellButton = wideButton(
       picked.length > 0 ? `${picked.length}個を売る（💠${total}）` : '売る数を選ぶ',
       picked.length === 0,
@@ -577,6 +575,32 @@ function groupItems(items: Item[], splitArrows = false): ItemGroup[] {
     else groups.set(key, { key, name: itemName(item), items: [item] });
   }
   return [...groups.values()];
+}
+
+/** ［バッグ］［倉庫］の切り替えのタブ。選んでいる方は濃い茶に金の下線、ほかは薄いベージュ */
+function placeTabs(current: Place, labels: Record<Place, string>, onPick: (place: Place) => void): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'place-tabs';
+  for (const place of ['bag', 'warehouse'] as const) {
+    const b = document.createElement('button');
+    b.textContent = labels[place];
+    if (place === current) b.classList.add('on');
+    b.addEventListener('click', () => onPick(place));
+    box.append(b);
+  }
+  return box;
+}
+
+type ItemSortKey = 'kind' | 'name' | 'count';
+const ITEM_SORT_KEYS: ItemSortKey[] = ['kind', 'name', 'count'];
+const ITEM_SORT_LABEL: Record<ItemSortKey, string> = { kind: '種類順', name: '名前順', count: '個数順' };
+
+/** 道具を並べ替える。個数順は、同じ道具の多い順（同じ数なら種類順） */
+function sortStock(items: Item[], by: ItemSortKey): Item[] {
+  if (by !== 'count') return sortItems(items, by);
+  return groupItems(sortItems(items, 'kind'))
+    .sort((a, b) => b.items.length - a.items.length)
+    .flatMap((g) => g.items);
 }
 
 /** 売る数を選ぶ［－］数［＋］。0〜max */
