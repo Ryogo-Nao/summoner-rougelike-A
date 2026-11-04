@@ -61,6 +61,7 @@ function startRun(dungeonId: string): void {
   saveRun(state);
   base.close();
   layout();
+  showFloorTitle();
 }
 
 /**
@@ -216,9 +217,36 @@ function askDescend(): void {
     state.descend();
     redraw();
     if (state.cleared) endRun();
-    else saveRun(state);
+    else {
+      saveRun(state);
+      showFloorTitle();
+    }
   });
 }
+
+const floorTitle = document.getElementById('floor-title')!;
+/** 階の画面を出している時間（ミリ秒、style.css の floor-title と合わせる） */
+const FLOOR_TITLE_TIME = 1600;
+let floorTitleTimer: number | undefined;
+
+/** 階に入ったときに、ダンジョンの名前と階を出す。タップすると早く消える */
+function showFloorTitle(): void {
+  document.getElementById('floor-title-name')!.textContent = state.dungeon.name;
+  document.getElementById('floor-title-floor')!.textContent = `B${state.floor}F`;
+  pad.release();
+  floorTitle.hidden = true;
+  // アニメーションを最初からやり直す
+  void floorTitle.offsetWidth;
+  floorTitle.hidden = false;
+  window.clearTimeout(floorTitleTimer);
+  floorTitleTimer = window.setTimeout(hideFloorTitle, FLOOR_TITLE_TIME);
+}
+
+function hideFloorTitle(): void {
+  window.clearTimeout(floorTitleTimer);
+  floorTitle.hidden = true;
+}
+floorTitle.addEventListener('pointerdown', hideFloorTitle);
 
 // ミニマップをタップすると拡大し、拡大中はマップのどこをタップしても元に戻す。
 // 拡大したままでも歩ける。隣の仲間をタップすると、入れ替わるか押すかを選べる
@@ -297,6 +325,7 @@ logHistory.addEventListener('click', (e) => {
 /** 攻撃を見せている間、ダイアログやログの一覧が開いている間、踏破・力つきた後は、入力を受け付けない */
 const acceptsInput = () =>
   !playing &&
+  floorTitle.hidden &&
   !base.isOpen() &&
   !dialog.isOpen() &&
   !sheet.isOpen() &&
