@@ -1164,8 +1164,11 @@ export class GameState {
       return;
     }
     this.floor++;
+    // 階段を降りると、主人公と仲間の混乱・毒は治る
+    this.player.ailments = noAilments();
     for (const a of this.allies) {
       a.card.hp = Math.min(a.card.maxHp, a.card.hp + Math.ceil(a.card.maxHp * ALLY_STAIRS_HEAL));
+      a.ailments = noAilments();
     }
     this.enterFloor();
     this.addLog(`B${this.floor}Fに降りた`);
