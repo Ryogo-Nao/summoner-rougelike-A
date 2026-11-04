@@ -1,11 +1,11 @@
-import { HAND_LIMIT, swapInList, type Card } from '../game/cards';
+import { HAND_LIMIT, type Card } from '../game/cards';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, buyProblem, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
-import { SPELL_ICONS, cardIcon, cardSub, reorderRows } from './screens';
+import { SPELL_ICONS, cardIcon, cardSub } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement } from '../render/art';
@@ -41,8 +41,6 @@ export class BaseScreen {
   private pouch: Item | null = null;
   /** ダンジョンを選んでいるところ */
   private choosing = false;
-  /** カードの並べ替え中か。picked は入れ替える1枚目 */
-  private reordering = false;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
   private sellFrom: 'bag' | 'warehouse' = 'bag';
@@ -50,8 +48,7 @@ export class BaseScreen {
   private sellCount = new Map<string, number>();
   /** 商店で最後にしたこと（「薬草を買った」など） */
   private shopNote = '';
-  private picked: Card | null = null;
-  /** 最後に押した並べ替えのボタンと、その向き（desc なら降順）。手で入れ替えたら消す */
+  /** 最後に押した並べ替えのボタンと、その向き（desc なら降順） */
   private cardSort: { key: CardSortKey; desc: boolean } | null = null;
   /** つよさ・袋の中・ダンジョンの一覧を開く前の、一覧のスクロールの位置。戻ったときにそこへ戻す */
   private listScroll = 0;
@@ -60,10 +57,13 @@ export class BaseScreen {
   /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ */
   constructor(onDepart: (dungeonId: string) => void) {
     this.onDepart = onDepart;
+    // 下のボタン。一覧では［ダンジョンに向かう］、つよさ・袋の中・ダンジョンの一覧では［戻る］
     this.depart.addEventListener('click', () => {
-      if (!this.profile || this.handCards().length === 0) return;
-      if (this.choosing) this.leave(() => (this.choosing = false));
-      else this.enter(() => (this.choosing = true));
+      if (!this.profile) return;
+      if (this.viewing) this.leave(() => (this.viewing = null));
+      else if (this.pouch) this.leave(() => (this.pouch = null));
+      else if (this.choosing) this.leave(() => (this.choosing = false));
+      else if (this.handCards().length > 0) this.enter(() => (this.choosing = true));
     });
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
@@ -83,8 +83,6 @@ export class BaseScreen {
     this.viewing = null;
     this.pouch = null;
     this.choosing = false;
-    this.reordering = false;
-    this.picked = null;
     this.sellCount.clear();
     this.shopNote = '';
     this.render();
@@ -153,11 +151,8 @@ export class BaseScreen {
     } else if (this.choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.viewing) {
-      // 仲間のつよさ。［戻る］でカードの一覧へ
-      children.push(
-        statusView(this.viewing),
-        wideButton('戻る', false, () => this.leave(() => (this.viewing = null))),
-      );
+      // 仲間のつよさ。下の［戻る］でカードの一覧へ
+      children.push(statusView(this.viewing));
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
     } else {
@@ -168,8 +163,10 @@ export class BaseScreen {
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     const hand = this.handCards().length;
-    this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンに向かう';
-    (this.depart as HTMLButtonElement).disabled = hand === 0;
+    const inside = this.viewing !== null || this.pouch !== null || this.choosing;
+    this.depart.textContent = inside ? '戻る' : hand === 0 ? 'カードを1枚以上選ぶ' : 'ダンジョンに向かう';
+    (this.depart as HTMLButtonElement).disabled = !inside && hand === 0;
+    this.depart.classList.toggle('back', inside);
   }
 
   /**
@@ -250,7 +247,7 @@ export class BaseScreen {
     sorts.className = 'sort-keys';
     for (const key of CARD_SORT_KEYS) {
       const on = this.cardSort?.key === key;
-      const b = wideButton(`${CARD_SORT_LABEL[key]}${on ? (this.cardSort!.desc ? ' ↓' : ' ↑') : ''}`, this.reordering, () => {
+      const b = wideButton(`${CARD_SORT_LABEL[key]}${on ? (this.cardSort!.desc ? ' ↓' : ' ↑') : ''}`, false, () => {
         const desc = on ? !this.cardSort!.desc : false;
         this.cardSort = { key, desc };
         this.change(() => (p.cards = sortCards(p.cards, key, desc)));
@@ -258,32 +255,7 @@ export class BaseScreen {
       if (on) b.classList.add('on');
       sorts.append(b);
     }
-    toggle.append(
-      sorts,
-      wideButton(this.reordering ? '入れ替えを終える' : '手で入れ替える', p.cards.length < 2, () => {
-        this.reordering = !this.reordering;
-        this.picked = null;
-        this.render(true);
-      }),
-    );
-    if (this.reordering) {
-      const rows = reorderRows(p.cards, this.picked, (card) => {
-        if (!this.picked) this.picked = card;
-        else {
-          if (this.picked !== card) {
-            swapInList(p.cards, this.picked, card);
-            this.cardSort = null;
-          }
-          this.picked = null;
-        }
-        this.change(() => {});
-      });
-      return [
-        note('入れ替えるカードを2枚続けて押す\n連れていくときも この順に並ぶ'),
-        toggle,
-        ...rows.map(renderRow),
-      ];
-    }
+    toggle.append(sorts);
     const rows: SheetRow[] = p.cards.map((card) => {
       const taking = p.hand.includes(card.id);
       return {
@@ -383,7 +355,6 @@ export class BaseScreen {
       ...p.bag
         .filter((i) => i !== pouch && !ITEMS[i.kind].pouch)
         .map((item) => this.itemRow(item, 'しまう', !room, () => move(item, p.bag, contents))),
-      wideButton('戻る', false, () => this.leave(() => (this.pouch = null))),
     ];
   }
 
