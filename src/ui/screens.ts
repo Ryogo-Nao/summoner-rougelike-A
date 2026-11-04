@@ -3,6 +3,7 @@ import { BAG_LIMIT, ITEMS, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow } from './sheet';
+import type { Settings } from './settings';
 import { statusView } from './status';
 
 /** 一覧から行動したあとに呼ぶ（再描画、力つきたかの確認など） */
@@ -242,7 +243,8 @@ function statChange(
 }
 
 /** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
-export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => void): void {
+export function openMenuSheet(state: GameState, sheet: Sheet, settings: Settings, onChange: () => void): void {
+  const reopen = () => openMenuSheet(state, sheet, settings, onChange);
   const rows: SheetRow[] = [
     {
       icon: '↻',
@@ -255,7 +257,7 @@ export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => vo
         onClick: () => {
           state.turnFirst = !state.turnFirst;
           onChange();
-          openMenuSheet(state, sheet, onChange);
+          reopen();
         },
       },
     },
@@ -268,12 +270,27 @@ export function openMenuSheet(state: GameState, sheet: Sheet, onChange: () => vo
         onClick: () => {
           state.allyMove = state.allyMove === 'swap' ? 'push' : 'swap';
           onChange();
-          openMenuSheet(state, sheet, onChange);
+          reopen();
+        },
+      },
+    },
+    {
+      icon: '🎮',
+      name: 'パッドの位置',
+      sub: settings.padSide === 'left' ? '左にパッド\n右にボタン' : '右にパッド\n左にボタン',
+      button: {
+        label: settings.padSide === 'left' ? '左' : '右',
+        onClick: () => {
+          settings.padSide = settings.padSide === 'left' ? 'right' : 'left';
+          onChange();
+          reopen();
         },
       },
     },
   ];
-  sheet.open('メニュー', rows, { note: '攻撃は［攻撃］ボタンで\n隣の仲間をタップすると入れ替わるか押すかを選べる' });
+  sheet.open('メニュー', rows, {
+    note: '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる',
+  });
 }
 
 const ORDER_DESC: Record<AllyOrder, string> = {

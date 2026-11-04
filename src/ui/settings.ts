@@ -2,10 +2,12 @@
 export interface Settings {
   turnFirst: boolean;
   allyMove: 'swap' | 'push';
+  /** パッドを左右どちらに置くか */
+  padSide: 'left' | 'right';
 }
 
 const KEY = 'summoner-settings';
-const DEFAULTS: Settings = { turnFirst: true, allyMove: 'swap' };
+const DEFAULTS: Settings = { turnFirst: true, allyMove: 'swap', padSide: 'left' };
 
 /** 保存できない環境（プライベートブラウズなど）でも、初期値で遊べるようにする */
 export function loadSettings(): Settings {

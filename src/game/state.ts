@@ -114,6 +114,14 @@ export interface ActorView {
   hp: { ratio: number; ally: boolean } | null;
   isPlayer: boolean;
   isPartner: boolean;
+  /** かかっている状態異常の印（😵☠️）。なければ空 */
+  sick: string;
+}
+
+/** ダッシュで1歩進む前の様子。進んだあとと比べて、止まるかを決める */
+export interface DashSnapshot {
+  hp: number;
+  room: Room | undefined;
 }
 
 /**
@@ -210,6 +218,9 @@ export function speciesById(id: string): Species {
 }
 
 export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
+/** 状態異常の印。混乱は😵、毒は☠️ */
+const sickMark = (a: Ailments) => `${a.confused > 0 ? '😵' : ''}${a.poisoned > 0 ? '☠️' : ''}`;
+
 /**
  * 保存したカードを読み込み、能力を今の決まりで求め直す。
  * 性格のない古いカードは「すなお」にし、今の決まりより高かった分は足し算の補正として残す
@@ -353,7 +364,7 @@ export class GameState {
       shield: itemById(data.player.shield),
       ailments: data.player.ailments ?? noAilments(),
     };
-    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species) }));
+    s.monsters = data.monsters.map((m) => ({ ...m, species: speciesById(m.species), ailments: m.ailments ?? noAilments() }));
     s.cards = data.cards.map(cardFromData);
     s.storage = data.storage.map(cardFromData);
     s.pendingCard = data.pendingCard ? cardFromData(data.pendingCard) : null;
@@ -503,6 +514,57 @@ export class GameState {
     this.pickUp();
     this.endTurn();
     return 'moved';
+  }
+
+  // ---- ダッシュ（方向を押し続けたとき） ----
+
+  /**
+   * ダッシュで次に進む向き。止まるべきなら null。
+   * 魔物が見えていれば止まる。部屋の中はまっすぐ進み、通路は曲がり角に沿って曲がる。
+   * 通路の分かれ道と行き止まりでは止まる
+   */
+  dashDirection(dir: Dir): Dir | null {
+    const p = this.player.pos;
+    if (this.player.ailments.confused > 0) return null;
+    if (this.monsters.some((m) => this.isVisible(m.pos.x, m.pos.y))) return null;
+    const open = (d: Dir) => {
+      const v = DIR_VECTORS[d];
+      return this.map.canStep(p, d) && !this.monsterAt(p.x + v.x, p.y + v.y);
+    };
+    if (this.map.roomAt(p.x, p.y)) return open(dir) ? dir : null;
+    // 通路：来た方向とその両どなりは除く。斜めは、同じ向きのまっすぐの道があれば数えない
+    const back = (dir + 4) % 8;
+    const ways = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter(
+      (d) => d !== back && d !== (back + 1) % 8 && d !== (back + 7) % 8 && open(d),
+    );
+    const straight = ways.filter((d) => d % 2 === 0);
+    const choices = ways.filter((d) => d % 2 === 0 || !(straight.includes(((d + 1) % 8) as Dir) || straight.includes(((d + 7) % 8) as Dir)));
+    if (choices.length !== 1) return null;
+    return choices[0];
+  }
+
+  dashSnapshot(): DashSnapshot {
+    const p = this.player.pos;
+    return { hp: this.player.hp, room: this.map.roomAt(p.x, p.y) };
+  }
+
+  /** ダッシュで1歩進んだあと、止まるか。傷ついた、道具や階段の上、部屋に出入りした、魔物が見えた */
+  dashShouldStop(before: DashSnapshot): boolean {
+    const p = this.player.pos;
+    return (
+      this.dead ||
+      this.player.hp < before.hp ||
+      this.itemUnderfoot() !== undefined ||
+      this.isOnStairs ||
+      this.map.roomAt(p.x, p.y) !== before.room ||
+      this.monsters.some((m) => this.isVisible(m.pos.x, m.pos.y))
+    );
+  }
+
+  /** ダッシュの1歩。振り向きの設定にかかわらず、その向きへ進む */
+  dash(dir: Dir): 'moved' | 'none' {
+    this.player.facing = dir;
+    return this.tryMove(dir);
   }
 
   /** 仲間に指示を出す。ターンは使わない */
@@ -1137,6 +1199,7 @@ export class GameState {
         hp: m.hp < m.maxHp ? { ratio: m.hp / m.maxHp, ally: false } : null,
         isPlayer: false,
         isPartner: false,
+        sick: sickMark(m.ailments),
       });
     }
     // 仲間は敵と見分けやすいよう、足もとに緑のHPの棒をいつも出す
@@ -1148,9 +1211,10 @@ export class GameState {
         hp: { ratio: a.card.hp / a.card.maxHp, ally: true },
         isPlayer: false,
         isPartner: isPartner(a.card),
+        sick: sickMark(a.ailments),
       });
     }
-    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false });
+    views.push({ emoji: '🧙', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, sick: sickMark(p.ailments) });
     return views;
   }
 
@@ -1229,6 +1293,12 @@ export class GameState {
       if (a.ailments.poisoned > 0) a.card.hp = Math.max(1, a.card.hp - 1);
       this.tickAilments(a.ailments, a.card.species.name);
     }
+    // 魔物の状態異常は、治ってもログには出さない
+    for (const m of this.monsters) {
+      if (m.ailments.poisoned > 0) m.hp = Math.max(1, m.hp - 1);
+      if (m.ailments.confused > 0) m.ailments.confused--;
+      if (m.ailments.poisoned > 0) m.ailments.poisoned--;
+    }
   }
 
   private tickAilments(ailments: Ailments, who: string): void {
@@ -1236,16 +1306,16 @@ export class GameState {
     if (ailments.poisoned > 0 && --ailments.poisoned === 0) this.addLog(`${who}の毒が消えた`);
   }
 
-  /** 攻撃が当たったあと、特技の胞子や毒を受けるか。who はログに出す名前 */
-  private afflict(m: Monster, ailments: Ailments, who: string): void {
-    const kind = m.species.special;
+  /** 攻撃が当たったあと、攻撃した側（from）の特技の胞子や毒を受けるか。who はログに出す名前 */
+  private afflict(from: Species, ailments: Ailments, who: string): void {
+    const kind = from.special;
     if ((kind !== 'spore' && kind !== 'venom') || !this.rng.chance(AILMENT_CHANCE)) return;
     if (kind === 'spore') {
       ailments.confused = CONFUSE_TURNS;
-      this.addLog(`${m.species.name}の胞子 → ${who}は混乱した`);
+      this.addLog(`${from.name}の胞子 → ${who}は混乱した`);
     } else {
       ailments.poisoned = POISON_TURNS;
-      this.addLog(`${m.species.name}の毒 → ${who}は毒を受けた`);
+      this.addLog(`${from.name}の毒 → ${who}は毒を受けた`);
     }
   }
 
@@ -1342,6 +1412,12 @@ export class GameState {
     if (!this.monsters.includes(m)) return;
     const p = this.player.pos;
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
+    // 混乱している魔物は、でたらめな方向へ1歩動くだけ
+    if (m.ailments.confused > 0) {
+      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
+      if (dirs.length > 0) this.moveMonster(m, this.rng.pick(dirs));
+      return;
+    }
 
     // 火を吐く魔物は、まっすぐ4マス以内に主人公がいれば、ときどき火を吐く
     if (
@@ -1444,7 +1520,7 @@ export class GameState {
       return;
     }
     this.hurtPlayer(m, rollDamage(this.rng, m.species.atk, this.defensePower()), how);
-    if (!this.dead) this.afflict(m, p.ailments, 'あなた');
+    if (!this.dead) this.afflict(m.species, p.ailments, 'あなた');
   }
 
   /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
@@ -1477,7 +1553,7 @@ export class GameState {
       this.addLog(`${name}は瀕死になりカードに戻った`);
       return;
     }
-    this.afflict(m, a.ailments, name);
+    this.afflict(m.species, a.ailments, name);
   }
 
   // ---- 仲間の行動（ついてくる） ----
@@ -1509,6 +1585,8 @@ export class GameState {
       this.scene(a.pos, target.pos, () => {
         if (this.rng.chance(HIT_RATE)) {
           this.damageMonster(target, rollDamage(this.rng, a.card.atk, target.species.def), a, '攻撃');
+          // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
+          if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
         } else {
           this.addLog(`${target.species.name}はかわした`);
           this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });

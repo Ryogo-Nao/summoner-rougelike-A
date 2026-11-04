@@ -1,5 +1,6 @@
 import { clearRun, loadProfile, loadRunData, loadoutOf, returnToBase, saveRun } from './game/profile';
 import { randomSeed } from './game/rng';
+import type { Dir } from './game/dir';
 import { GameState, type RunData } from './game/state';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
@@ -326,8 +327,22 @@ onButton('btn-card', () => openCardSheet(state, sheet, afterAction));
 onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
 onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
-  openMenuSheet(state, sheet, () => saveSettings({ turnFirst: state.turnFirst, allyMove: state.allyMove })),
+  openMenuSheet(state, sheet, settings, () => {
+    settings.turnFirst = state.turnFirst;
+    settings.allyMove = state.allyMove;
+    saveSettings(settings);
+    applyPadSide();
+  }),
 );
+
+/** 設定に合わせて、パッドを左右どちらかに置く */
+function applyPadSide(): void {
+  document.getElementById('controls')!.classList.toggle('pad-right', settings.padSide === 'right');
+}
+applyPadSide();
+
+/** ダッシュで進んでいる向き。通路の曲がり角では、押している向きと違うことがある */
+let dashDir: Dir | null = null;
 // 仲間の枠をタップすると、仲間がいれば指示を、空いていればカード画面（召喚）を開く
 document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
   slot.addEventListener('pointerdown', () => {
@@ -339,12 +354,27 @@ document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
 });
 
 const pad = setupPad(document.getElementById('pad')!, {
-  onMove(dir) {
+  onMove(dir, repeat) {
     if (!acceptsInput()) return;
-    const moved = state.tryMove(dir);
+    if (!repeat) {
+      dashDir = dir;
+      const moved = state.tryMove(dir);
+      afterAction(() => {
+        if (moved === 'moved' && state.isOnStairs) askDescend();
+      });
+      return;
+    }
+    // 押し続けているとき（ダッシュ）。止まるところに来たら、指を離すまで止まる
+    const next = dashDir === null ? null : state.dashDirection(dashDir);
+    if (next === null) return false;
+    const before = state.dashSnapshot();
+    if (state.dash(next) !== 'moved') return false;
+    dashDir = next;
+    const stop = state.dashShouldStop(before);
     afterAction(() => {
-      if (moved === 'moved' && state.isOnStairs) askDescend();
+      if (state.isOnStairs) askDescend();
     });
+    return !stop;
   },
   onWait() {
     if (!acceptsInput()) return;

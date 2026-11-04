@@ -1,3 +1,4 @@
+import type { Ailments } from './cards';
 import type { Dir, Pos } from './dir';
 
 export type Speed = 'normal' | 'fast' | 'slow';
@@ -62,8 +63,10 @@ export interface Monster {
   lastSeen: Pos | null;
   /** 主人公を見ていないときに向かう場所 */
   wanderTarget: Pos | null;
+  /** 混乱・毒の残りターン。仲間のポコタケ・シュルルの特技でかかる */
+  ailments: Ailments;
 }
 
 export function createMonster(species: Species, pos: Pos): Monster {
-  return { species, pos, facing: 4, hp: species.hp, maxHp: species.hp, lastSeen: null, wanderTarget: null };
+  return { species, pos, facing: 4, hp: species.hp, maxHp: species.hp, lastSeen: null, wanderTarget: null, ailments: { confused: 0, poisoned: 0 } };
 }

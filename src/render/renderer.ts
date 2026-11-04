@@ -218,6 +218,12 @@ export class Renderer {
       ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     }
+    if (actor.sick) {
+      // 状態異常の印は右上に小さく出す
+      ctx.font = `${Math.floor(ts * 0.32)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.fillText(actor.sick, sx + ts * 0.8, sy + ts * 0.18);
+      ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    }
     if (actor.hp) this.drawHpBar(sx, sy, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
     if (actor.isPlayer) this.drawFacing(sx + ts / 2, sy + ts / 2, actor.facing);
   }

@@ -1,13 +1,14 @@
 import type { Dir } from '../game/dir';
 
 export interface PadHandlers {
-  onMove(dir: Dir): void;
+  /** repeat は押し続けて2歩目以降のとき（ダッシュ）。false を返すと、指を離すまで止まる */
+  onMove(dir: Dir, repeat: boolean): boolean | void;
   onWait(): void;
 }
 
-/** 押し続けたときに連続で動き出すまでの時間と、その間隔（ミリ秒） */
+/** 押し続けたときにダッシュを始めるまでの時間と、1歩の間隔（ミリ秒） */
 const REPEAT_DELAY = 280;
-const REPEAT_INTERVAL = 110;
+const REPEAT_INTERVAL = 70;
 
 export interface Pad {
   /** 押している状態を解除し、連続移動を止める。指を離すまで次の入力は受け付けない */
@@ -15,17 +16,18 @@ export interface Pad {
 }
 
 /**
- * バーチャルパッド。押した瞬間に1回動き、押し続けると連続で動く。
+ * バーチャルパッド。押した瞬間に1回動き、押し続けるとダッシュする（止まるところは main が決める）。
  * 指を滑らせると、指の下のボタンに切り替わる。
  */
 export function setupPad(pad: HTMLElement, handlers: PadHandlers): Pad {
   let current: HTMLElement | null = null;
   let timer: number | undefined;
 
-  const fire = (button: HTMLElement) => {
+  const fire = (button: HTMLElement, repeat: boolean): boolean => {
     const d = button.dataset.dir;
     if (d === 'wait') handlers.onWait();
-    else if (d !== undefined) handlers.onMove(Number(d) as Dir);
+    else if (d !== undefined) return handlers.onMove(Number(d) as Dir, repeat) !== false;
+    return true;
   };
 
   const stopRepeat = () => {
@@ -40,12 +42,12 @@ export function setupPad(pad: HTMLElement, handlers: PadHandlers): Pad {
     current = button;
     if (!button) return;
     button.classList.add('pressed');
-    fire(button);
+    fire(button, false);
     // 足踏みは連続させない。動いた結果ダイアログが開いて release() されたときも続けない
     if (button.dataset.dir === 'wait' || current !== button) return;
     const repeat = () => {
-      fire(button);
-      if (current === button) timer = window.setTimeout(repeat, REPEAT_INTERVAL);
+      const keepGoing = fire(button, true);
+      if (keepGoing && current === button) timer = window.setTimeout(repeat, REPEAT_INTERVAL);
     };
     timer = window.setTimeout(repeat, REPEAT_DELAY);
   };
