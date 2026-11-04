@@ -55,10 +55,9 @@ export class BaseScreen {
     }
   }
 
-  /** message は、戻ってきたときに知らせること（失ったものなど） */
-  open(profile: Profile, message?: string): void {
+  /** 戻ってきたときの知らせ（失ったものなど）は、終わりの知らせの窓で出すので、拠点には出さない */
+  open(profile: Profile): void {
     this.profile = profile;
-    this.message = message ?? '';
     this.viewing = null;
     this.pouch = null;
     this.choosing = false;
@@ -88,7 +87,6 @@ export class BaseScreen {
     return !this.root.hidden;
   }
 
-  private message = '';
 
   private handCards(): Card[] {
     const p = this.profile!;
@@ -119,7 +117,6 @@ export class BaseScreen {
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
     } else {
-      if (this.message) children.push(note(this.message, 'base-message'));
       if (this.tab === 'cards') children.push(...this.cardRows(p));
       if (this.tab === 'bag') children.push(...this.bagRows(p));
       if (this.tab === 'warehouse') children.push(...this.warehouseRows(p));
@@ -210,7 +207,7 @@ export class BaseScreen {
       };
     });
     return [
-      note(`連れていく仲間 ${hand}/${HAND_LIMIT}（緑のカード）\n残した仲間は保管庫で待つ\nカードを押すとつよさを見る`),
+      note(`連れていく仲間 ${hand}/${HAND_LIMIT}（緑のカード）`),
       toggle,
       ...rows.map(renderRow),
     ];
@@ -248,7 +245,7 @@ export class BaseScreen {
       return this.itemRow(first, 'バッグへ', p.bag.length >= BAG_LIMIT, () => move(first, p.warehouse, p.bag), name);
     });
     return [
-      note(`倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}　バッグ ${p.bag.length}/${BAG_LIMIT}\n同じ道具はまとめて出す`),
+      note(`倉庫 ${p.warehouse.length}/${WAREHOUSE_LIMIT}　バッグ ${p.bag.length}/${BAG_LIMIT}`),
       this.sortButtons((by) => (p.warehouse = sortItems(p.warehouse, by))),
       ...rows,
     ];

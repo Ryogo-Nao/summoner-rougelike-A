@@ -819,10 +819,6 @@ button {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.6);
 }
-.base-message {
-  color: var(--text);
-  font-weight: bold;
-}
 .base-section {
   margin-top: 14px;
   color: var(--navy);

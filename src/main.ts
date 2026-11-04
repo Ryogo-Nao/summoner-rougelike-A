@@ -99,7 +99,7 @@ function endRun(): void {
 function showEnding(): void {
   if (!ending) return;
   const message = ending;
-  dialog.open(message, '拠点へ', 'ログを見る', () => base.open(profile, message), () => openLogHistory());
+  dialog.open(message, '拠点へ', 'ログを見る', () => base.open(profile), () => openLogHistory());
 }
 
 /** 小さな要素を作る */
