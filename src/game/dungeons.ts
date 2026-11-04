@@ -22,6 +22,31 @@ export interface MonsterEntry {
  * ダンジョン（requirements.md 7章）。階数、階段での仲間の回復、
  * 落ちているアイテムの出やすさ、出てくる魔物をダンジョンごとに持つ
  */
+/**
+ * マップの見た目（requirements.md 10.1）。床と壁の石の色、明かりの色と暗さ、たいまつの多さ。
+ * ダンジョンごとに変えて、雰囲気を分ける
+ */
+export interface MapTheme {
+  /** 床の土と、床に埋まった小石 */
+  floor: string;
+  pebble: string;
+  /** 壁の上の面の石と、石のすき間 */
+  wallStone: string;
+  mortar: string;
+  /** 壁の手前の側面 */
+  face: string;
+  /** 床と接する壁のふちの石 */
+  rim: string;
+  /** まだ見ていないところ */
+  outside: string;
+  /** 主人公とたいまつの明かりの色（r, g, b） */
+  light: [number, number, number];
+  /** 明かりから遠いところの暗さ（0〜1） */
+  dark: number;
+  /** 床に面した壁に、たいまつを置く割合（0〜1） */
+  torches: number;
+}
+
 export interface Dungeon {
   id: string;
   name: string;
@@ -43,6 +68,7 @@ export interface Dungeon {
    * モンスターハウスになる。魔物とアイテムの数は、ふつうの分とは別に足す
    */
   monsterHouse: { chance: number; fromFloor: number; monsters: [number, number]; items: [number, number] };
+  theme: MapTheme;
 }
 
 /** 最初のダンジョン（balance.md 6.2、4章） */
@@ -52,6 +78,19 @@ const FIRST: Dungeon = {
   desc: '全10階　魔物はLv1\n仲間と出会う、最初のダンジョン',
   floors: 10,
   allyStairsHeal: 0.25,
+  // 茶色の岩の洞窟。たいまつが多め
+  theme: {
+    floor: '#5b4733',
+    pebble: '#7a6249',
+    wallStone: '#7a6550',
+    mortar: '#3a2c1f',
+    face: '#5e4a38',
+    rim: '#c4ad86',
+    outside: '#2a2119',
+    light: [255, 178, 96],
+    dark: 0.42,
+    torches: 0.12,
+  },
   itemsPerFloor: [4, 6],
   monsterLevel: 1,
   monsterHouse: { chance: 0.08, fromFloor: 3, monsters: [6, 9], items: [4, 7] },
@@ -115,6 +154,19 @@ const FOREST: Dungeon = {
   requires: 'first',
   floors: 15,
   allyStairsHeal: 0.15,
+  // 苔むした緑の石の森。たいまつは少なく、明かりは白っぽい
+  theme: {
+    floor: '#4a5434',
+    pebble: '#68744a',
+    wallStone: '#6f7d58',
+    mortar: '#2c3520',
+    face: '#4d573a',
+    rim: '#b3c28c',
+    outside: '#1f2618',
+    light: [255, 236, 170],
+    dark: 0.38,
+    torches: 0.05,
+  },
   itemsPerFloor: [4, 6],
   monsterLevel: 3,
   monsterHouse: { chance: 0.15, fromFloor: 2, monsters: [8, 12], items: [5, 8] },

@@ -2,6 +2,7 @@ import type { ActorView, GameState, Popup, Scene } from '../game/state';
 import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
 import { artImage } from './art';
+import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
  * 攻撃の場面を再生している途中の様子。
@@ -34,19 +35,10 @@ interface Step {
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
 
-/** 色は style.css の色の決まりと合わせる（砂色の石の床と、茶色の石の壁） */
+/** 色は style.css の色の決まりと合わせる。床と壁の色は、ダンジョンごとの見た目（MapTheme）で決める */
 const COLORS = {
-  /** 壁。上のふちを明るく、下のふちを暗くして厚みを出す */
-  wall: '#7d6547',
-  wallTop: '#a88d66',
-  wallBottom: '#57442f',
-  floor: '#dccdae',
-  /** 床のマスの境目 */
-  floorLine: '#c8b693',
-  /** まだ見ていないところ */
-  outside: '#9c8a6e',
   /** 見たことはあるが今は見えていないマスに重ねる色 */
-  memory: 'rgba(70, 50, 30, 0.3)',
+  memory: 'rgba(10, 6, 3, 0.4)',
   /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
   miniBg: 'rgba(46, 36, 27, 0.72)',
   miniBorder: 'rgba(255, 255, 255, 0.25)',
@@ -97,6 +89,8 @@ export class Renderer {
   private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   /** 歩いている途中のもの（ActorView.key ごと） */
   private steps = new Map<string, Step>();
+  /** 今の階の床と壁の絵。階やダンジョンが変わったら作り直す */
+  private terrain: Terrain | null = null;
   /** 絵を左右反転しているか。上下を向いたときは前の向きのまま */
   private flipped = new Map<string, boolean>();
 
@@ -169,37 +163,43 @@ export class Renderer {
     const baseX = Math.round(cam.x);
     const baseY = Math.round(cam.y);
 
-    ctx.fillStyle = COLORS.outside;
+    const theme = state.dungeon.theme;
+    ctx.fillStyle = theme.outside;
     ctx.fillRect(0, 0, viewW, viewH);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
+    // 床と壁は、階ごとに描いておいた絵の、見えているところだけを写す
+    const tilePx = terrainTile(ts * (window.devicePixelRatio || 1));
+    const terrain = this.terrain;
+    if (!terrain || terrain.map !== map || terrain.theme !== theme || terrain.tile !== tilePx) {
+      this.terrain = buildTerrain(map, theme, tilePx);
+    }
+    const T = this.terrain!.tile;
+    const x0 = Math.max(0, baseX - HALF - 1);
+    const x1 = Math.min(map.width - 1, baseX + HALF + 1);
+    const y0 = Math.max(0, baseY - rowsAbove);
+    const y1 = Math.min(map.height - 1, baseY + rowsBelow);
+    if (x0 <= x1 && y0 <= y1) {
+      const w = x1 - x0 + 1;
+      const h = y1 - y0 + 1;
+      const dx0 = Math.round(px0 + (x0 - cam.x) * ts);
+      const dy0 = Math.round(py0 + (y0 - cam.y) * ts);
+      ctx.drawImage(this.terrain!.canvas, x0 * T, y0 * T, w * T, h * T, dx0, dy0, w * ts, h * ts);
+    }
+    // まだ見ていないマスは隠し、見たことはあるが今は見えていないマスは暗くする
     for (let dy = -rowsAbove; dy <= rowsBelow; dy++) {
       for (let dx = -HALF - 1; dx <= HALF + 1; dx++) {
         const mx = baseX + dx;
         const my = baseY + dy;
-        if (!state.isExplored(mx, my)) continue;
         const sx = Math.round(px0 + (mx - cam.x) * ts);
         const sy = Math.round(py0 + (my - cam.y) * ts);
-        const tile = map.get(mx, my);
-        if (tile === Tile.Wall) {
-          const edge = Math.max(2, Math.round(ts * 0.08));
-          ctx.fillStyle = COLORS.wall;
+        if (!state.isExplored(mx, my)) {
+          ctx.fillStyle = theme.outside;
           ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = COLORS.wallTop;
-          ctx.fillRect(sx, sy, ts, edge);
-          ctx.fillStyle = COLORS.wallBottom;
-          ctx.fillRect(sx, sy + ts - edge, ts, edge);
-        } else {
-          ctx.fillStyle = COLORS.floorLine;
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = COLORS.floor;
-          ctx.fillRect(sx, sy, ts - 1, ts - 1);
-          if (tile === Tile.Stairs) {
-            ctx.fillText('🪜', sx + ts / 2, sy + ts / 2 + 1);
-          }
+          continue;
         }
         if (!state.isVisible(mx, my)) {
           ctx.fillStyle = COLORS.memory;
@@ -212,6 +212,8 @@ export class Renderer {
       x: px0 + (pos.x - cam.x) * ts,
       y: py0 + (pos.y - cam.y) * ts,
     });
+
+    this.drawLighting(state, toScreen(cam), toScreen, now);
 
     // 落ちているアイテムは、見たことのあるマスなら出す
     ctx.font = `${Math.floor(ts * 0.62)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
@@ -327,6 +329,72 @@ export class Renderer {
     }
     if (actor.hp) this.drawHpBar(sx, sy, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
     if (actor.isPlayer) this.drawFacing(sx + ts / 2, sy + ts / 2, actor.facing);
+  }
+
+  /**
+   * 明かり。主人公のまわりは明るく、離れるほど暗くする（真っ暗にはしない）。
+   * たいまつは炎をゆらし、まわりを暖かく照らす
+   */
+  private drawLighting(
+    state: GameState,
+    me: { x: number; y: number },
+    toScreen: (pos: { x: number; y: number }) => { x: number; y: number },
+    now: number,
+  ): void {
+    const { ctx, tileSize: ts, viewW, viewH } = this;
+    const theme = state.dungeon.theme;
+    const [r, g, b] = theme.light;
+    const cx = me.x + ts / 2;
+    const cy = me.y + ts / 2;
+    const dark = ctx.createRadialGradient(cx, cy, ts * 2.2, cx, cy, ts * 6.5);
+    dark.addColorStop(0, 'rgba(8, 5, 2, 0)');
+    dark.addColorStop(1, `rgba(8, 5, 2, ${theme.dark})`);
+    ctx.fillStyle = dark;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const glow = (x: number, y: number, radius: number, alpha: number) => {
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      gr.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+      gr.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = gr;
+      ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+    };
+    glow(cx, cy, ts * 3.2, 0.1);
+    const torches = (this.terrain?.torches ?? []).filter((t) => {
+      if (!state.isExplored(t.x, t.y)) return false;
+      const p = toScreen(t);
+      return p.x > -ts * 3 && p.x < viewW + ts * 3 && p.y > -ts * 3 && p.y < viewH + ts * 3;
+    });
+    const flicker = (t: { seed: number }) => 1 + Math.sin(now / 90 + t.seed) * 0.07 + Math.sin(now / 37 + t.seed * 2) * 0.04;
+    for (const t of torches) {
+      const p = toScreen(t);
+      glow(p.x + ts / 2, p.y + ts * 0.75, ts * 2.6 * flicker(t), 0.2);
+    }
+    ctx.restore();
+
+    for (const t of torches) {
+      const p = toScreen(t);
+      const x = p.x + ts / 2;
+      const y = p.y + ts * 0.74;
+      const f = flicker(t);
+      // 金具
+      ctx.fillStyle = '#2b2016';
+      ctx.fillRect(x - ts * 0.04, y, ts * 0.08, ts * 0.16);
+      ctx.fillStyle = '#7a5a2e';
+      ctx.fillRect(x - ts * 0.1, y - ts * 0.02, ts * 0.2, ts * 0.06);
+      // 炎
+      const fh = ts * 0.26 * f;
+      const flame = ctx.createRadialGradient(x, y - fh * 0.35, 0, x, y - fh * 0.35, fh * 0.7);
+      flame.addColorStop(0, 'rgba(255, 250, 210, 1)');
+      flame.addColorStop(0.35, 'rgba(255, 196, 80, 0.95)');
+      flame.addColorStop(1, 'rgba(230, 90, 20, 0)');
+      ctx.fillStyle = flame;
+      ctx.beginPath();
+      ctx.ellipse(x, y - fh * 0.4, ts * 0.09 * f, fh * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   /** マスの下端に、残りHPの割合を細い棒で出す */
