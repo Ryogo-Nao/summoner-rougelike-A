@@ -65,6 +65,8 @@ export interface Monster {
   wanderTarget: Pos | null;
   /** 混乱・毒の残りターン。仲間のポコタケ・シュルルの特技でかかる */
   ailments: Ailments;
+  /** モンスターハウスで眠っている。主人公が部屋に入るか、攻撃されると起きる */
+  dormant?: boolean;
 }
 
 export function createMonster(species: Species, pos: Pos, level = 1): Monster {

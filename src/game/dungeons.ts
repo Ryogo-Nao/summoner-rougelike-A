@@ -38,6 +38,11 @@ export interface Dungeon {
   monsterLevel: number;
   items: ItemEntry[];
   monsters: MonsterEntry[];
+  /**
+   * モンスターハウス（balance.md 7.2）。fromFloor 階から、chance の確率でその階のどこかの部屋が
+   * モンスターハウスになる。魔物とアイテムの数は、ふつうの分とは別に足す
+   */
+  monsterHouse: { chance: number; fromFloor: number; monsters: [number, number]; items: [number, number] };
 }
 
 /** 最初のダンジョン（balance.md 6.2、4章） */
@@ -49,6 +54,7 @@ const FIRST: Dungeon = {
   allyStairsHeal: 0.25,
   itemsPerFloor: [4, 6],
   monsterLevel: 1,
+  monsterHouse: { chance: 0.08, fromFloor: 3, monsters: [6, 9], items: [4, 7] },
   items: [
     { kind: 'herb', weight: 20 },
     { kind: 'bigHerb', weight: 6, floors: [4, 10] },
@@ -111,6 +117,7 @@ const FOREST: Dungeon = {
   allyStairsHeal: 0.15,
   itemsPerFloor: [4, 6],
   monsterLevel: 3,
+  monsterHouse: { chance: 0.15, fromFloor: 2, monsters: [8, 12], items: [5, 8] },
   items: [
     { kind: 'herb', weight: 18 },
     { kind: 'bigHerb', weight: 8, floors: [3, 15] },

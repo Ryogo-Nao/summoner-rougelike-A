@@ -202,6 +202,8 @@ export interface RunData {
   dungeon?: string;
   /** 千里の印を使った階か */
   revealed?: boolean;
+  /** モンスターハウスの部屋の番号（map.rooms）。ない・もう起きたなら -1 */
+  monsterHouse?: number;
   rng: number;
   floor: number;
   turn: number;
@@ -306,6 +308,8 @@ export class GameState {
   dead = false;
   /** 千里の印で、この階の地図と、階段・道具・敵の場所がわかっている */
   revealed = false;
+  /** この階のモンスターハウスの部屋。ない・もう起きたなら null */
+  monsterHouse: Room | null = null;
   /** 1回目のタップで振り向くか。オフなら、押した方向へすぐ進む（メニューで切り替える） */
   turnFirst = true;
   /** 仲間のいるマスへ進んだとき、入れ替わるか押すか（メニューで切り替える） */
@@ -358,6 +362,7 @@ export class GameState {
       version: 1,
       dungeon: this.dungeon.id,
       revealed: this.revealed,
+      monsterHouse: this.monsterHouse ? this.map.rooms.indexOf(this.monsterHouse) : -1,
       rng: this.rng.save(),
       floor: this.floor,
       turn: this.turn,
@@ -428,6 +433,7 @@ export class GameState {
     s.logSerial = data.logSerial;
     s.provoker = s.monsters[data.provoker] ?? null;
     s.regenCarry = data.regenCarry;
+    s.monsterHouse = s.map.rooms[data.monsterHouse ?? -1] ?? null;
     s.slowRest = data.slowRest;
     s.popups = [];
     const cards = [...s.cards, ...s.storage, ...(s.pendingCard ? [s.pendingCard] : [])];
@@ -445,6 +451,7 @@ export class GameState {
     this.popups = [];
     this.provoker = null;
     this.revealed = false;
+    this.monsterHouse = null;
     // 召喚している仲間は、主人公のまわりに一緒に降りてくる
     const allies = this.allies;
     this.allies = [];
@@ -464,7 +471,32 @@ export class GameState {
     this.floorItems = [];
     const items = this.rng.int(...this.dungeon.itemsPerFloor);
     for (let i = 0; i < items; i++) this.placeItem(this.rng.pick(map.rooms));
+    // モンスターハウス：主人公のいない部屋の1つに、眠っている魔物とアイテムをたくさん置く
+    const house = this.dungeon.monsterHouse;
+    if (this.floor >= house.fromFloor && rooms.length > 0 && this.rng.chance(house.chance)) {
+      const room = this.rng.pick(rooms);
+      this.monsterHouse = room;
+      const n = this.rng.int(...house.monsters);
+      for (let i = 0; i < n; i++) this.spawnMonster(room, true);
+      const m = this.rng.int(...house.items);
+      for (let i = 0; i < m; i++) this.placeItem(room);
+    }
     this.updateVisibility();
+  }
+
+  /** 主人公がモンスターハウスの部屋に入ったら、眠っている魔物がいっせいに起きる */
+  private checkMonsterHouse(): void {
+    const room = this.monsterHouse;
+    const p = this.player.pos;
+    if (!room || this.map.roomAt(p.x, p.y) !== room) return;
+    this.monsterHouse = null;
+    for (const m of this.monsters) {
+      if (!m.dormant) continue;
+      m.dormant = false;
+      m.lastSeen = { ...p };
+    }
+    this.addLog('モンスターハウスだ！');
+    this.popups.push({ pos: { ...p }, text: 'モンスターハウス！', kind: 'hurt' });
   }
 
   /** 部屋の空いているマスに、アイテムを1つ置く。主人公の足もとと、他のアイテムの上には置かない */
@@ -483,13 +515,16 @@ export class GameState {
   }
 
   /** 部屋の空いているマスに、この階に出る魔物を1体置く。置けなければ何もしない */
-  private spawnMonster(room: Room): void {
+  /** dormant なら、モンスターハウスで眠っている魔物にする */
+  private spawnMonster(room: Room, dormant = false): void {
     const kinds = monstersForFloor(this.dungeon, this.floor);
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       if (this.isOccupied(pos.x, pos.y)) continue;
       const kind = this.rng.pick(kinds);
-      this.monsters.push(createMonster(speciesById(kind.species), pos, kind.level));
+      const monster = createMonster(speciesById(kind.species), pos, kind.level);
+      if (dormant) monster.dormant = true;
+      this.monsters.push(monster);
       return;
     }
   }
@@ -1212,6 +1247,7 @@ export class GameState {
   private damageMonster(m: Monster, dmg: number, by: Ally | null, how: string): void {
     m.hp -= dmg;
     this.wake(m.ailments);
+    m.dormant = false;
     this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage' });
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
@@ -1553,7 +1589,7 @@ export class GameState {
         isPlayer: false,
         isPartner: false,
         enemy: true,
-        sick: sickMark(m.ailments),
+        sick: m.dormant ? '💤' : sickMark(m.ailments),
       });
     }
     // 仲間は敵と見分けやすいよう、足もとに緑のHPの棒をいつも出す
@@ -1603,6 +1639,7 @@ export class GameState {
   private endTurn(): void {
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
+    this.checkMonsterHouse();
     this.slowRest = !this.slowRest;
     // 主人公に近い仲間から動く。前の仲間が空けたマスに、後ろの仲間が続けて入れるようにする
     const { width, height } = this.map;
@@ -1797,8 +1834,8 @@ export class GameState {
     if (!this.monsters.includes(m)) return;
     const p = this.player.pos;
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
-    // はりつけ・昏睡の魔物は動けない
-    if (m.ailments.pinned > 0 || m.ailments.asleep > 0) return;
+    // はりつけ・昏睡の魔物と、モンスターハウスで眠っている魔物は動けない
+    if (m.ailments.pinned > 0 || m.ailments.asleep > 0 || m.dormant) return;
     // 混乱している魔物は、でたらめな方向へ1歩動くだけ
     if (m.ailments.confused > 0) {
       const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
