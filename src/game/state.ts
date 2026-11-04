@@ -664,10 +664,27 @@ export class GameState {
     return distance(ally.pos, this.player.pos) === 1 && dir !== null && this.map.canStep(this.player.pos, dir);
   }
 
-  /** 仲間を、主人公から見て向こう側へ1マス押し出せるか */
+  /** 仲間を、主人公から見て向こう側へ1マス押し出せるか。後ろに仲間が一列に並んでいれば、まとめて押す */
   canPush(ally: Ally): boolean {
     const dir = dirFromDelta(ally.pos.x - this.player.pos.x, ally.pos.y - this.player.pos.y);
-    return dir !== null && this.canReachAlly(ally) && this.canMoveTo(ally.card.species, ally.pos, dir);
+    return dir !== null && this.canReachAlly(ally) && this.pushLine(ally, dir) !== null;
+  }
+
+  /**
+   * ally から dir の向きに、すき間なく並んでいる仲間の列。いちばん先の仲間が1マス進めなければ null。
+   * 途中の仲間は、前の仲間のいたマスに入る
+   */
+  private pushLine(ally: Ally, dir: Dir): Ally[] | null {
+    const line: Ally[] = [];
+    let a: Ally | undefined = ally;
+    while (a) {
+      if (!this.canPass(a.card.species, a.pos, dir)) return null;
+      line.push(a);
+      const next = this.ahead(a.pos, dir);
+      a = this.allyAt(next.x, next.y);
+    }
+    const last = line[line.length - 1];
+    return this.canMoveTo(last.card.species, last.pos, dir) ? line : null;
   }
 
   /** 隣の仲間をタップして選んだとき。その仲間と入れ替わるか、押して進む。1ターンかかる */
@@ -687,8 +704,11 @@ export class GameState {
   /** 主人公が dir へ進んで仲間のマスに入る前に、仲間をどかす */
   private passAlly(ally: Ally, dir: Dir, how: AllyMove): void {
     if (how === 'push') {
-      ally.pos = this.ahead(ally.pos, dir);
-      ally.facing = dir;
+      // 列のいちばん先から順に1マスずつ進める
+      for (const a of [...(this.pushLine(ally, dir) ?? [ally])].reverse()) {
+        a.pos = this.ahead(a.pos, dir);
+        a.facing = dir;
+      }
     } else {
       ally.pos = { ...this.player.pos };
     }
