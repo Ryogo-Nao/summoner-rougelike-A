@@ -8,6 +8,24 @@ const ART_IDS = new Set(['player', 'izutsuchi']);
 
 const fileOf = (id: string) => (id === 'player' ? 'art/player.png' : `art/monster_${id}.png`);
 
+/** 顔のアイコンの絵があるもの（全身の絵から scripts/crop-face.ps1 で切り出す） */
+const FACE_IDS = new Set(['player', 'izutsuchi']);
+
+/** 丸い枠に入れる顔。絵がなければ fallback の絵文字を文字で出す */
+export function faceElement(id: string, fallback: string): HTMLElement {
+  if (!FACE_IDS.has(id)) {
+    const span = document.createElement('span');
+    span.className = 'face-emoji';
+    span.textContent = fallback;
+    return span;
+  }
+  const img = document.createElement('img');
+  img.src = `art/face_${id}.png`;
+  img.alt = '';
+  img.draggable = false;
+  return img;
+}
+
 const images = new Map<string, HTMLImageElement>();
 const listeners: (() => void)[] = [];
 

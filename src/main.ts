@@ -4,7 +4,7 @@ import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
 import { DUNGEONS } from './game/dungeons';
 import { Renderer, type Playback } from './render/renderer';
-import { artElement, onArtLoaded, preloadArt } from './render/art';
+import { faceElement, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { setupQuick } from './ui/quick';
@@ -102,6 +102,15 @@ function showEnding(): void {
   dialog.open(message, '拠点へ', 'ログを見る', () => base.open(profile, message), () => openLogHistory());
 }
 
+/** 小さな要素を作る */
+function el(tag: string, className = '', text = '', children: HTMLElement[] = []): HTMLElement {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text) e.textContent = text;
+  e.append(...children);
+  return e;
+}
+
 function setGauge(selector: string, textId: string, value: number, max: number, text: string): void {
   const bar = document.querySelector<HTMLElement>(`${selector} i`)!;
   bar.style.width = `${Math.max(0, Math.min(1, value / max)) * 100}%`;
@@ -141,18 +150,28 @@ function updateHud(moment?: HudMoment): void {
   setGauge('.gauge.mp', 'mp-text', p.mp, p.maxMp, `${p.mp}/${p.maxMp}`);
   setGauge('.gauge.food', 'food-text', p.food, p.maxFood, `${p.food}%`);
 
-  // 仲間の枠には、召喚している仲間とそのHPを出す。空いている枠は、押すと召喚できることを示す
+  // 仲間の枠には、召喚している仲間の顔・レベル・HPを出す。空いている枠は、押すと召喚できることを示す
   document.querySelectorAll<HTMLElement>('.ally-slot').forEach((slot, i) => {
     const a = state.allies[i];
-    // ついてくる以外の指示を出しているときは、指示も出す
-    const order = a && a.order !== 'follow' ? ` ${ORDER_LABEL[a.order]}` : '';
-    const sick = a ? sickMark(a.ailments) : '';
-    if (a) {
-      const text = document.createElement('span');
-      text.textContent = `${a.card.hp}/${a.card.maxHp}${sick}${order}`;
-      slot.replaceChildren(artElement(a.card.species.id, cardIcon(a.card), 'slot-art'), text);
-    } else slot.textContent = '召喚';
     slot.classList.toggle('filled', a !== undefined);
+    if (!a) {
+      slot.replaceChildren(el('span', 'face empty', '＋'), el('span', 'slot-name', '召喚'));
+      return;
+    }
+    const card = a.card;
+    const face = el('span', 'face');
+    face.append(faceElement(card.species.id, cardIcon(card)), el('span', 'lv', `Lv${card.level}`));
+    const sick = sickMark(a.ailments);
+    if (sick) face.append(el('span', 'sick', sick));
+    const bar = el('span', 'slot-hp');
+    const fill = el('i');
+    const ratio = card.hp / card.maxHp;
+    fill.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+    bar.classList.toggle('low', ratio <= 0.25);
+    bar.append(fill);
+    // ついてくる以外の指示を出しているときは、指示も出す
+    const order = a.order !== 'follow' ? ORDER_LABEL[a.order] : `${card.hp}/${card.maxHp}`;
+    slot.replaceChildren(face, el('span', 'slot-info', '', [el('span', 'slot-name', order), bar]));
   });
 
   const log = document.getElementById('log')!;
@@ -180,6 +199,19 @@ const HIT_EMPTY_MS = 60;
 let playing = false;
 // 絵を読み込み終えたら描き直す。場面の再生中は、終わったあとに描き直される
 preloadArt();
+// 歩く動きと、立っているときの息づかいのために、マップを描き続ける。
+// 電池を使いすぎないよう、ふだんは1秒に20回、歩いている間だけ毎回描く
+let lastFrame = 0;
+const IDLE_FRAME_MS = 50;
+function animate(now: number): void {
+  const visible = !document.hidden && !base.isOpen() && floorTitle.hidden;
+  if (!playing && visible && (renderer.moving(now) || now - lastFrame >= IDLE_FRAME_MS)) {
+    lastFrame = now;
+    renderer.draw(state);
+  }
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
 onArtLoaded(() => {
   if (!playing) renderer.draw(state);
 });

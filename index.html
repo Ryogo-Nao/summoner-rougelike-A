@@ -8,7 +8,7 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#f3f7fc" />
+    <meta name="theme-color" content="#f7f0e3" />
     <meta name="apple-mobile-web-app-title" content="召喚士" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
@@ -21,22 +21,27 @@
       <header id="status">
         <div class="status-row">
           <span id="floor">B1F</span>
-          <span id="level">Lv1</span>
           <span id="effects"></span>
           <span id="turn">0T</span>
         </div>
-        <div class="gauge-row"><span class="label">HP</span><div class="gauge hp"><i></i></div><span class="value" id="hp-text"></span></div>
-        <div class="gauge-row"><span class="label">MP</span><div class="gauge mp"><i></i></div><span class="value" id="mp-text"></span></div>
-        <div class="gauge-row"><span class="label">満腹</span><div class="gauge food"><i></i></div><span class="value" id="food-text"></span></div>
+        <!-- 主人公の顔とレベル、その横にHP・MP・満腹 -->
+        <div class="hero">
+          <div class="face hero-face"><img src="art/face_player.png" alt="" draggable="false" /><span id="level" class="lv">Lv1</span></div>
+          <div class="hero-bars">
+            <div class="gauge-row"><span class="label">HP</span><div class="gauge hp"><i></i></div><span class="value" id="hp-text"></span></div>
+            <div class="gauge-row"><span class="label">MP</span><div class="gauge mp"><i></i></div><span class="value" id="mp-text"></span></div>
+            <div class="gauge-row"><span class="label">満腹</span><div class="gauge food"><i></i></div><span class="value" id="food-text"></span></div>
+          </div>
+        </div>
       </header>
 
       <main id="field">
         <!-- マップの上に余った高さの中央に、仲間の枠を置く -->
         <div id="allies-area">
           <section id="allies">
-            <button class="ally-slot" data-slot="0">－</button>
-            <button class="ally-slot" data-slot="1">－</button>
-            <button class="ally-slot" data-slot="2">－</button>
+            <button class="ally-slot" data-slot="0"></button>
+            <button class="ally-slot" data-slot="1"></button>
+            <button class="ally-slot" data-slot="2"></button>
           </section>
         </div>
         <canvas id="map"></canvas>

@@ -83,6 +83,7 @@ No sparkles, no particles, no glow or aura around the character. No ground shado
 4. できた絵を送ってもらえれば、私がゲームに入れる
    - `scripts/key-art.ps1` で緑の背景を抜き、余白をそろえた 256×256 の PNG にして `public/art/` に置く
    - `src/render/art.ts` の `ART_IDS` に id を足す。絵がないものは絵文字のまま出る
+   - 顔のアイコンは `scripts/crop-face.ps1` で全身の絵から切り出し、`face_<id>.png` にする。`FACE_IDS` に id を足す
 
 ### 2体目からの指示文
 **英語**

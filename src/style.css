@@ -1,40 +1,39 @@
 /*
  * 色の決まり（docs/art-guide.md の色の見本と合わせる）。
- * 下地は、淡い水彩がにじんだような白い紙。文字と線は紺。
- * 枠は細い線で、見出しとボタンは明朝体にして、すっきり見せる。
- * 操作部だけは、指の置き場所が分かるよう紺の帯にする
+ * 下地は、温かみのある生成りの紙。文字と線は焦げ茶。
+ * 操作部とボタンは、金の縁取りをした茶色の石にして、ダンジョンらしさを出す
  */
 :root {
-  --paper: #f3f7fc;
-  --paper-2: #e6eef8;
-  --card: #ffffff;
-  --line: #c6d4e6;
-  --line-strong: #8fa6c8;
-  --text: #24345e;
-  --muted: #6b7fa6;
-  --ink: #13204a;
-  --navy: #2b3a67;
+  --paper: #f7f0e3;
+  --paper-2: #ebdfc8;
+  --card: #fffaf1;
+  --line: #dccaa8;
+  --line-strong: #b79a69;
+  --text: #3d2f22;
+  --muted: #8a7559;
+  --ink: #2a1f15;
+  --navy: #4a3826;
   --sky: #7cc8ff;
-  --aqua: #5fe3e0;
   --mint: #3fbf8a;
-  --lavender: #b9b4ff;
-  --gold: #d9a640;
-  --gold-soft: #f3d98f;
-  --coral: #e2566c;
-  --hp: linear-gradient(90deg, #5fdca6, #8ff0c4);
-  --mp: linear-gradient(90deg, #6a8cff, #9ad1ff);
-  --food: linear-gradient(90deg, #f0a83a, #ffd27a);
-  /* ふつうのボタン。白い板に細い線 */
-  --btn: linear-gradient(180deg, #ffffff, #edf3fa);
-  --btn-line: #b9c9df;
-  /* 決めるボタン。紺の板に、細い金の線を内側に引く */
-  --btn-main: linear-gradient(180deg, #4a6aae, #2b3a67);
+  --gold: #c99a3e;
+  --gold-soft: #f0cf7e;
+  --coral: #d9534f;
+  --hp: linear-gradient(90deg, #4fcf8e, #8ff0c4);
+  --mp: linear-gradient(90deg, #5b7fe8, #9ad1ff);
+  --food: linear-gradient(90deg, #e59a2f, #ffd27a);
+  /* 紙の上のふつうのボタン。生成りの板に細い線 */
+  --btn: linear-gradient(180deg, #fffaf1, #f1e6d1);
+  --btn-line: #cdb68c;
+  /* 石のざらつき（細かい点）。石のボタンと操作部の帯に重ねる */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.07 0 0 0 0 0.04 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* 石の板（決めるボタン） */
+  --stone: linear-gradient(180deg, #6e5a44, #4a3a2b);
+  --btn-main: var(--grain), var(--stone);
   /* 操作部の帯 */
-  --bar: linear-gradient(180deg, #2f3f6e, #1f2b52);
-  --bar-btn: rgba(255, 255, 255, 0.07);
-  --bar-line: rgba(255, 255, 255, 0.22);
-  --icon-bg: radial-gradient(circle at 40% 35%, #ffffff, #dbe7f5);
-  --shadow: 0 6px 20px rgba(43, 58, 103, 0.16);
+  --bar: var(--grain), linear-gradient(180deg, #4a3c2e, #2e241b);
+  --bronze: #a8803f;
+  --icon-bg: radial-gradient(circle at 40% 35%, #fffaf1, #eadbc0);
+  --shadow: 0 6px 20px rgba(61, 47, 34, 0.18);
   --font: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', -apple-system, sans-serif;
   --serif: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
 }
@@ -75,7 +74,7 @@ button {
   background: var(--btn);
   color: var(--text);
   font-family: var(--serif);
-  box-shadow: 0 1px 2px rgba(43, 58, 103, 0.12);
+  box-shadow: 0 1px 2px rgba(61, 47, 34, 0.12);
 }
 .sheet-row button:active,
 .sheet-wide:active,
@@ -95,8 +94,8 @@ button {
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   /* 水彩がにじんだような淡い色を、紙の上に重ねる */
   background:
-    radial-gradient(60% 30% at 10% 8%, rgba(124, 200, 255, 0.22), transparent 70%),
-    radial-gradient(50% 25% at 95% 30%, rgba(185, 180, 255, 0.2), transparent 70%),
+    radial-gradient(60% 30% at 10% 8%, rgba(240, 190, 110, 0.18), transparent 70%),
+    radial-gradient(50% 25% at 95% 30%, rgba(200, 160, 120, 0.16), transparent 70%),
     var(--paper);
 }
 
@@ -108,7 +107,7 @@ button {
   font-size: 13px;
   background: rgba(255, 255, 255, 0.72);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 2px 10px rgba(43, 58, 103, 0.08);
+  box-shadow: 0 2px 10px rgba(61, 47, 34, 0.08);
 }
 .status-row {
   display: flex;
@@ -117,20 +116,26 @@ button {
   margin-bottom: 4px;
   font-weight: bold;
 }
-/* 階とレベル。細い線で囲んだ札 */
-#floor,
-#level {
+/* 階の札 */
+#floor {
   padding: 0 10px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--gold);
   border-radius: 4px;
   font-family: var(--serif);
   font-size: 13px;
   line-height: 20px;
   background: var(--card);
+  color: #7a5414;
 }
-#floor {
-  border-color: var(--gold);
-  color: #8a6418;
+/* 主人公の顔と、その横のゲージ */
+.hero {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.hero-bars {
+  min-width: 0;
 }
 /* 状態異常と魔法の残りターン */
 #effects {
@@ -164,7 +169,7 @@ button {
   background: var(--paper-2);
   border-radius: 999px;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(43, 58, 103, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(61, 47, 34, 0.08);
 }
 .gauge i {
   display: block;
@@ -191,43 +196,124 @@ button {
 .gauge.mp i { background: var(--mp); }
 .gauge.food i { background: var(--food); }
 
-/* 仲間の枠。空いている枠は点線、召喚中はミントの線 */
+/* 丸い顔の枠。金の縁で囲み、左下にレベルの札を付ける */
+.face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: var(--icon-bg);
+  box-shadow: 0 0 0 2px #fffaf1, 0 2px 6px rgba(61, 47, 34, 0.3);
+  flex: none;
+}
+.face img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.face-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+.face .lv {
+  position: absolute;
+  left: -6px;
+  bottom: -5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-soft);
+  background: var(--stone);
+  color: #fbe7b0;
+  font-family: var(--serif);
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.face .sick {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  font-size: 14px;
+}
+.face.empty {
+  border: 2px dashed var(--line-strong);
+  box-shadow: none;
+  background: rgba(255, 250, 241, 0.6);
+  color: var(--muted);
+  font-size: 22px;
+}
+
+/* 仲間の枠。顔と、その横に名前（または指示）とHPの棒 */
 #allies {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   width: 100%;
-  padding: 0 12px;
+  padding: 0 10px;
 }
 .ally-slot {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  height: 36px;
-  padding: 0 4px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.55);
-  font-size: 13px;
+  gap: 6px;
+  height: 58px;
+  padding: 0 6px 0 4px;
+  border: none;
+  background: none;
   font-family: var(--serif);
-  color: var(--muted);
-}
-.ally-slot.filled {
-  color: var(--text);
-  font-family: var(--font);
   font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  min-width: 0;
+}
+.ally-slot .face {
+  width: 44px;
+  height: 44px;
+}
+.ally-slot.filled .face {
+  border-color: var(--mint);
+  box-shadow: 0 0 0 2px #fffaf1, 0 0 8px rgba(63, 191, 138, 0.55);
+}
+.slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.slot-name {
+  font-size: 11px;
   font-weight: bold;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
-  border: 1px solid var(--mint);
-  background: var(--card);
-  box-shadow: inset 0 0 0 2px rgba(63, 191, 138, 0.12);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
 }
-.ally-slot .slot-art {
-  width: 28px;
-  height: 28px;
-  flex: none;
+.ally-slot:not(.filled) .slot-name {
+  color: var(--muted);
+  font-family: var(--serif);
+}
+.slot-hp {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(61, 47, 34, 0.12);
+}
+.slot-hp i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--hp);
+}
+.slot-hp.low i {
+  background: linear-gradient(90deg, #d9534f, #f08a6a);
 }
 
 /* 仲間の枠とマップ。マップの大きさは main.ts で決める */
@@ -261,7 +347,7 @@ button {
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(43, 58, 103, 0.08);
+  box-shadow: 0 2px 8px rgba(61, 47, 34, 0.08);
 }
 #log p {
   margin: 0;
@@ -277,7 +363,7 @@ button {
   display: flex;
   justify-content: center;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
-  background: rgba(36, 52, 94, 0.35);
+  background: rgba(61, 47, 34, 0.35);
 }
 #log-history[hidden] {
   display: none;
@@ -338,7 +424,7 @@ button {
   align-items: flex-end;
   justify-content: center;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
-  background: rgba(36, 52, 94, 0.3);
+  background: rgba(61, 47, 34, 0.3);
 }
 #sheet[hidden] {
   display: none;
@@ -375,7 +461,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--card);
-  box-shadow: 0 1px 3px rgba(43, 58, 103, 0.06);
+  box-shadow: 0 1px 3px rgba(61, 47, 34, 0.06);
 }
 .sheet-row.dim {
   opacity: 0.45;
@@ -429,7 +515,8 @@ button {
   border-color: var(--navy);
   background: var(--btn-main);
   color: #fff;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12), 0 1px 3px rgba(43, 58, 103, 0.25);
+  box-shadow: inset 0 0 0 2px rgba(240, 207, 126, 0.35), 0 1px 3px rgba(61, 47, 34, 0.3);
+  color: #fbe7b0;
 }
 .sheet-row button:disabled,
 .sheet-wide:disabled {
@@ -464,16 +551,16 @@ button {
 }
 /* まとめて動かすために選んだ道具 */
 .sheet-row.chosen {
-  border-color: var(--sky);
-  background: #eef7ff;
-  box-shadow: inset 3px 0 0 #4a9be0;
+  border-color: var(--gold);
+  background: #fff3d8;
+  box-shadow: inset 3px 0 0 var(--gold);
 }
 .sheet-row.chosen button {
-  background: linear-gradient(180deg, #6bbcf5, #3d8fd6);
-  border-color: #3d8fd6;
+  background: linear-gradient(180deg, #e2b85a, #b8862f);
+  border-color: #9a6f25;
 }
 
-/* 操作部。紺の帯の上に、細い線のボタンを並べる。画面の幅に合わせて大きくする */
+/* 操作部。茶色の石の帯の上に、金の縁の石のボタンを並べる。画面の幅に合わせて大きくする */
 #controls {
   --pad-cell: clamp(52px, 15.5vw, 70px);
   display: flex;
@@ -481,14 +568,14 @@ button {
   align-items: stretch;
   gap: 10px;
   margin-top: 8px;
-  padding: 10px 12px 6px;
+  padding: 12px 12px 6px;
   background: var(--bar);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 -4px 16px rgba(43, 58, 103, 0.18);
+  border-top: 2px solid var(--bronze);
+  box-shadow: inset 0 2px 0 rgba(255, 220, 150, 0.18), 0 -4px 16px rgba(61, 47, 34, 0.25);
   /* 帯は画面の下の端まで塗る */
   margin-bottom: calc(-1 * env(safe-area-inset-bottom));
   padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
-  color: #eef4ff;
+  color: #f3dfae;
 }
 /* 設定でパッドを右にしたとき */
 #controls.pad-right {
@@ -500,34 +587,59 @@ button {
   grid-template-rows: repeat(3, var(--pad-cell));
   gap: 5px;
 }
+/* 石のボタン。外側に金の縁、内側に暗い溝、上の端に光。四隅に金の鋲を打つ */
 #pad button,
 #buttons button {
-  border: 1px solid var(--bar-line);
+  border: 2px solid var(--bronze);
   border-radius: 8px;
-  background: var(--bar-btn);
-  color: #eef4ff;
+  background:
+    radial-gradient(circle at 7px 7px, #e8c47a 1.6px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 7px) 7px, #e8c47a 1.6px, transparent 2.6px),
+    radial-gradient(circle at 7px calc(100% - 7px), #e8c47a 1.6px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #e8c47a 1.6px, transparent 2.6px),
+    radial-gradient(120% 90% at 30% 20%, rgba(255, 235, 190, 0.14), transparent 60%),
+    var(--grain),
+    linear-gradient(180deg, #5e4c3a, #3a2e23);
+  box-shadow:
+    inset 0 0 0 2px #241b13,
+    inset 0 3px 0 2px rgba(255, 225, 170, 0.12),
+    0 3px 0 #1b140e,
+    0 4px 8px rgba(0, 0, 0, 0.35);
+  color: #f6e3b0;
+  text-shadow: 0 1px 0 #1b140e, 0 0 6px rgba(255, 200, 110, 0.25);
 }
 #pad button {
   font-size: 22px;
 }
-/* ななめと足踏みは丸くして、上下左右と見分けやすくする */
+/* ななめと足踏みは丸い石にして、上下左右と見分けやすくする。丸い石に鋲は打たない */
+#pad button[data-dir='7'],
+#pad button[data-dir='1'],
+#pad button[data-dir='5'],
+#pad button[data-dir='3'],
+#pad button.center {
+  border-radius: 50%;
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(255, 235, 190, 0.14), transparent 60%),
+    var(--grain),
+    linear-gradient(180deg, #5e4c3a, #3a2e23);
+}
 #pad button[data-dir='7'],
 #pad button[data-dir='1'],
 #pad button[data-dir='5'],
 #pad button[data-dir='3'] {
-  font-size: 18px;
-  border-radius: 50%;
-  border-color: rgba(255, 255, 255, 0.14);
+  font-size: 19px;
 }
 #pad button.center {
-  font-size: 12px;
-  color: rgba(238, 244, 255, 0.6);
-  border-radius: 50%;
+  font-size: 13px;
 }
 #pad button.pressed,
 #buttons button.pressed {
-  background: rgba(124, 200, 255, 0.28);
-  border-color: var(--sky);
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 2px #241b13,
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    0 1px 0 #1b140e;
+  filter: brightness(1.15);
 }
 /* パッドと同じ高さに3段で並べる */
 #buttons {
@@ -541,24 +653,26 @@ button {
 #buttons button {
   font-family: var(--serif);
   font-size: 15px;
+  font-weight: bold;
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
 #buttons .wide {
   grid-column: span 2;
 }
-/* ［攻撃］は金の線で囲んだ札にする */
+/* ［攻撃］は金の二重の縁で囲み、ほのかに光らせる */
 #buttons #btn-attack {
-  border: 1px solid var(--gold-soft);
-  background: linear-gradient(180deg, #4763a8, #2b3a72);
-  box-shadow: inset 0 0 0 3px #2f3f78, inset 0 0 0 4px rgba(243, 217, 143, 0.55), 0 2px 8px rgba(0, 0, 0, 0.25);
-  color: #fbe7ad;
-  font-size: 18px;
-  font-weight: bold;
+  border-color: #e0b04a;
+  box-shadow:
+    inset 0 0 0 3px #241b13,
+    inset 0 0 0 4px rgba(240, 207, 126, 0.7),
+    inset 0 0 18px rgba(255, 190, 80, 0.25),
+    0 3px 0 #1b140e,
+    0 0 12px rgba(255, 190, 80, 0.35);
+  color: #ffd98a;
+  font-size: 20px;
   letter-spacing: 0.3em;
-}
-#buttons #btn-attack.pressed {
-  background: linear-gradient(180deg, #5a78c0, #344685);
+  text-shadow: 0 1px 0 #1b140e, 0 0 10px rgba(255, 200, 100, 0.6);
 }
 
 /* ［攻撃］の長押しで出す、登録した道具の扇 */
@@ -611,7 +725,7 @@ button {
   justify-content: center;
   gap: 10px;
   background:
-    radial-gradient(50% 30% at 50% 50%, rgba(124, 200, 255, 0.18), transparent 70%),
+    radial-gradient(50% 30% at 50% 50%, rgba(240, 190, 110, 0.2), transparent 70%),
     var(--paper);
   animation: floor-title 1.6s ease forwards;
 }
@@ -656,8 +770,8 @@ button {
   flex-direction: column;
   padding: calc(env(safe-area-inset-top) + 40px) 12px calc(env(safe-area-inset-bottom) + 12px);
   background:
-    radial-gradient(60% 30% at 10% 5%, rgba(124, 200, 255, 0.25), transparent 70%),
-    radial-gradient(50% 30% at 95% 40%, rgba(185, 180, 255, 0.22), transparent 70%),
+    radial-gradient(60% 30% at 10% 5%, rgba(240, 190, 110, 0.22), transparent 70%),
+    radial-gradient(50% 30% at 95% 40%, rgba(200, 160, 120, 0.18), transparent 70%),
     var(--paper);
 }
 #base[hidden] {
@@ -752,7 +866,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 6px;
   background:
-    radial-gradient(circle at 50% 45%, rgba(124, 200, 255, 0.3), transparent 65%),
+    radial-gradient(circle at 50% 45%, rgba(240, 200, 130, 0.35), transparent 65%),
     var(--card);
   box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5px var(--line);
 }
@@ -795,7 +909,7 @@ button {
   cursor: pointer;
 }
 .sheet-row.tappable:active {
-  background: #eef5fd;
+  background: #f6ead2;
 }
 
 /* 出発のボタン。紺の板に金の線 */
@@ -804,8 +918,8 @@ button {
   border: 1px solid var(--navy);
   border-radius: 6px;
   background: var(--btn-main);
-  box-shadow: inset 0 0 0 3px #2f3f70, inset 0 0 0 4px rgba(243, 217, 143, 0.6), var(--shadow);
-  color: #fff;
+  box-shadow: inset 0 0 0 3px #3d3024, inset 0 0 0 4px rgba(240, 207, 126, 0.7), var(--shadow);
+  color: #fbe7b0;
   font-family: var(--serif);
   font-size: 18px;
   font-weight: bold;
@@ -826,7 +940,7 @@ button {
   align-items: flex-end;
   justify-content: center;
   padding: 0 16px calc(env(safe-area-inset-bottom) + 240px);
-  background: rgba(36, 52, 94, 0.3);
+  background: rgba(61, 47, 34, 0.3);
 }
 #dialog[hidden] {
   display: none;

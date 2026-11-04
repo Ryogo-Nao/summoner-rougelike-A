@@ -16,25 +16,39 @@ export interface Playback {
 /** 踏み込む深さ（マスの何割か） */
 const LUNGE_DEPTH = 0.4;
 
+/** 1マス歩くのにかける時間（ミリ秒）と、歩くときに跳ねる高さ（マスの何割か） */
+const STEP_MS = 120;
+const HOP = 0.12;
+/** 立っているときの息づかい（伸び縮みの大きさと、1回の長さ） */
+const BREATH = 0.035;
+const BREATH_MS = 1400;
+
+/** 歩いている途中の様子。from から to へ start から STEP_MS かけて動く */
+interface Step {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  start: number;
+}
+
 /** 画面に映すマス数（要件 10.1） */
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
 
-/** 色は style.css の色の決まりと合わせる（淡い石の床と、青みがかった石の壁） */
+/** 色は style.css の色の決まりと合わせる（砂色の石の床と、茶色の石の壁） */
 const COLORS = {
   /** 壁。上のふちを明るく、下のふちを暗くして厚みを出す */
-  wall: '#8796bf',
-  wallTop: '#b4c0e0',
-  wallBottom: '#6b7aa6',
-  floor: '#dfe8f3',
+  wall: '#7d6547',
+  wallTop: '#a88d66',
+  wallBottom: '#57442f',
+  floor: '#dccdae',
   /** 床のマスの境目 */
-  floorLine: '#c9d6e7',
+  floorLine: '#c8b693',
   /** まだ見ていないところ */
-  outside: '#b9c5dc',
+  outside: '#9c8a6e',
   /** 見たことはあるが今は見えていないマスに重ねる色 */
-  memory: 'rgba(80, 98, 148, 0.3)',
+  memory: 'rgba(70, 50, 30, 0.3)',
   /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
-  miniBg: 'rgba(36, 52, 94, 0.7)',
+  miniBg: 'rgba(46, 36, 27, 0.72)',
   miniBorder: 'rgba(255, 255, 255, 0.25)',
   miniFloor: '#6f9dff',
   miniStairs: '#ffd84a',
@@ -47,10 +61,10 @@ const COLORS = {
   allyShadow: 'rgba(40, 200, 120, 0.6)',
   enemyShadow: 'rgba(235, 70, 95, 0.6)',
   miniItem: '#5ff0ff',
-  hpBarBg: 'rgba(43, 58, 103, 0.55)',
-  hpBarEdge: '#2b3a67',
+  hpBarBg: 'rgba(61, 47, 34, 0.55)',
+  hpBarEdge: '#3d2f22',
   /** 拡大したミニマップの後ろに敷く色 */
-  expandedBg: 'rgba(36, 52, 94, 0.85)',
+  expandedBg: 'rgba(46, 36, 27, 0.85)',
 };
 
 const POPUP_COLORS: Record<Popup['kind'], string> = {
@@ -81,6 +95,38 @@ export class Renderer {
   /** true のとき、ミニマップを画面いっぱいに広げて表示する */
   minimapExpanded = false;
   private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  /** 歩いている途中のもの（ActorView.key ごと） */
+  private steps = new Map<string, Step>();
+  /** 絵を左右反転しているか。上下を向いたときは前の向きのまま */
+  private flipped = new Map<string, boolean>();
+
+  /** 歩いている途中のものがあるか。あれば描き続ける */
+  moving(now = performance.now()): boolean {
+    for (const s of this.steps.values()) if (now - s.start < STEP_MS) return true;
+    return false;
+  }
+
+  /** key のものが今どこに見えているか（歩いている途中なら、マスの間） */
+  private stepAt(key: string, pos: { x: number; y: number }, now: number, snap: boolean): { x: number; y: number; t: number } {
+    const s = this.steps.get(key);
+    const moved = !s || s.to.x !== pos.x || s.to.y !== pos.y;
+    if (moved) {
+      const from = s && !snap ? this.lerpStep(s, now) : pos;
+      // 階段やワープなど、2マスより遠くへ動いたときは歩かせない
+      const far = Math.abs(from.x - pos.x) > 2 || Math.abs(from.y - pos.y) > 2;
+      this.steps.set(key, { from: far ? { ...pos } : from, to: { ...pos }, start: now });
+    }
+    const step = this.steps.get(key)!;
+    const t = Math.min(1, (now - step.start) / STEP_MS);
+    const at = this.lerpStep(step, now);
+    return { ...at, t: step.from.x === step.to.x && step.from.y === step.to.y ? 1 : t };
+  }
+
+  private lerpStep(s: Step, now: number): { x: number; y: number } {
+    const t = Math.min(1, (now - s.start) / STEP_MS);
+    const e = 1 - (1 - t) * (1 - t);
+    return { x: s.from.x + (s.to.x - s.from.x) * e, y: s.from.y + (s.to.y - s.from.y) * e };
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -108,11 +154,20 @@ export class Renderer {
   draw(state: GameState, play?: Playback): void {
     const { ctx, tileSize: ts, viewW, viewH } = this;
     const { map, player } = state;
+    const now = performance.now();
+    const actors = play ? play.scene.actors : state.actorViews();
+    // 攻撃の場面では、マスの上にぴったり置く。ふだんは前のマスから歩いてくる
+    const shown = new Map(actors.map((a) => [a.key, this.stepAt(a.key, a.pos, now, play !== undefined)]));
+    for (const key of [...this.steps.keys()]) if (!shown.has(key)) this.steps.delete(key);
+    // 画面は、見えている主人公の位置を真ん中にする（歩くと画面もなめらかに動く）
+    const cam = shown.get('player') ?? { ...player.pos, t: 1 };
     // 主人公のマスの左上。横は中央の列、縦は画面の真ん中
     const px0 = HALF * ts;
     const py0 = Math.floor(viewH / 2 - ts / 2);
-    const rowsAbove = Math.ceil(py0 / ts);
-    const rowsBelow = Math.ceil((viewH - py0 - ts) / ts);
+    const rowsAbove = Math.ceil(py0 / ts) + 1;
+    const rowsBelow = Math.ceil((viewH - py0 - ts) / ts) + 1;
+    const baseX = Math.round(cam.x);
+    const baseY = Math.round(cam.y);
 
     ctx.fillStyle = COLORS.outside;
     ctx.fillRect(0, 0, viewW, viewH);
@@ -122,12 +177,12 @@ export class Renderer {
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
     for (let dy = -rowsAbove; dy <= rowsBelow; dy++) {
-      for (let dx = -HALF; dx <= HALF; dx++) {
-        const mx = player.pos.x + dx;
-        const my = player.pos.y + dy;
+      for (let dx = -HALF - 1; dx <= HALF + 1; dx++) {
+        const mx = baseX + dx;
+        const my = baseY + dy;
         if (!state.isExplored(mx, my)) continue;
-        const sx = px0 + dx * ts;
-        const sy = py0 + dy * ts;
+        const sx = Math.round(px0 + (mx - cam.x) * ts);
+        const sy = Math.round(py0 + (my - cam.y) * ts);
         const tile = map.get(mx, my);
         if (tile === Tile.Wall) {
           const edge = Math.max(2, Math.round(ts * 0.08));
@@ -154,8 +209,8 @@ export class Renderer {
     }
 
     const toScreen = (pos: { x: number; y: number }) => ({
-      x: px0 + (pos.x - player.pos.x) * ts,
-      y: py0 + (pos.y - player.pos.y) * ts,
+      x: px0 + (pos.x - cam.x) * ts,
+      y: py0 + (pos.y - cam.y) * ts,
     });
 
     // 落ちているアイテムは、見たことのあるマスなら出す
@@ -168,14 +223,16 @@ export class Renderer {
     }
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
-    const actors = play ? play.scene.actors : state.actorViews();
     const popups = play ? (play.phase === 'hit' ? play.scene.popups : []) : state.popups;
     // 攻撃を受けたマス。点滅させる
     const hurt = new Set(
       popups.filter((p) => p.kind === 'damage' || p.kind === 'hurt').map((p) => `${p.pos.x},${p.pos.y}`),
     );
     actors.forEach((actor, i) => {
-      let { x: sx, y: sy } = toScreen(actor.pos);
+      const at = shown.get(actor.key)!;
+      let { x: sx, y: sy } = toScreen(at);
+      // 歩いている間は小さく跳ねる
+      sy -= Math.sin(at.t * Math.PI) * HOP * ts;
       if (play?.phase === 'lunge' && i === play.scene.attacker) {
         // 相手の方へ踏み込んで、元の位置に戻る
         const depth = Math.sin(play.t * Math.PI) * LUNGE_DEPTH * ts;
@@ -190,7 +247,7 @@ export class Renderer {
         if (Math.floor(play.t * 6) % 2 === 1) return;
         sx += Math.sin(play.t * Math.PI * 8) * ts * 0.06;
       }
-      this.drawActor(actor, sx, sy);
+      this.drawActor(actor, sx, sy, now);
     });
 
     this.drawPopups(popups, toScreen, play?.phase === 'hit' ? play.t : 1);
@@ -226,8 +283,16 @@ export class Renderer {
     return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
   }
 
-  private drawActor(actor: ActorView, sx: number, sy: number): void {
+  private drawActor(actor: ActorView, sx: number, sy: number, now: number): void {
     const { ctx, tileSize: ts } = this;
+    // 絵は左下を向いている。右を向いたら反転する。上下を向いたときは前の向きのまま
+    if (actor.facing >= 1 && actor.facing <= 3) this.flipped.set(actor.key, true);
+    else if (actor.facing >= 5) this.flipped.set(actor.key, false);
+    const flip = this.flipped.get(actor.key) ?? false;
+    // 立っている間は、息をするように少し伸び縮みする。ひとりずつ少しずらす
+    let phase = 0;
+    for (const c of actor.key) phase += c.charCodeAt(0);
+    const breath = Math.sin((now / BREATH_MS) * Math.PI * 2 + phase) * BREATH;
     // 足もとの影で、味方と敵を見分けやすくする。アイテムには付けない
     ctx.save();
     ctx.fillStyle = actor.enemy ? COLORS.enemyShadow : COLORS.allyShadow;
@@ -237,11 +302,18 @@ export class Renderer {
     ctx.fill();
     ctx.restore();
     const img = artImage(actor.art);
+    // 足もと（影の真ん中あたり）を軸に、伸び縮みと反転をする
+    const footX = sx + ts / 2;
+    const footY = sy + ts * 0.8;
+    ctx.save();
+    ctx.translate(footX, footY);
+    ctx.scale((flip ? -1 : 1) * (1 - breath / 2), 1 + breath);
     if (img) {
-      // 絵は足もとを影の真ん中あたりにそろえ、マスより少し大きく描く
+      // 絵はマスより少し大きく描く
       const size = ts * 1.08;
-      ctx.drawImage(img, sx + (ts - size) / 2, sy + ts * 0.8 - size, size, size);
-    } else ctx.fillText(actor.emoji, sx + ts / 2, sy + ts / 2 + 1);
+      ctx.drawImage(img, -size / 2, -size, size, size);
+    } else ctx.fillText(actor.emoji, 0, -ts * 0.3 + 1);
+    ctx.restore();
     if (actor.isPartner && !img) {
       ctx.font = `${Math.floor(ts * 0.36)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.fillText('⚡', sx + ts * 0.2, sy + ts * 0.2);

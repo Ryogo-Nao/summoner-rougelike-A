@@ -119,6 +119,8 @@ export interface ActorView {
   emoji: string;
   /** 絵の id（主人公は player、魔物は種類の id）。絵がなければ emoji で出す */
   art: string;
+  /** 同じものを見分ける名前。歩く動きをつなげるのに使う */
+  key: string;
   pos: Pos;
   facing: Dir;
   /** 足もとに出すHPの棒。null なら出さない */
@@ -268,6 +270,18 @@ export function cardFromData(data: CardData): Card {
   }
   refreshStats(card);
   return card;
+}
+
+/** 魔物などに付ける、見分けるための番号。保存はしない */
+const objectKeys = new WeakMap<object, number>();
+let nextObjectKey = 1;
+function objectKey(o: object): number {
+  let k = objectKeys.get(o);
+  if (k === undefined) {
+    k = nextObjectKey++;
+    objectKeys.set(o, k);
+  }
+  return k;
 }
 
 /** ログに出す、まとめて動かした道具の名前。4つ以上は「〇〇など4個」にする */
@@ -1637,6 +1651,7 @@ export class GameState {
       views.push({
         emoji: m.species.emoji,
         art: m.species.id,
+        key: `m${objectKey(m)}`,
         pos: { ...m.pos },
         facing: m.facing,
         hp: m.hp < m.maxHp ? { ratio: m.hp / m.maxHp, ally: false } : null,
@@ -1651,6 +1666,7 @@ export class GameState {
       views.push({
         emoji: a.card.species.emoji,
         art: a.card.species.id,
+        key: `a${a.card.id}`,
         pos: { ...a.pos },
         facing: a.facing,
         hp: { ratio: a.card.hp / a.card.maxHp, ally: true },
@@ -1660,7 +1676,7 @@ export class GameState {
         sick: sickMark(a.ailments),
       });
     }
-    views.push({ emoji: '🧙', art: 'player', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, enemy: false, sick: sickMark(p.ailments) });
+    views.push({ emoji: '🧙', art: 'player', key: 'player', pos: { ...p.pos }, facing: p.facing, hp: null, isPlayer: true, isPartner: false, enemy: false, sick: sickMark(p.ailments) });
     return views;
   }
 
