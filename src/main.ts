@@ -92,7 +92,11 @@ function endRun(): void {
       : '\n失ったものはない'
     : '';
   const downgraded = losses.downgraded > 0 ? `\n聖なる袋${losses.downgraded}つがふつうの袋に戻った` : '';
-  ending = title + lost + downgraded + opened;
+  const runes =
+    losses.runesKept + losses.runesLost > 0
+      ? `\n持ち帰ったルーン：${losses.runesKept}${losses.runesLost > 0 ? `（${losses.runesLost}を失った）` : ''}`
+      : '';
+  ending = title + lost + runes + downgraded + opened;
   showEnding();
 }
 
@@ -133,6 +137,7 @@ function updateHud(moment?: HudMoment): void {
   document.getElementById('floor')!.textContent = `B${state.floor}F`;
   document.getElementById('level')!.textContent = `Lv${p.level}`;
   document.getElementById('turn')!.textContent = `${state.turn}T`;
+  document.getElementById('runes')!.textContent = `💠${state.runes}`;
   // かかっている状態異常と魔法を、残りターンつきで出す
   const effects = [
     p.ailments.confused > 0 ? `🌀${p.ailments.confused}` : '',

@@ -47,7 +47,8 @@ export type ItemKind =
   | 'ironSword'
   | 'woodShield'
   | 'leatherShield'
-  | 'ironShield';
+  | 'ironShield'
+  | 'rune';
 
 /** 印の効き目（requirements.md 6章）。どれも1回使うとなくなる */
 export type SealKind = 'revive' | 'summon' | 'escape' | 'reveal' | 'poison' | 'confuse' | 'pin' | 'sleep' | 'doom';
@@ -82,47 +83,56 @@ export interface ItemDef {
   miss?: number;
   /** 袋。中に道具をしまえる。入る数は1つずつ違う（この幅の中で決まる） */
   pouch?: { capacity: [number, number]; holy?: boolean };
+  /**
+   * 値打ち（ルーン）。商店の買い値で、売り値はこの3分の1（balance.md 9章）。
+   * 矢は1本あたり。0 なら売り買いしない
+   */
+  value: number;
+  /** ルーン（お金）。拾うとバッグに入れずに、持っているルーンが増える */
+  rune?: boolean;
 }
 
 /** 並べる順は、種類順に並べたときの順でもある */
 export const ITEMS: Record<ItemKind, ItemDef> = {
-  bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50 },
-  bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100 },
-  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: 'HP+25〜35\n投げると当たった相手を回復', heal: [25, 35] },
-  bigHerb: { kana: 'じょうやくそう', name: '上薬草', emoji: '🍀', desc: 'HP+80〜120\n投げると当たった相手を回復', heal: [80, 120] },
-  antidote: { kana: 'どくけしそう', name: '毒消し草', emoji: '🥬', desc: '毒を治す\n投げると当たった相手の毒を治す', cure: 'poison' },
-  kitsuke: { kana: 'きつけそう', name: 'キツケソウ', emoji: '🌼', desc: '混乱を治す\n投げると当たった相手の混乱を治す', cure: 'confusion' },
-  water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: 'MP+15', mp: 15 },
-  blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい' },
-  arrow: { kana: 'ふつうのや', name: 'ふつうの矢', emoji: '🪶', desc: '向いている方向に撃つ\n通常攻撃の1.1倍のダメージ', arrow: 1.1 },
-  ironArrow: { kana: 'てつのや', name: '鉄の矢', emoji: '🏹', desc: '向いている方向に撃つ\n通常攻撃の1.3倍のダメージ', arrow: 1.3 },
-  sealRevive: { kana: 'ふっかつのしるし', name: '復活の印', emoji: '📜', desc: '瀕死の仲間を1人\nHP半分で戻す', seal: 'revive' },
-  sealSummon: { kana: 'しょうかんのしるし', name: '召喚の印', emoji: '📜', desc: '仲間を1人\nMPを使わずに召喚する', seal: 'summon' },
-  sealEscape: { kana: 'てんそうのしるし', name: '転送の印', emoji: '📜', desc: 'ダンジョンから脱出する\n道具も仲間も失わない', seal: 'escape' },
-  sealReveal: { kana: 'せんりのしるし', name: '千里の印', emoji: '📜', desc: 'この階の地図と\n階段・道具・敵の場所がわかる', seal: 'reveal' },
-  sealPoison: { kana: 'どくのしるし', name: '毒の印', emoji: '📜', desc: '部屋の敵をすべて毒にする\n1体ごとに10％で外れる', seal: 'poison', miss: 0.1 },
-  sealConfuse: { kana: 'こんらんのしるし', name: '混乱の印', emoji: '📜', desc: '部屋の敵をすべて混乱させる\n1体ごとに10％で外れる', seal: 'confuse', miss: 0.1 },
-  sealPin: { kana: 'こうちょくのしるし', name: '硬直の印', emoji: '📜', desc: '部屋の敵をすべてはりつける\n1体ごとに10％で外れる', seal: 'pin', miss: 0.1 },
-  sealSleep: { kana: 'こんすいのしるし', name: '昏睡の印', emoji: '📜', desc: '部屋の敵をすべて眠らせる\n1体ごとに10％で外れる', seal: 'sleep', miss: 0.1 },
-  sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3 },
-  tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power' },
-  tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard' },
-  pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる\nバッグでは1つと数える', pouch: { capacity: [2, 4] } },
-  finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる\nバッグでは1つと数える', pouch: { capacity: [5, 7] } },
+  bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50, value: 30 },
+  bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100, value: 70 },
+  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: 'HP+25〜35\n投げると当たった相手を回復', heal: [25, 35], value: 20 },
+  bigHerb: { kana: 'じょうやくそう', name: '上薬草', emoji: '🍀', desc: 'HP+80〜120\n投げると当たった相手を回復', heal: [80, 120], value: 80 },
+  antidote: { kana: 'どくけしそう', name: '毒消し草', emoji: '🥬', desc: '毒を治す\n投げると当たった相手の毒を治す', cure: 'poison', value: 20 },
+  kitsuke: { kana: 'きつけそう', name: 'キツケソウ', emoji: '🌼', desc: '混乱を治す\n投げると当たった相手の混乱を治す', cure: 'confusion', value: 20 },
+  water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: 'MP+15', mp: 15, value: 40 },
+  blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい', value: 30 },
+  arrow: { kana: 'ふつうのや', name: 'ふつうの矢', emoji: '🪶', desc: '向いている方向に撃つ\n通常攻撃の1.1倍のダメージ', arrow: 1.1, value: 2 },
+  ironArrow: { kana: 'てつのや', name: '鉄の矢', emoji: '🏹', desc: '向いている方向に撃つ\n通常攻撃の1.3倍のダメージ', arrow: 1.3, value: 4 },
+  sealRevive: { kana: 'ふっかつのしるし', name: '復活の印', emoji: '📜', desc: '瀕死の仲間を1人\nHP半分で戻す', seal: 'revive', value: 300 },
+  sealSummon: { kana: 'しょうかんのしるし', name: '召喚の印', emoji: '📜', desc: '仲間を1人\nMPを使わずに召喚する', seal: 'summon', value: 150 },
+  sealEscape: { kana: 'てんそうのしるし', name: '転送の印', emoji: '📜', desc: 'ダンジョンから脱出する\n道具も仲間も失わない', seal: 'escape', value: 120 },
+  sealReveal: { kana: 'せんりのしるし', name: '千里の印', emoji: '📜', desc: 'この階の地図と\n階段・道具・敵の場所がわかる', seal: 'reveal', value: 100 },
+  sealPoison: { kana: 'どくのしるし', name: '毒の印', emoji: '📜', desc: '部屋の敵をすべて毒にする\n1体ごとに10％で外れる', seal: 'poison', miss: 0.1, value: 80 },
+  sealConfuse: { kana: 'こんらんのしるし', name: '混乱の印', emoji: '📜', desc: '部屋の敵をすべて混乱させる\n1体ごとに10％で外れる', seal: 'confuse', miss: 0.1, value: 80 },
+  sealPin: { kana: 'こうちょくのしるし', name: '硬直の印', emoji: '📜', desc: '部屋の敵をすべてはりつける\n1体ごとに10％で外れる', seal: 'pin', miss: 0.1, value: 80 },
+  sealSleep: { kana: 'こんすいのしるし', name: '昏睡の印', emoji: '📜', desc: '部屋の敵をすべて眠らせる\n1体ごとに10％で外れる', seal: 'sleep', miss: 0.1, value: 80 },
+  sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3, value: 250 },
+  tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
+  tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
+  pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる\nバッグでは1つと数える', pouch: { capacity: [2, 4] }, value: 100 },
+  finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる\nバッグでは1つと数える', pouch: { capacity: [5, 7] }, value: 300 },
   holyPouch: {
     kana: 'せいなるふくろ',
     name: '聖なる袋',
     emoji: '👛',
     desc: '道具を2〜3個しまえる\n力つきても中の道具は失わない\n力つきると30％でふつうの袋に戻る',
     pouch: { capacity: [2, 3], holy: true },
+    value: 600,
   },
-  pot: { kana: 'れんきんがま', name: '錬金釜', emoji: '⚱️', desc: '同じ名前の装備2つを合わせて\n強くする（大きいほうの＋に＋1）' },
-  club: { kana: 'こんぼう', name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2 },
-  bronzeSword: { kana: 'どうのけん', name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4 },
-  ironSword: { kana: 'てつのけん', name: '鉄の剣', emoji: '⚔️', desc: '攻撃力+7', slot: 'weapon', bonus: 7 },
-  woodShield: { kana: 'きのたて', name: '木の盾', emoji: '🪵', desc: '防御力+2', slot: 'shield', bonus: 2 },
-  leatherShield: { kana: 'かわのたて', name: '革の盾', emoji: '🛡️', desc: '防御力+4', slot: 'shield', bonus: 4 },
-  ironShield: { kana: 'てつのたて', name: '鉄の盾', emoji: '🔰', desc: '防御力+7', slot: 'shield', bonus: 7 },
+  pot: { kana: 'れんきんがま', name: '錬金釜', emoji: '⚱️', desc: '同じ名前の装備2つを合わせて\n強くする（大きいほうの＋に＋1）', value: 300 },
+  club: { kana: 'こんぼう', name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2, value: 50 },
+  bronzeSword: { kana: 'どうのけん', name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4, value: 150 },
+  ironSword: { kana: 'てつのけん', name: '鉄の剣', emoji: '⚔️', desc: '攻撃力+7', slot: 'weapon', bonus: 7, value: 400 },
+  woodShield: { kana: 'きのたて', name: '木の盾', emoji: '🪵', desc: '防御力+2', slot: 'shield', bonus: 2, value: 60 },
+  leatherShield: { kana: 'かわのたて', name: '革の盾', emoji: '🛡️', desc: '防御力+4', slot: 'shield', bonus: 4, value: 180 },
+  ironShield: { kana: 'てつのたて', name: '鉄の盾', emoji: '🔰', desc: '防御力+7', slot: 'shield', bonus: 7, value: 450 },
+  rune: { kana: 'るーん', name: 'ルーン', emoji: '💠', desc: '拾うと持っているルーンが増える', rune: true, value: 0 },
 };
 
 export interface Item {
@@ -135,6 +145,8 @@ export interface Item {
   /** 袋に入る数と、中の道具（袋だけ） */
   capacity?: number;
   contents?: Item[];
+  /** ルーンの額（ルーンだけ） */
+  runes?: number;
 }
 
 /** 床に落ちているアイテム */
@@ -145,6 +157,7 @@ export interface FloorItem {
 
 /** 画面とログに出す名前。＋と、矢の本数を付ける（例：鉄の剣+3、ふつうの矢（12本）） */
 export function itemName(item: Item): string {
+  if (ITEMS[item.kind].rune) return `${item.runes ?? 0}ルーン`;
   const plus = item.plus ? `+${item.plus}` : '';
   const count = item.count !== undefined ? `（${item.count}本）` : '';
   const pouch = item.contents ? `［${item.contents.length}/${item.capacity ?? 0}］` : '';
@@ -174,6 +187,27 @@ export function createItem(kind: ItemKind, count?: number): Item {
     item.contents = [];
   }
   return item;
+}
+
+/** ルーンの額の道具（床に落とすもの） */
+export function createRune(amount: number): Item {
+  return { id: nextItemId++, kind: 'rune', runes: amount };
+}
+
+/** 売り値の割合（買い値の3分の1） */
+export const SELL_RATE = 1 / 3;
+
+/** 商店の買い値。0 なら商店では売っていない */
+export const buyPrice = (kind: ItemKind) => ITEMS[kind].value;
+
+/**
+ * 売り値（balance.md 9章）。値打ちの3分の1。＋の付いた装備は＋1ごとに半分ずつ上がる。
+ * 矢は本数ぶん。売れないものは 0
+ */
+export function sellPrice(item: Item): number {
+  const def = ITEMS[item.kind];
+  const plus = 1 + (item.plus ?? 0) * 0.5;
+  return Math.floor(def.value * (item.count ?? 1) * plus * SELL_RATE);
 }
 
 /** 袋の中も含めた、すべての道具（保存データの番号を確かめるときなどに使う） */

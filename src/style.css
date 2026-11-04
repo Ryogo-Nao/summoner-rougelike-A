@@ -144,7 +144,7 @@ button {
   white-space: nowrap;
 }
 #turn {
-  margin-left: auto;
+  margin-left: 10px;
   color: var(--muted);
   font-weight: normal;
 }
@@ -778,6 +778,9 @@ button {
   display: none;
 }
 .base-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   margin-bottom: 10px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line-strong);
@@ -789,7 +792,7 @@ button {
 /* タブは細い線の札を並べ、選んでいるものを紺にする */
 #base-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 #base-tabs button {
@@ -841,6 +844,26 @@ button {
 .base-sort button,
 .sheet-sticky button {
   margin-top: 0;
+}
+/* 持っているルーン */
+.runes {
+  font-family: var(--serif);
+  font-weight: bold;
+  color: #7a5414;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.base-head .runes {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+#status .runes {
+  margin-left: auto;
+  font-size: 13px;
+}
+/* 商店の［買う］［売る］は2つ並べる */
+.shop-modes {
+  grid-template-columns: repeat(2, 1fr);
 }
 /* カードの並べ替え。4つ並べ、押したボタンには ↑↓ を付けて目立たせる */
 .sort-keys {

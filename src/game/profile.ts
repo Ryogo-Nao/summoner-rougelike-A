@@ -1,5 +1,6 @@
 import { HAND_LIMIT, IZUTSUCHI, createCard, isPartner, reserveCardIds, type Card } from './cards';
-import { BAG_LIMIT, ITEMS, START_ITEMS, allItems, createItem, noShortcuts, reserveItemIds, type Item, type Shortcuts } from './items';
+import { BAG_LIMIT, ITEMS, START_ITEMS, allItems, createItem, noShortcuts, reserveItemIds, type Item, type ItemKind, type Shortcuts } from './items';
+import { rollStock } from './shop';
 import {
   cardFromData,
   cardToData,
@@ -30,6 +31,10 @@ export interface Profile {
   cleared: string[];
   /** ［攻撃］の長押しで使う、登録した道具の種類 */
   shortcuts: Shortcuts;
+  /** 持っているルーン（お金） */
+  runes: number;
+  /** 商店の、入れ替わる品。ダンジョンから戻るたびに選び直す */
+  shopStock: ItemKind[];
 }
 
 /** ダンジョンの終わり方。踏破（いちばん下まで行った）・離脱（転送の印で出た）・失敗（力つきた） */
@@ -52,6 +57,8 @@ interface ProfileData {
   ranks?: SpellRanks;
   cleared?: string[];
   shortcuts?: Shortcuts;
+  runes?: number;
+  shopStock?: ItemKind[];
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -60,7 +67,18 @@ const RUN_KEY = 'summoner-run';
 /** 初めて遊ぶとき。イヅツチのカードと、最初の持ち物だけを持っている（balance.md 8章） */
 export function newProfile(): Profile {
   const partner = createCard(IZUTSUCHI, false);
-  return { cards: [partner], hand: [partner.id], bag: START_ITEMS.map(createItem), warehouse: [], learned: [], ranks: {}, cleared: [], shortcuts: noShortcuts() };
+  return {
+    cards: [partner],
+    hand: [partner.id],
+    bag: START_ITEMS.map(createItem),
+    warehouse: [],
+    learned: [],
+    ranks: {},
+    cleared: [],
+    shortcuts: noShortcuts(),
+    runes: 0,
+    shopStock: rollStock(),
+  };
 }
 
 export function loadProfile(): Profile {
@@ -68,7 +86,15 @@ export function loadProfile(): Profile {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return newProfile();
     const data = JSON.parse(raw) as ProfileData;
-    const profile: Profile = { ...data, cards: data.cards.map(cardFromData), ranks: data.ranks ?? {}, cleared: data.cleared ?? [], shortcuts: data.shortcuts ?? noShortcuts() };
+    const profile: Profile = {
+      ...data,
+      cards: data.cards.map(cardFromData),
+      ranks: data.ranks ?? {},
+      cleared: data.cleared ?? [],
+      shortcuts: data.shortcuts ?? noShortcuts(),
+      runes: data.runes ?? 0,
+      shopStock: data.shopStock ?? rollStock(),
+    };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));
     return profile;
@@ -120,11 +146,16 @@ export function clearRun(): void {
   }
 }
 
-/** ダンジョンから戻ったときに失ったもの。downgraded は、ふつうの袋に戻った聖なる袋の数 */
+/**
+ * ダンジョンから戻ったときに失ったもの。downgraded は、ふつうの袋に戻った聖なる袋の数。
+ * runesKept は持ち帰ったルーン、runesLost は力つきて失ったルーン
+ */
 export interface Losses {
   cards: Card[];
   items: Item[];
   downgraded: number;
+  runesKept: number;
+  runesLost: number;
 }
 
 /** 力つきたときに、聖なる袋がふつうの袋に戻る確率 */
@@ -138,7 +169,9 @@ const HOLY_DOWNGRADE = 0.3;
 export function returnToBase(profile: Profile, state: GameState): Losses {
   const brought = new Set(profile.hand);
   const runCards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])];
-  const losses: Losses = { cards: [], items: [], downgraded: 0 };
+  // 力つきたら、拾ったルーンの半分を失う
+  const runesLost = state.dead ? Math.ceil(state.runes / 2) : 0;
+  const losses: Losses = { cards: [], items: [], downgraded: 0, runesKept: state.runes - runesLost, runesLost };
   let bag = [...state.bag];
   if (state.dead) {
     losses.cards = runCards.filter((c) => c.obtainedHere && !isPartner(c));
@@ -169,6 +202,9 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.learned = [...state.learned];
   profile.ranks = { ...state.ranks };
   profile.shortcuts = [...state.shortcuts];
+  profile.runes += losses.runesKept;
+  // 戻るたびに、商店の品を入れ替える
+  profile.shopStock = rollStock();
   if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
   saveProfile(profile);
   clearRun();

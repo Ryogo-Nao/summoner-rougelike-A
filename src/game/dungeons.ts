@@ -1,4 +1,4 @@
-import { ARROW_DROP, ITEMS, createItem, type Item, type ItemKind } from './items';
+import { ARROW_DROP, ITEMS, createItem, createRune, type Item, type ItemKind } from './items';
 import type { Rng } from './rng';
 
 /** 落ちているアイテム1行ぶん。floors を省くと全階に出る（同じアイテムを階ごとに分けて書いてもよい） */
@@ -69,6 +69,11 @@ export interface Dungeon {
    */
   monsterHouse: { chance: number; fromFloor: number; monsters: [number, number]; items: [number, number] };
   theme: MapTheme;
+  /**
+   * 落ちているルーン（balance.md 9章）。1階に piles 個の山を置き、1つの額は amount の幅。
+   * 深い階ほど、1階ごとに perFloor の割合で増える
+   */
+  runes: { piles: [number, number]; amount: [number, number]; perFloor: number };
 }
 
 /** 最初のダンジョン（balance.md 6.2、4章） */
@@ -78,6 +83,7 @@ const FIRST: Dungeon = {
   desc: '全10階　魔物はLv1\n仲間と出会う、最初のダンジョン',
   floors: 10,
   allyStairsHeal: 0.25,
+  runes: { piles: [1, 2], amount: [5, 15], perFloor: 0.15 },
   // 茶色の岩の洞窟。たいまつが多め
   theme: {
     floor: '#5b4733',
@@ -154,6 +160,7 @@ const FOREST: Dungeon = {
   requires: 'first',
   floors: 15,
   allyStairsHeal: 0.15,
+  runes: { piles: [1, 3], amount: [10, 25], perFloor: 0.15 },
   // 苔むした緑の石の森。たいまつは少なく、明かりは白っぽい
   theme: {
     floor: '#4a5434',
@@ -259,6 +266,12 @@ export function randomItem(dungeon: Dungeon, floor: number, rng: Rng): Item {
   if (def.arrow) return createItem(kind, rng.int(...ARROW_DROP));
   if (def.pouch) return createItem(kind, rng.int(...def.pouch.capacity));
   return createItem(kind);
+}
+
+/** その階に落ちているルーンの山1つ */
+export function randomRune(dungeon: Dungeon, floor: number, rng: Rng): Item {
+  const { amount, perFloor } = dungeon.runes;
+  return createRune(Math.round(rng.int(...amount) * (1 + (floor - 1) * perFloor)));
 }
 
 /** その階に出る魔物と、そのレベル */

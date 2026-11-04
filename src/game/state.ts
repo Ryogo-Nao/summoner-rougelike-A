@@ -23,7 +23,7 @@ import {
 import { HIT_RATE, allyLevelForExp, playerLevelForExp, rollDamage } from './combat';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
-import { dungeonById, monstersForFloor, randomItem, type Dungeon } from './dungeons';
+import { dungeonById, monstersForFloor, randomItem, randomRune, type Dungeon } from './dungeons';
 import { GameMap, Tile, type Room } from './map';
 import { SPECIES, createMonster, monsterExp, type Monster, type Species } from './monsters';
 import {
@@ -207,6 +207,8 @@ export interface RunData {
   dungeon?: string;
   /** 千里の印を使った階か */
   revealed?: boolean;
+  /** このダンジョンで拾ったルーン */
+  runes?: number;
   /** モンスターハウスの部屋の番号（map.rooms）。ない・もう起きたなら -1 */
   monsterHouse?: number;
   rng: number;
@@ -329,6 +331,8 @@ export class GameState {
   cleared = false;
   escaped = false;
   dead = false;
+  /** このダンジョンで拾ったルーン。拠点に戻ると持っているルーンに足す（力つきたら半分） */
+  runes = 0;
   /** 自分でダンジョンをあきらめた（dead と一緒に立てる） */
   gaveUp = false;
   /** 千里の印で、この階の地図と、階段・道具・敵の場所がわかっている */
@@ -387,6 +391,7 @@ export class GameState {
       version: 1,
       dungeon: this.dungeon.id,
       revealed: this.revealed,
+      runes: this.runes,
       monsterHouse: this.monsterHouse ? this.map.rooms.indexOf(this.monsterHouse) : -1,
       rng: this.rng.save(),
       floor: this.floor,
@@ -417,6 +422,7 @@ export class GameState {
     if (data.version !== 1) throw new Error('保存データの形式が違う');
     const s = new GameState(1, undefined, data.dungeon ?? 'first');
     s.revealed = data.revealed ?? false;
+    s.runes = data.runes ?? 0;
     s.rng.load(data.rng);
     s.floor = data.floor;
     s.turn = data.turn;
@@ -496,6 +502,8 @@ export class GameState {
     this.floorItems = [];
     const items = this.rng.int(...this.dungeon.itemsPerFloor);
     for (let i = 0; i < items; i++) this.placeItem(this.rng.pick(map.rooms));
+    const runes = this.rng.int(...this.dungeon.runes.piles);
+    for (let i = 0; i < runes; i++) this.placeItem(this.rng.pick(map.rooms), randomRune(this.dungeon, this.floor, this.rng));
     // モンスターハウス：主人公のいない部屋の1つに、眠っている魔物とアイテムをたくさん置く
     const house = this.dungeon.monsterHouse;
     if (this.floor >= house.fromFloor && rooms.length > 0 && this.rng.chance(house.chance)) {
@@ -525,12 +533,13 @@ export class GameState {
   }
 
   /** 部屋の空いているマスに、アイテムを1つ置く。主人公の足もとと、他のアイテムの上には置かない */
-  private placeItem(room: Room): void {
+  /** 部屋の空いているマスにアイテムを置く。item を省くと、この階に出るアイテムからランダムに選ぶ */
+  private placeItem(room: Room, item?: Item): void {
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       const p = this.player.pos;
       if ((pos.x === p.x && pos.y === p.y) || this.itemAt(pos.x, pos.y)) continue;
-      this.floorItems.push({ item: randomItem(this.dungeon, this.floor, this.rng), pos });
+      this.floorItems.push({ item: item ?? randomItem(this.dungeon, this.floor, this.rng), pos });
       return;
     }
   }
@@ -745,6 +754,13 @@ export class GameState {
     const found = this.itemAt(x, y);
     if (!found) return;
     const name = itemName(found.item);
+    // ルーンはバッグに入れず、持っているルーンに足す
+    if (ITEMS[found.item.kind].rune) {
+      this.runes += found.item.runes ?? 0;
+      this.floorItems = this.floorItems.filter((f) => f !== found);
+      this.addLog(`${name}を拾った`);
+      return;
+    }
     if (!this.canPickUp(found.item)) {
       this.addLog(`バッグがいっぱいで${name}を拾えない`);
       return;
@@ -771,7 +787,7 @@ export class GameState {
 
   /** 拾えるか。バッグがいっぱいでも、同じ矢にまとめられるなら拾える */
   canPickUp(item: Item): boolean {
-    if (this.bag.length < BAG_LIMIT) return true;
+    if (this.bag.length < BAG_LIMIT || ITEMS[item.kind].rune) return true;
     return item.count !== undefined && this.bag.some((i) => i.kind === item.kind && (i.count ?? ARROW_STACK) < ARROW_STACK);
   }
 

@@ -22,6 +22,7 @@
         <div class="status-row">
           <span id="floor">B1F</span>
           <span id="effects"></span>
+          <span id="runes" class="runes"></span>
           <span id="turn">0T</span>
         </div>
         <!-- 主人公の顔とレベル、その横にHP・MP・満腹 -->
@@ -85,12 +86,13 @@
       </div>
       <!-- 拠点。ダンジョンに入る前と、戻ってきたあとに開く -->
       <div id="base" hidden>
-        <header class="base-head">🏠 拠点</header>
+        <header class="base-head"><span>🏠 拠点</span><span id="base-runes" class="runes"></span></header>
         <nav id="base-tabs">
           <button data-tab="cards">カード</button>
           <button data-tab="bag">バッグ</button>
           <button data-tab="warehouse">倉庫</button>
           <button data-tab="spells">魔法</button>
+          <button data-tab="shop">商店</button>
         </nav>
         <div id="base-body"></div>
         <button id="base-depart"></button>

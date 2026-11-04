@@ -1,14 +1,15 @@
 import { HAND_LIMIT, swapInList, type Card } from '../game/cards';
 import { SPECIES } from '../game/monsters';
+import { ALWAYS_SOLD, buy, buyProblem, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
-import { BAG_LIMIT, ITEMS, itemName, sortItems, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
 import { SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
 import { SPELL_ICONS, cardIcon, cardSub, reorderRows } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 
-type Tab = 'cards' | 'bag' | 'warehouse' | 'spells';
+type Tab = 'cards' | 'bag' | 'warehouse' | 'spells' | 'shop';
 
 /**
  * 拠点画面（requirements.md 10.4）。連れていく仲間を選び、バッグと倉庫の間でアイテムを出し入れして出発する。
@@ -29,6 +30,11 @@ export class BaseScreen {
   private choosing = false;
   /** カードの並べ替え中か。picked は入れ替える1枚目 */
   private reordering = false;
+  /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
+  private shopMode: 'buy' | 'sell' = 'buy';
+  private selling = new Set<Item>();
+  /** 商店で最後にしたこと（「薬草を買った」など） */
+  private shopNote = '';
   private picked: Card | null = null;
   /** 最後に押した並べ替えのボタンと、その向き（desc なら降順）。手で入れ替えたら消す */
   private cardSort: { key: CardSortKey; desc: boolean } | null = null;
@@ -47,6 +53,8 @@ export class BaseScreen {
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
+        this.selling.clear();
+        this.shopNote = '';
         this.viewing = null;
         this.pouch = null;
         this.choosing = false;
@@ -121,7 +129,9 @@ export class BaseScreen {
       if (this.tab === 'bag') children.push(...this.bagRows(p));
       if (this.tab === 'warehouse') children.push(...this.warehouseRows(p));
       if (this.tab === 'spells') children.push(...this.spellRows(p));
+      if (this.tab === 'shop') children.push(...this.shopRows(p));
     }
+    document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     const hand = this.handCards().length;
@@ -291,6 +301,99 @@ export class BaseScreen {
       wideButton('名前順に並べる', false, () => this.change(() => sort('name'))),
     );
     return pair;
+  }
+
+  /**
+   * 商店（requirements.md 10.5）。買う：薬草とパンはいつでも、ほかの品は戻るたびに入れ替わる。
+   * 売る：バッグと倉庫の道具を押して選び、まとめて売る（売り値は買い値の3分の1）
+   */
+  private shopRows(p: Profile): HTMLElement[] {
+    const head = document.createElement('div');
+    head.className = 'base-sort';
+    const modes = document.createElement('div');
+    modes.className = 'sort-keys shop-modes';
+    for (const [mode, label] of [['buy', '買う'], ['sell', '売る']] as const) {
+      const b = wideButton(label, false, () => {
+        this.shopMode = mode;
+        this.selling.clear();
+        this.shopNote = '';
+        this.render();
+      });
+      if (this.shopMode === mode) b.classList.add('on');
+      modes.append(b);
+    }
+    head.append(modes);
+    const done = this.shopNote ? [note(this.shopNote, 'base-section')] : [];
+    if (this.shopMode === 'buy') {
+      const row = (kind: ItemKind, left?: string): HTMLElement => {
+        const problem = buyProblem(p, kind);
+        return renderRow({
+          icon: ITEMS[kind].emoji,
+          name: `${ITEMS[kind].name}　💠${buyPrice(kind)}`,
+          sub: left ? `${ITEMS[kind].desc}\n${left}` : ITEMS[kind].desc,
+          dim: problem !== null,
+          button: {
+            label: '買う',
+            disabled: problem !== null,
+            onClick: () =>
+              this.change(() => {
+                const where = buy(p, kind);
+                this.shopNote = where ? `${ITEMS[kind].name}を買った（${where === 'bag' ? 'バッグ' : '倉庫'}へ）` : '';
+              }),
+          },
+        });
+      };
+      return [
+        head,
+        ...done,
+        note('いつでも買える', 'base-section'),
+        ...ALWAYS_SOLD.map((k) => row(k)),
+        note('今日の品（ダンジョンから戻ると入れ替わる）', 'base-section'),
+        ...(p.shopStock.length > 0 ? p.shopStock.map((k) => row(k, '残り1つ')) : [note('売り切れ')]),
+        note('買った物はバッグへ入る（いっぱいなら倉庫へ）'),
+      ];
+    }
+    // 売る：選んだ道具の売り値の合計を、上のボタンに出す
+    const total = [...this.selling].reduce((n, i) => n + sellPrice(i), 0);
+    head.append(
+      wideButton(this.selling.size > 0 ? `${this.selling.size}個を売る（💠${total}）` : '売る道具を押して選ぶ', this.selling.size === 0, () =>
+        this.change(() => {
+          const n = this.selling.size;
+          const got = sell(p, [...this.selling]);
+          this.selling.clear();
+          this.shopNote = `${n}個を売って ${got}ルーンを得た`;
+        }),
+      ),
+    );
+    head.lastElementChild!.classList.add('main');
+    const sellRow = (item: Item): HTMLElement => {
+      const ok = canSell(item);
+      const on = this.selling.has(item);
+      const toggle = () => {
+        if (!ok) return;
+        if (on) this.selling.delete(item);
+        else this.selling.add(item);
+        this.render(true);
+      };
+      const why = ITEMS[item.kind].pouch && (item.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
+      return renderRow({
+        icon: ITEMS[item.kind].emoji,
+        name: ok ? `${itemName(item)}　💠${sellPrice(item)}` : itemName(item),
+        sub: ok ? ITEMS[item.kind].desc : why,
+        dim: !ok,
+        className: on ? 'chosen' : undefined,
+        onSelect: ok ? toggle : undefined,
+        button: { label: on ? '✓' : '選ぶ', disabled: !ok, onClick: toggle },
+      });
+    };
+    return [
+      head,
+      ...done,
+      note('バッグ', 'base-section'),
+      ...(p.bag.length > 0 ? p.bag.map(sellRow) : [note('空')]),
+      note('倉庫', 'base-section'),
+      ...(p.warehouse.length > 0 ? p.warehouse.map(sellRow) : [note('空')]),
+    ];
   }
 
   private spellRows(p: Profile): HTMLElement[] {
