@@ -88,7 +88,8 @@ export function saveProfile(profile: Profile): void {
 
 /** 持っていくカード・バッグ・魔法。カードは召喚できる状態にする */
 export function loadoutOf(profile: Profile): Loadout {
-  const cards = profile.hand.flatMap((id) => profile.cards.filter((c) => c.id === id)).slice(0, HAND_LIMIT);
+  // 拠点のカードの一覧の順に持っていく
+  const cards = profile.cards.filter((c) => profile.hand.includes(c.id)).slice(0, HAND_LIMIT);
   return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks }, shortcuts: [...profile.shortcuts] };
 }
 
@@ -136,7 +137,6 @@ const HOLY_DOWNGRADE = 0.3;
  */
 export function returnToBase(profile: Profile, state: GameState): Losses {
   const brought = new Set(profile.hand);
-  const leftAtBase = profile.cards.filter((c) => !brought.has(c.id));
   const runCards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])];
   const losses: Losses = { cards: [], items: [], downgraded: 0 };
   let bag = [...state.bag];
@@ -160,7 +160,10 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
     .filter((c) => !losses.cards.includes(c))
     .map((c) => ({ ...c, status: 'ready' as const, hp: c.maxHp, obtainedHere: false }));
   const hand = state.cards.filter((c) => !losses.cards.includes(c)).map((c) => c.id);
-  profile.cards = [...leftAtBase, ...kept];
+  // 持っていったカードは、一覧のもとの場所にダンジョンでの順で戻す。新しく手に入れたカードは後ろに付ける
+  const back = kept.filter((c) => brought.has(c.id));
+  const placed = profile.cards.flatMap((c) => (brought.has(c.id) ? (back.length > 0 ? [back.shift()!] : []) : [c]));
+  profile.cards = [...placed, ...back, ...kept.filter((c) => !brought.has(c.id))];
   profile.hand = hand.slice(0, HAND_LIMIT);
   profile.bag = bag.slice(0, BAG_LIMIT);
   profile.learned = [...state.learned];

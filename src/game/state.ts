@@ -14,6 +14,7 @@ import {
   growCard,
   isPartner,
   noAilments,
+  swapInList,
   type Ailments,
   type Ally,
   type AllyOrder,
@@ -883,6 +884,15 @@ export class GameState {
     this.bag.push(...items);
     this.addLog(`${ITEMS[pouch.kind].name}から${namesOf(items)}を出した`);
     this.endTurn();
+  }
+
+  /**
+   * 手持ちのカードの順番を入れ替える。ターンは使わない。
+   * 召喚中の仲間も同じ順に並べ直す（仲間の枠の並びと、動く順番が変わる）
+   */
+  swapCards(a: Card, b: Card): void {
+    swapInList(this.cards, a, b);
+    this.allies.sort((x, y) => this.cards.indexOf(x.card) - this.cards.indexOf(y.card));
   }
 
   /** ダンジョンをあきらめる。力つきたときと同じ扱いにする */

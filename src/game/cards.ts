@@ -199,6 +199,15 @@ export function createCard(species: Species, obtainedHere: boolean, personality:
 
 export const isPartner = (card: Card) => card.species.id === IZUTSUCHI.id;
 
+/** 一覧の中で a と b の場所を入れ替える（仲間の並べ替え） */
+export function swapInList<T>(list: T[], a: T, b: T): void {
+  const i = list.indexOf(a);
+  const j = list.indexOf(b);
+  if (i < 0 || j < 0 || i === j) return;
+  list[i] = b;
+  list[j] = a;
+}
+
 /** 仲間が1レベル上がったとき（balance.md 4.0、4.2） */
 export function growCard(card: Card): void {
   card.level++;

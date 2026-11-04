@@ -30,13 +30,57 @@ export function personalityText(card: Card): string {
 }
 
 /** カード画面（requirements.md 10.3）。待機は「召喚」、召喚中は「戻す」。召喚できないカードは薄く出す */
-export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
+/**
+ * 並べ替えの一覧。1枚目を押すと印が付き、2枚目を押すと入れ替わる。同じカードをもう一度押すとやめる。
+ * onPick で選んだカードを受け取る（入れ替えは呼ぶ側でする）
+ */
+export function reorderRows(cards: Card[], picked: Card | null, onPick: (card: Card) => void): SheetRow[] {
+  return cards.map((card, i) => ({
+    icon: cardIcon(card),
+    art: card.species.id,
+    name: `${i + 1}　${card.species.name}`,
+    sub: cardSub(card, false),
+    className: card === picked ? 'chosen' : undefined,
+    onSelect: () => onPick(card),
+    button: { label: card === picked ? 'やめる' : picked ? 'ここへ' : '選ぶ', onClick: () => onPick(card) },
+  }));
+}
+
+export function openCardSheet(
+  state: GameState,
+  sheet: Sheet,
+  after: AfterAction,
+  reorder?: { picked: Card | null },
+): void {
   const act = (f: () => void) => () => {
     sheet.close();
     f();
     after();
   };
   const back = () => openCardSheet(state, sheet, after);
+  const header = document.createElement('div');
+  header.append(
+    wideButton(reorder ? '並べ替えを終える' : '並べ替える', state.cards.length < 2, () =>
+      openCardSheet(state, sheet, after, reorder ? undefined : { picked: null }),
+    ),
+  );
+  if (reorder) {
+    // 並べ替えはターンを使わない。召喚中の仲間の枠も、この順に並ぶ
+    const rows = reorderRows(state.cards, reorder.picked, (card) => {
+      if (!reorder.picked) reorder.picked = card;
+      else {
+        if (reorder.picked !== card) state.swapCards(reorder.picked, card);
+        reorder.picked = null;
+      }
+      openCardSheet(state, sheet, after, reorder);
+      after();
+    });
+    sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
+      note: '入れ替えるカードを2枚続けて押す\n召喚中の仲間の枠と 動く順番も この順になる',
+      header,
+    });
+    return;
+  }
   const rows: SheetRow[] = state.cards.map((card) => {
     const onSelect = () => openStatusSheet(state, sheet, card, back);
     if (card.status === 'summoned') {
@@ -62,6 +106,7 @@ export function openCardSheet(state: GameState, sheet: Sheet, after: AfterAction
   });
   sheet.open(`カード ${state.cards.length}/${HAND_LIMIT}`, rows, {
     note: `召喚 ${state.allies.length}/${SUMMON_LIMIT}　MP ${state.player.mp}\nカードを押すとつよさを見る`,
+    header,
   });
 }
 

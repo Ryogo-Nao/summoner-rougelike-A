@@ -1,9 +1,9 @@
-import { HAND_LIMIT, type Card } from '../game/cards';
+import { HAND_LIMIT, swapInList, type Card } from '../game/cards';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
 import { SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
-import { SPELL_ICONS, cardIcon, cardSub } from './screens';
+import { SPELL_ICONS, cardIcon, cardSub, reorderRows } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 
@@ -26,6 +26,9 @@ export class BaseScreen {
   private pouch: Item | null = null;
   /** ダンジョンを選んでいるところ */
   private choosing = false;
+  /** カードの並べ替え中か。picked は入れ替える1枚目 */
+  private reordering = false;
+  private picked: Card | null = null;
   private readonly onDepart: (dungeonId: string) => void;
 
   /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ */
@@ -133,6 +136,30 @@ export class BaseScreen {
 
   private cardRows(p: Profile): HTMLElement[] {
     const hand = this.handCards().length;
+    const toggle = document.createElement('div');
+    toggle.className = 'base-sort';
+    toggle.append(
+      wideButton(this.reordering ? '並べ替えを終える' : '並べ替える', p.cards.length < 2, () => {
+        this.reordering = !this.reordering;
+        this.picked = null;
+        this.render(true);
+      }),
+    );
+    if (this.reordering) {
+      const rows = reorderRows(p.cards, this.picked, (card) => {
+        if (!this.picked) this.picked = card;
+        else {
+          if (this.picked !== card) swapInList(p.cards, this.picked, card);
+          this.picked = null;
+        }
+        this.change(() => {});
+      });
+      return [
+        note('入れ替えるカードを2枚続けて押す\n連れていくときも この順に並ぶ'),
+        toggle,
+        ...rows.map(renderRow),
+      ];
+    }
     const rows: SheetRow[] = p.cards.map((card) => {
       const taking = p.hand.includes(card.id);
       return {
@@ -156,6 +183,7 @@ export class BaseScreen {
     });
     return [
       note(`連れていく仲間 ${hand}/${HAND_LIMIT}（緑のカード）\n残した仲間は保管庫で待つ\nカードを押すとつよさを見る`),
+      toggle,
       ...rows.map(renderRow),
     ];
   }
