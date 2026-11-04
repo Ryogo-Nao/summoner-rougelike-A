@@ -131,7 +131,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   );
   sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
     note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}${buffs ? `　${buffs}` : ''}`,
-    footer: sort,
+    header: sort,
   });
 }
 

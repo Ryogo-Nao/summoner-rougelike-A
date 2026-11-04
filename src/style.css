@@ -463,8 +463,22 @@ button {
   color: var(--text);
   font-weight: bold;
 }
+/* 並べ替えのボタンは、一覧をスクロールしても上に固定して見せる */
+.base-sort,
+.sheet-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
 .base-sort {
-  margin: 4px 0 8px;
+  margin: 0 0 4px;
+}
+/* 一覧の上の余白（#sheet-body の padding）の分だけ上に付ける */
+.sheet-sticky {
+  top: -6px;
 }
 #base-body > .sheet-wide {
   margin: 8px 0;

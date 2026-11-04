@@ -30,7 +30,12 @@ export class Sheet {
     });
   }
 
-  open(title: string, rows: SheetRow[], options: { note?: string; footer?: HTMLElement; closable?: boolean } = {}): void {
+  /** header は一覧の上に固定して出す（スクロールしても見える。並べ替えのボタンなど） */
+  open(
+    title: string,
+    rows: SheetRow[],
+    options: { note?: string; header?: HTMLElement; footer?: HTMLElement; closable?: boolean } = {},
+  ): void {
     this.title.textContent = title;
     this.closable = options.closable ?? true;
     this.closeButton.hidden = !this.closable;
@@ -40,6 +45,10 @@ export class Sheet {
       note.className = 'sheet-note';
       note.textContent = options.note;
       children.push(note);
+    }
+    if (options.header) {
+      options.header.classList.add('sheet-sticky');
+      children.push(options.header);
     }
     for (const row of rows) children.push(renderRow(row));
     if (options.footer) children.push(options.footer);
