@@ -1,5 +1,5 @@
 import { HAND_LIMIT, type Card } from '../game/cards';
-import { DUNGEONS } from '../game/dungeons';
+import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, saveProfile, type Profile } from '../game/profile';
 import { SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
@@ -24,17 +24,26 @@ export class BaseScreen {
   private viewing: Card | null = null;
   /** 中を見ている袋（バッグか倉庫にある）。null なら一覧を出す */
   private pouch: Item | null = null;
+  /** ダンジョンを選んでいるところ */
+  private choosing = false;
+  private readonly onDepart: (dungeonId: string) => void;
 
-  /** onDepart は［出発］を押したときに呼ぶ */
-  constructor(onDepart: () => void) {
+  /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ */
+  constructor(onDepart: (dungeonId: string) => void) {
+    this.onDepart = onDepart;
     this.depart.addEventListener('click', () => {
-      if (this.profile && this.handCards().length > 0) onDepart();
+      if (!this.profile || this.handCards().length === 0) return;
+      this.choosing = !this.choosing;
+      this.viewing = null;
+      this.pouch = null;
+      this.render();
     });
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
         this.viewing = null;
         this.pouch = null;
+        this.choosing = false;
         this.render();
       });
     }
@@ -46,6 +55,7 @@ export class BaseScreen {
     this.message = message ?? '';
     this.viewing = null;
     this.pouch = null;
+    this.choosing = false;
     this.root.hidden = false;
     this.render();
   }
@@ -75,7 +85,9 @@ export class BaseScreen {
     const p = this.profile!;
     for (const b of this.tabs) b.classList.toggle('active', b.dataset.tab === this.tab);
     const children: HTMLElement[] = [];
-    if (this.viewing) {
+    if (this.choosing) {
+      children.push(...this.dungeonRows(p));
+    } else if (this.viewing) {
       // 仲間のつよさ。［戻る］でカードの一覧へ
       children.push(
         statusView(this.viewing),
@@ -96,10 +108,24 @@ export class BaseScreen {
     this.body.replaceChildren(...children);
     this.body.scrollTop = 0;
     const hand = this.handCards().length;
-    const dungeon = DUNGEONS[0];
-    const cleared = p.cleared.includes(dungeon.id) ? '　踏破済み' : '';
-    this.depart.textContent = hand > 0 ? `${dungeon.name}へ出発（全${dungeon.floors}階）${cleared}` : 'カードを1枚以上選ぶ';
+    this.depart.textContent = hand === 0 ? 'カードを1枚以上選ぶ' : this.choosing ? '準備に戻る' : 'ダンジョンを選ぶ';
     (this.depart as HTMLButtonElement).disabled = hand === 0;
+  }
+
+  /** ダンジョンを選ぶ。踏破していないダンジョンの次は、鍵がかかっている */
+  private dungeonRows(p: Profile): HTMLElement[] {
+    const rows: SheetRow[] = DUNGEONS.map((d) => {
+      const open = isUnlocked(d, p.cleared);
+      const done = p.cleared.includes(d.id) ? '（踏破済み）' : '';
+      return {
+        icon: open ? (done ? '🏆' : '🚪') : '🔒',
+        name: `${d.name}${done}`,
+        sub: open ? d.desc : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
+        dim: !open,
+        button: { label: '出発', disabled: !open, onClick: () => this.onDepart(d.id) },
+      };
+    });
+    return [note('挑むダンジョンを選ぶ'), ...rows.map(renderRow)];
   }
 
   private cardRows(p: Profile): HTMLElement[] {

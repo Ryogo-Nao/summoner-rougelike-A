@@ -2,6 +2,7 @@ import { clearRun, loadProfile, loadRunData, loadoutOf, outcomeOf, returnToBase,
 import { randomSeed } from './game/rng';
 import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
+import { DUNGEONS } from './game/dungeons';
 import { Renderer, type Playback } from './render/renderer';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
@@ -21,7 +22,7 @@ const profile = loadProfile();
 const settings = loadSettings();
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
-const base = new BaseScreen(() => startRun());
+const base = new BaseScreen((dungeonId) => startRun(dungeonId));
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);
@@ -53,9 +54,9 @@ function useState(next: GameState): void {
 }
 
 /** 拠点で選んだカードとアイテムを持って、ダンジョンに入る */
-function startRun(): void {
-  useState(new GameState(nextSeed(), loadoutOf(profile)));
-  state.addLog('ダンジョンに入った');
+function startRun(dungeonId: string): void {
+  useState(new GameState(nextSeed(), loadoutOf(profile), dungeonId));
+  state.addLog(`${state.dungeon.name}に入った`);
   ending = null;
   saveRun(state);
   base.close();
@@ -75,14 +76,19 @@ function endRun(): void {
       : outcome === 'escaped'
         ? `B${state.floor}Fから${name}を離脱した`
         : `B${state.floor}Fで力つきた…`;
+  const firstClear = outcome === 'cleared' && !profile.cleared.includes(state.dungeon.id);
   const losses = returnToBase(profile, state);
+  // 初めて踏破したら、次に挑めるようになったダンジョンを知らせる
+  const opened = firstClear
+    ? DUNGEONS.filter((d) => d.requires === state.dungeon.id).map((d) => `\n${d.name}に挑めるようになった`).join('')
+    : '';
   const lost = state.dead
     ? losses.cards.length + losses.items.length > 0
       ? `\n失ったもの：カード${losses.cards.length}枚　アイテム${losses.items.length}個`
       : '\n失ったものはない'
     : '';
   const downgraded = losses.downgraded > 0 ? `\n聖なる袋${losses.downgraded}つがふつうの袋に戻った` : '';
-  ending = title + lost + downgraded;
+  ending = title + lost + downgraded + opened;
   showEnding();
 }
 
