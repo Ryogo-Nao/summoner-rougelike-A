@@ -35,6 +35,12 @@ interface Step {
 const VIEW_TILES = 11;
 const HALF = Math.floor(VIEW_TILES / 2);
 
+/**
+ * 絵文字を描くときの色。iPhone では絵文字も今の塗りの色（グラデーションなど）で塗られてしまい、
+ * 消えて見えることがあるので、絵文字を描く前に必ずこの色にする
+ */
+const EMOJI_FILL = '#ffffff';
+
 /** 色は style.css の色の決まりと合わせる。床と壁の色は、ダンジョンごとの見た目（MapTheme）で決める */
 const COLORS = {
   /** 見たことはあるが今は見えていないマスに重ねる色 */
@@ -216,6 +222,7 @@ export class Renderer {
     this.drawLighting(state, toScreen(cam), toScreen, now);
 
     // 落ちているアイテムは、見たことのあるマスなら出す
+    ctx.fillStyle = EMOJI_FILL;
     ctx.font = `${Math.floor(ts * 0.62)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     for (const f of state.floorItems) {
       if (!state.isExplored(f.pos.x, f.pos.y)) continue;
@@ -303,6 +310,7 @@ export class Renderer {
     ctx.ellipse(sx + ts / 2, sy + ts * 0.75, ts * 0.42, ts * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    ctx.fillStyle = EMOJI_FILL;
     const img = artImage(actor.art);
     // 足もと（影の真ん中あたり）を軸に、伸び縮みと反転をする
     const footX = sx + ts / 2;
