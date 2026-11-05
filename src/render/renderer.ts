@@ -45,6 +45,8 @@ const EMOJI_FILL = '#ffffff';
 const COLORS = {
   /** 見たことはあるが今は見えていないマスに重ねる色 */
   memory: 'rgba(10, 6, 3, 0.4)',
+  /** まだ見ていないマス。床と壁の形が、うっすら分かるくらいに暗くする */
+  unexplored: 'rgba(10, 6, 3, 0.7)',
   /** ミニマップは床の色と見分けがつくよう、背景を暗く、床をはっきりした色にする */
   miniBg: 'rgba(46, 36, 27, 0.72)',
   miniBorder: 'rgba(255, 255, 255, 0.25)',
@@ -184,8 +186,7 @@ export class Renderer {
       this.terrain = buildTerrain(map, theme, tilePx);
     }
     const T = this.terrain!.tile;
-    // マップの外とまだ見ていないマスは、壁の奥と同じ岩で埋める（通路の形は分からない）。
-    // 岩の模様はマップの左上にそろえ、見たことのある壁とつながるようにする
+    // マップの外は、壁の奥と同じ岩で埋める。岩の模様はマップの左上にそろえ、壁とつながるようにする
     if (this.rockSource !== this.terrain!.rock) {
       this.rockSource = this.terrain!.rock;
       this.rockPattern = ctx.createPattern(this.terrain!.rock, 'repeat');
@@ -214,9 +215,7 @@ export class Renderer {
         const sx = Math.round(px0 + (mx - cam.x) * ts);
         const sy = Math.round(py0 + (my - cam.y) * ts);
         if (!state.isExplored(mx, my)) {
-          ctx.fillStyle = rock;
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = COLORS.memory;
+          ctx.fillStyle = COLORS.unexplored;
           ctx.fillRect(sx, sy, ts, ts);
           continue;
         }
