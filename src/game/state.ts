@@ -12,6 +12,7 @@ import {
   reserveCardIds,
   dropChance,
   growCard,
+  cardName,
   isPartner,
   noAilments,
   swapInList,
@@ -1070,7 +1071,7 @@ export class GameState {
     if (kind === 'revive' && target) {
       target.status = 'ready';
       target.hp = Math.ceil(target.maxHp / 2);
-      this.addLog(`${target.species.name}が復活した`);
+      this.addLog(`${cardName(target)}が復活した`);
       return;
     }
     if (kind === 'summon' && target) {
@@ -1207,7 +1208,7 @@ export class GameState {
     this.release(item);
     const { monster, ally, landing } = this.traceThrow(def.heal !== undefined || def.cure !== undefined);
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
-      const hitName = ally ? ally.card.species.name : monster?.species.name;
+      const hitName = ally ? cardName(ally.card) : monster?.species.name;
       const hitPos = ally?.pos ?? monster?.pos;
       if (item.kind === 'blank' && monster) {
         this.seal(monster);
@@ -1404,7 +1405,7 @@ export class GameState {
     const next = allyLevelForExp(card.exp);
     while (card.level < next) {
       growCard(card);
-      this.addLog(`${card.species.name}はLv${card.level}になった！`);
+      this.addLog(`${cardName(card)}はLv${card.level}になった！`);
       this.popups.push({ pos: a.pos, text: 'Lv UP', kind: 'info' });
     }
   }
@@ -1434,7 +1435,7 @@ export class GameState {
   private placeAlly(card: Card): void {
     card.status = 'summoned';
     this.allies.push({ card, pos: this.freeSpotNear(this.player.pos)!, facing: this.player.facing, order: 'follow', ailments: noAilments() });
-    this.addLog(`${card.species.name}を召喚した`);
+    this.addLog(`${cardName(card)}を召喚した`);
   }
 
   /** 仲間をカードに戻す。MPは使わないが、1ターンかかる */
@@ -1442,7 +1443,7 @@ export class GameState {
     if (card.status !== 'summoned') return;
     this.beginAction();
     this.dismissAlly(card);
-    this.addLog(`${card.species.name}を戻した`);
+    this.addLog(`${cardName(card)}を戻した`);
     this.endTurn();
   }
 
@@ -1476,14 +1477,14 @@ export class GameState {
     if (!card || !this.canStore(card)) return;
     const chosen = this.pickFromFull(index)!;
     this.storage.push(chosen);
-    this.addLog(`${chosen.species.name}を保管庫へ`);
+    this.addLog(`${cardName(chosen)}を保管庫へ`);
   }
 
   /** pendingCard があるとき、index のカードの仲間と別れる。カードはなくなる。ターンは使わない */
   partWith(index: number): void {
     const chosen = this.pickFromFull(index);
     if (!chosen) return;
-    this.addLog(`${chosen.species.name}と別れた`);
+    this.addLog(`${cardName(chosen)}と別れた`);
   }
 
   /** 手元の5枚と新しい1枚から index のカードを外し、残りを手元にする */
@@ -1797,10 +1798,10 @@ export class GameState {
       if (a.card.hp === 0) {
         this.allies = this.allies.filter((x) => x !== a);
         a.card.status = 'dying';
-        this.addLog(`${a.card.species.name}は毒で瀕死になり召喚が解けた`);
+        this.addLog(`${cardName(a.card)}は毒で瀕死になり召喚が解けた`);
         continue;
       }
-      this.tickAilments(a.ailments, a.card.species.name);
+      this.tickAilments(a.ailments, cardName(a.card));
     }
     // 魔物の状態異常は、治ってもログには出さない
     for (const m of [...this.monsters]) {
@@ -2069,7 +2070,7 @@ export class GameState {
   }
 
   private monsterAttackAlly(m: Monster, a: Ally): void {
-    const name = a.card.species.name;
+    const name = cardName(a.card);
     if (!this.rng.chance(HIT_RATE)) {
       this.addLog(`${name}はかわした`);
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });

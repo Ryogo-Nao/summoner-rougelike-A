@@ -1,4 +1,4 @@
-import { ORDER_LABEL, PERSONALITIES, STAT_LABEL, isPartner, type Ally, type Card } from '../game/cards';
+import { NICKNAME_LIMIT, ORDER_LABEL, PERSONALITIES, STAT_LABEL, cardName, isPartner, nicknameLength, type Ally, type Card } from '../game/cards';
 import { allyExpToNext } from '../game/combat';
 import type { Species } from '../game/monsters';
 import { artElement } from '../render/art';
@@ -25,7 +25,10 @@ function traits(species: Species, partner: boolean): string {
  * 仲間のつよさ（requirements.md 6.3）。レベル・HP・攻撃・防御・経験値・性格・特技などを並べる。
  * 上の絵の枠は、あとで魔物の絵に差し替える
  */
-export function statusView(card: Card, { ally, inDungeon = false }: { ally?: Ally; inDungeon?: boolean } = {}): HTMLElement {
+export function statusView(
+  card: Card,
+  { ally, inDungeon = false, onRename }: { ally?: Ally; inDungeon?: boolean; onRename?: (name: string) => void } = {},
+): HTMLElement {
   const root = document.createElement('div');
   root.className = 'status-view';
 
@@ -35,11 +38,12 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
 
   const title = document.createElement('div');
   title.className = 'status-title';
-  title.textContent = `${card.species.name}　Lv${card.level}`;
+  title.textContent = `${cardName(card)}　Lv${card.level}`;
 
   const { name, up, down } = PERSONALITIES[card.personality];
   const next = allyExpToNext(card.exp);
   const rows: [string, string][] = [
+    ['種族', card.species.name],
     ['HP', `${card.hp}/${card.maxHp}`],
     ['攻撃力', `${card.atk}`],
     ['防御力', `${card.def}`],
@@ -69,6 +73,47 @@ export function statusView(card: Card, { ally, inDungeon = false }: { ally?: All
     dd.textContent = value;
     table.append(dt, dd);
   }
-  root.append(portrait, title, table);
+  root.append(portrait, title);
+  if (onRename) root.append(nicknameEditor(card, onRename));
+  root.append(table);
   return root;
+}
+
+/**
+ * ニックネームを付ける欄。8文字まで。空にして［決める］と種族の名前に戻る。
+ * 8文字をこえると数を赤にして［決める］を押せなくする
+ */
+function nicknameEditor(card: Card, onRename: (name: string) => void): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'nickname';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = card.nickname ?? '';
+  input.placeholder = card.species.name;
+  input.setAttribute('aria-label', 'ニックネーム');
+  input.enterKeyHint = 'done';
+  const count = document.createElement('span');
+  count.className = 'nickname-count';
+  const ok = document.createElement('button');
+  ok.textContent = '決める';
+  const update = () => {
+    const n = nicknameLength(input.value);
+    count.textContent = `${n}/${NICKNAME_LIMIT}`;
+    count.classList.toggle('over', n > NICKNAME_LIMIT);
+    ok.disabled = n > NICKNAME_LIMIT || input.value.trim() === (card.nickname ?? '');
+  };
+  input.addEventListener('input', update);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !ok.disabled) ok.click();
+  });
+  ok.addEventListener('click', () => {
+    if (nicknameLength(input.value) > NICKNAME_LIMIT) return;
+    onRename(input.value.trim());
+  });
+  update();
+  const label = document.createElement('span');
+  label.className = 'nickname-label';
+  label.textContent = 'ニックネーム';
+  box.append(label, input, count, ok);
+  return box;
 }

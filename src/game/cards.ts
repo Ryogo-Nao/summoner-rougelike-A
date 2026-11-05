@@ -69,7 +69,18 @@ export interface Card {
   status: CardStatus;
   /** このダンジョンで手に入れたカード。力つきると失う（requirements.md 6章） */
   obtainedHere: boolean;
+  /** 付けた名前（ニックネーム）。なければ種族の名前で呼ぶ */
+  nickname?: string;
 }
+
+/** ニックネームの長さの上限（文字） */
+export const NICKNAME_LIMIT = 8;
+
+/** 仲間の呼び名。ニックネームがあればそれ、なければ種族の名前 */
+export const cardName = (card: Card) => card.nickname || card.species.name;
+
+/** 文字の数。絵文字なども1文字と数える */
+export const nicknameLength = (text: string) => Array.from(text.trim()).length;
 
 /** フィールドに召喚している仲間 */
 /** 仲間への指示（requirements.md 6章）。ついてくる・待機・突撃・逃げる */

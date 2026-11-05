@@ -1,4 +1,4 @@
-import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, isPartner, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
@@ -38,7 +38,7 @@ export function reorderRows(cards: Card[], picked: Card | null, onPick: (card: C
   return cards.map((card, i) => ({
     icon: cardIcon(card),
     art: card.species.id,
-    name: `${i + 1}　${card.species.name}`,
+    name: `${i + 1}　${cardName(card)}`,
     sub: cardSub(card, false),
     className: card === picked ? 'chosen' : undefined,
     onSelect: () => onPick(card),
@@ -87,7 +87,7 @@ export function openCardSheet(
       return {
         icon: cardIcon(card),
         art: card.species.id,
-        name: card.species.name,
+        name: cardName(card),
         sub: cardSub(card),
         button: { label: '戻す', onClick: act(() => state.recall(card)) },
         onSelect,
@@ -97,7 +97,7 @@ export function openCardSheet(
     return {
       icon: cardIcon(card),
       art: card.species.id,
-      name: card.species.name,
+      name: cardName(card),
       sub: cardSub(card),
       dim: problem !== null,
       button: { label: '召喚', disabled: problem !== null, onClick: act(() => state.summon(card)) },
@@ -378,7 +378,7 @@ function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: 
   const rows: SheetRow[] = cards.map((card) => ({
     icon: cardIcon(card),
     art: card.species.id,
-    name: card.species.name,
+    name: cardName(card),
     sub: cardSub(card),
     button: {
       label: revive ? '復活させる' : '召喚する',
@@ -609,7 +609,7 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
       after();
     }),
   );
-  sheet.open(`${cardIcon(card)} ${card.species.name}`, rows, {
+  sheet.open(`${cardIcon(card)} ${cardName(card)}`, rows, {
     note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${personalityText(card)}`,
     footer,
   });
@@ -628,7 +628,7 @@ export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after:
   buttons.append(
     wideButton(canPush ? '押す' : '押せない', !canPush, act(() => state.moveThroughAlly(ally, 'push'))),
   );
-  sheet.open(`${cardIcon(ally.card)} ${ally.card.species.name}`, [], {
+  sheet.open(`${cardIcon(ally.card)} ${cardName(ally.card)}`, [], {
     note: `HP${ally.card.hp}/${ally.card.maxHp}`,
     footer: buttons,
   });
@@ -642,7 +642,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
   const pending = state.pendingCard;
   if (!pending) return;
   const rows: SheetRow[] = [...state.cards, pending].map((card, index) => {
-    const name = card === pending ? `${card.species.name}（新）` : card.species.name;
+    const name = card === pending ? `${cardName(card)}（新）` : cardName(card);
     const store = state.canStore(card);
     return {
       icon: cardIcon(card),
@@ -679,7 +679,7 @@ function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number
     }),
     wideButton('戻る', false, () => openSwapSheet(state, sheet, after)),
   );
-  sheet.open(`${cardIcon(card)} ${card.species.name}と別れる？`, [], {
+  sheet.open(`${cardIcon(card)} ${cardName(card)}と別れる？`, [], {
     note: `${cardSub(card)}\n別れた仲間は戻らない`,
     footer: buttons,
     closable: false,

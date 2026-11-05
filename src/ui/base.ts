@@ -1,4 +1,4 @@
-import { HAND_LIMIT, PERSONALITIES, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, cardName, type Card } from '../game/cards';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
@@ -159,8 +159,13 @@ export class BaseScreen {
     } else if (this.choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.viewing) {
-      // 仲間のつよさ。下の［戻る］でカードの一覧へ
-      children.push(statusView(this.viewing));
+      // 仲間のつよさ。ニックネームを付けられる。下の［戻る］でカードの一覧へ
+      const card = this.viewing;
+      children.push(
+        statusView(card, {
+          onRename: (name) => this.change(() => (card.nickname = name || undefined)),
+        }),
+      );
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
     } else {
@@ -296,7 +301,7 @@ export class BaseScreen {
       const row = renderRow({
         icon: cardIcon(card),
         art: card.species.id,
-        name: card.species.name,
+        name: cardName(card),
         sub: `Lv${card.level}　HP${card.hp}/${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
         className: taking ? 'ally taking' : 'ally',
         onSelect: () => this.enter(() => (this.viewing = card)),
@@ -766,7 +771,7 @@ function sortCards(cards: Card[], key: CardSortKey, desc: boolean): Card[] {
   const by: Record<CardSortKey, (a: Card, b: Card) => number> = {
     level: (a, b) => a.level - b.level,
     obtained: () => 0,
-    name: (a, b) => a.species.name.localeCompare(b.species.name, 'ja'),
+    name: (a, b) => cardName(a).localeCompare(cardName(b), 'ja'),
     kind: (a, b) => kind(a) - kind(b),
   };
   const sign = desc ? -1 : 1;

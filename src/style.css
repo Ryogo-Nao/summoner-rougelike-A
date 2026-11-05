@@ -1232,6 +1232,62 @@ button {
   margin: 0 4px 6px;
   font-size: 14px;
 }
+/* 仲間のつよさの、ニックネームを付ける欄 */
+.nickname {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 4px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+.nickname-label {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.nickname input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--btn-line);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+}
+.nickname input:focus {
+  border-color: var(--gold);
+  outline: none;
+}
+.nickname-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.nickname-count.over {
+  color: var(--coral);
+  font-weight: bold;
+}
+.nickname button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--navy);
+  border-radius: 4px;
+  background: var(--btn-main);
+  color: #fbe7b0;
+  font-size: 14px;
+  font-weight: bold;
+}
+.nickname button:disabled {
+  border-color: var(--line);
+  background: var(--paper-2);
+  color: var(--muted);
+}
 /* 仲間のタブ。行の大きさをそろえ、説明は2行で切る */
 .sheet-row.ally .sub {
   white-space: pre;
