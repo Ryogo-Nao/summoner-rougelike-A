@@ -235,7 +235,94 @@ const FOREST: Dungeon = {
   ],
 };
 
-export const DUNGEONS: Dungeon[] = [FIRST, FOREST];
+/**
+ * 3つ目のダンジョン。20階で、魔物のレベルは浅い階のLv8から、深い階のLv16まで上がる。
+ * 階段での仲間の回復はさらに少ない。モンスターハウスが多く、ルーンと強い装備・印が出やすい
+ */
+const ICE: Dungeon = {
+  id: 'ice',
+  name: 'しずくの氷穴',
+  desc: '全20階　魔物はLv8〜16\nモンスターハウスが多い',
+  requires: 'forest',
+  floors: 20,
+  allyStairsHeal: 0.1,
+  runes: { piles: [2, 3], amount: [15, 35], perFloor: 0.15 },
+  // 青白い氷の岩の洞穴。たいまつはまれで、明かりは青みがかる
+  theme: {
+    floor: '#3e4a57',
+    pebble: '#5c6b7a',
+    wallStone: '#6d8093',
+    mortar: '#26303b',
+    face: '#4a5a6b',
+    rim: '#bcd3e6',
+    outside: '#1a222b',
+    light: [190, 220, 255],
+    dark: 0.4,
+    torches: 0.04,
+  },
+  itemsPerFloor: [5, 7],
+  monsterLevel: 8,
+  monsterHouse: { chance: 0.18, fromFloor: 2, monsters: [9, 13], items: [6, 9] },
+  items: [
+    { kind: 'herb', weight: 16 },
+    { kind: 'bigHerb', weight: 10 },
+    { kind: 'water', weight: 12 },
+    { kind: 'antidote', weight: 7 },
+    { kind: 'kitsuke', weight: 7 },
+    { kind: 'bread', weight: 4 },
+    { kind: 'bigBread', weight: 2.5 },
+    { kind: 'blank', weight: 4.5 },
+    { kind: 'arrow', weight: 4 },
+    { kind: 'ironArrow', weight: 4 },
+    { kind: 'sealReveal', weight: 2 },
+    { kind: 'sealRevive', weight: 2 },
+    { kind: 'sealSummon', weight: 1.5 },
+    { kind: 'sealPoison', weight: 1.5 },
+    { kind: 'sealConfuse', weight: 1.5 },
+    { kind: 'sealEscape', weight: 1.5 },
+    { kind: 'sealPin', weight: 2 },
+    { kind: 'sealSleep', weight: 2 },
+    { kind: 'sealDoom', weight: 0.8 },
+    { kind: 'pot', weight: 2 },
+    { kind: 'pouch', weight: 0.6 },
+    { kind: 'finePouch', weight: 0.4 },
+    { kind: 'holyPouch', weight: 0.25 },
+    { kind: 'club', weight: 1 },
+    { kind: 'bronzeSword', weight: 2 },
+    { kind: 'ironSword', weight: 3.5 },
+    { kind: 'woodShield', weight: 1 },
+    { kind: 'leatherShield', weight: 2 },
+    { kind: 'ironShield', weight: 3.5 },
+    { kind: 'tomePower', weight: 1.5 },
+    { kind: 'tomeGuard', weight: 1.5 },
+  ],
+  monsters: [
+    // 浅い階：森の深い階くらいの強さから始める
+    { species: 'chuppi', floors: [1, 4], level: 8 },
+    { species: 'patari', floors: [1, 5], level: 8 },
+    { species: 'berogg', floors: [1, 5], level: 9 },
+    { species: 'shururu', floors: [2, 6], level: 9 },
+    { species: 'pokotake', floors: [3, 7], level: 9 },
+    { species: 'garuf', floors: [4, 8], level: 10 },
+    // 中ほど
+    { species: 'kaburamu', floors: [6, 11], level: 11 },
+    { species: 'moyari', floors: [7, 12], level: 11 },
+    { species: 'hidamari', floors: [8, 13], level: 12 },
+    { species: 'goromu', floors: [9, 14], level: 12 },
+    { species: 'patari', floors: [9, 13], level: 12 },
+    { species: 'garuf', floors: [10, 14], level: 13 },
+    // 深い階：どの魔物も手ごわい
+    { species: 'chuppi', floors: [15, 20], level: 14 },
+    { species: 'shururu', floors: [15, 20], level: 14 },
+    { species: 'pokotake', floors: [15, 20], level: 14 },
+    { species: 'kaburamu', floors: [16, 20], level: 15 },
+    { species: 'moyari', floors: [16, 20], level: 15 },
+    { species: 'hidamari', floors: [17, 20], level: 16 },
+    { species: 'goromu', floors: [17, 20], level: 16 },
+  ],
+};
+
+export const DUNGEONS: Dungeon[] = [FIRST, FOREST, ICE];
 
 /** 挑めるか。前のダンジョンを踏破していなければ挑めない */
 export function isUnlocked(dungeon: Dungeon, cleared: string[]): boolean {
