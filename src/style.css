@@ -1527,6 +1527,11 @@ button {
 }
 
 /* ==== 拠点：村の背景・下のタブ・看板（docs/art-guide.md 8） ==== */
+/* 拠点を開いている間は、Safari の下のバーの裏に見えるページの地を、下のタブの木の色にする */
+html:has(#base:not([hidden])),
+body:has(#base:not([hidden])) {
+  background: #2b1c10;
+}
 /* どの画面も、村の一枚絵の上に置く */
 #base {
   padding-bottom: 0;
@@ -1689,7 +1694,10 @@ button {
 }
 
 /* ---- トップ：村の広場に主人公と仲間、下に看板とメニュー ---- */
+/* トップはスクロールさせない。額縁・看板・札は、トップの高さ（cqh）に合わせて縮める */
 #base-body.hub {
+  container-type: size;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1707,8 +1715,8 @@ button {
 /* 金の唐草の額縁（上に空色の宝石）。中に魔法陣の台を敷き、主人公を立たせる。台はほのかに光る */
 .hub-stage {
   position: relative;
-  width: 140px;
-  height: 144px;
+  width: min(140px, 21cqh);
+  height: min(144px, 21.6cqh);
   margin: 0 auto;
   background:
     url('./ui-art/medallion.png') center / 100% 100% no-repeat,
@@ -1717,10 +1725,10 @@ button {
 }
 .hub-art {
   display: block;
-  width: 104px;
-  height: 104px;
+  width: min(104px, 15.6cqh);
+  height: min(104px, 15.6cqh);
   margin: 0 auto;
-  padding-top: 22px;
+  padding-top: min(22px, 3.3cqh);
   box-sizing: content-box;
 }
 @keyframes hub-glow {
@@ -1763,8 +1771,8 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
+  width: min(50px, 7.6cqh);
+  height: min(50px, 7.6cqh);
   padding: 6px;
   background: rgba(40, 28, 16, 0.55);
   border-radius: 4px;
@@ -1809,22 +1817,22 @@ button {
   line-height: 14px;
   text-shadow: 1px 0 0 #3b2208, -1px 0 0 #3b2208, 0 1px 0 #3b2208, 0 -1px 0 #3b2208;
 }
-/* 鎖で吊るした［冒険の準備］の看板。絵の縦横の比のまま出す。上の 27% が鎖 */
+/* 鎖で吊るした［冒険の準備］の看板。絵の縦横の比のまま出す。上の 35% が鎖 */
 .hub-sign {
   position: relative;
   flex: none;
-  width: 100%;
-  height: 0;
-  padding-top: 57.45%;
+  width: min(100%, 56cqh);
+  aspect-ratio: 738 / 424;
+  margin: 0 auto;
   background: url('./ui-art/signboard.png') center / 100% 100% no-repeat;
 }
-/* 押せる板。文字と［GO!］を、板の中で上下のまん中にそろえる */
+/* 押せる板（鎖の下から下の端まで）。文字と［GO!］を、板の中で上下のまん中にそろえる */
 .hub-sign-plate {
   position: absolute;
   left: 2%;
   right: 2%;
-  bottom: 2%;
-  height: 70%;
+  top: 35%;
+  bottom: 1%;
   display: flex;
   align-items: center;
   gap: 2%;
@@ -1838,7 +1846,7 @@ button {
 }
 .hub-sign-title {
   flex: 1;
-  font-size: 28px;
+  font-size: min(28px, 4.3cqh);
   text-align: center;
 }
 .hub-sign-go {
@@ -1853,7 +1861,7 @@ button {
 .go-text {
   color: #fff;
   font-family: 'Hiragino Sans', sans-serif;
-  font-size: 22px;
+  font-size: min(22px, 3.4cqh);
   font-weight: 900;
   font-style: italic;
   letter-spacing: 0.02em;
@@ -1874,7 +1882,7 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 58px;
+  height: min(58px, 9.4cqh);
   padding: 0 8px;
   border-style: solid;
   border-width: 8px;
@@ -1892,8 +1900,8 @@ button {
   display: grid;
   place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: min(40px, 6.6cqh);
+  height: min(40px, 6.6cqh);
 }
 .hub-icon img {
   width: 100%;
@@ -1908,42 +1916,6 @@ button {
   display: block;
   width: 16px;
   height: 16px;
-}
-/* 背の低い画面（iPhone SE など）では、額縁・看板・札を小さくして1画面に収める */
-@media (max-height: 740px) {
-  .hub-stage {
-    width: 100px;
-    height: 103px;
-  }
-  .hub-art {
-    width: 74px;
-    height: 74px;
-    padding-top: 16px;
-  }
-  .hub-face {
-    width: 46px;
-    height: 46px;
-  }
-  .hub-sign {
-    width: 84%;
-    padding-top: 48.26%;
-    margin: 0 auto;
-  }
-  .hub-sign-title {
-    font-size: 24px;
-  }
-  .go-text {
-    font-size: 19px;
-  }
-  .hub-item {
-    height: 52px;
-  }
-  #base-body.hub {
-    gap: 0;
-  }
-  .hub-menus {
-    gap: 4px 8px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-stage,
