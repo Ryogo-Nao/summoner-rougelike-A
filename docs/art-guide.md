@@ -175,14 +175,16 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | 木の板 | src/ui-art/plank.png | 選んでいないタブ、一覧の行のボタン。slice 30 |
 | 決めるボタン（彫った木に金の縁と鋲） | src/ui-art/action.png | ［ダンジョンに向かう］［購入］など。slice 34 44 |
 | 小さい四角の板 | src/ui-art/square.png | ［－］［＋］。slice 20 |
-| 拠点トップ：魔法陣の台 | src/ui-art/stage.png | 主人公の後ろ（黒い地から丸く切り抜いた） |
-| 拠点トップ：名札 | src/ui-art/nameplate.png | slice 40 |
-| 拠点トップ：仲間の顔の台 | src/ui-art/slot.png | 顔の後ろに敷く |
-| 拠点トップ：メニューの札 | src/ui-art/menu.png | slice 48 |
+| 拠点トップ：魔法陣の台 | src/ui-art/stage.png | 額縁の中、主人公の後ろ（黒い地から丸く切り抜いた） |
+| 拠点トップ：主人公の額縁 | src/ui-art/medallion.png | 金の唐草に空色の宝石。中の緑も抜いた（-Inner） |
+| 拠点トップ：羽の付いた名札 | src/ui-art/wingplate.png | slice 40 95（左右は羽ごと） |
+| 拠点トップ：仲間の枠 | src/ui-art/slot.png | 金の枠。顔の上に重ねて、顔のふちを隠す。中の緑も抜いた |
+| 拠点トップ：メニューの札 | src/ui-art/menu.png | 木の縁に真ちゅうの金具。slice 56（表示は 18px） |
+| 知らせ：NEW のリボン | src/ui-art/ribbon.png | 札とタブの右上の角に掛ける |
 | 拠点の背景：村の一枚絵 | src/ui-art/village.jpg（768×1376） | 縦長。画面いっぱいに敷く（cover）。真ん中の広場に主人公を重ねる |
 | 拠点トップ：冒険の準備の看板・［GO!］ | src/ui-art/signboard.png（鎖ごと）・go.png | 看板は伸ばさず、絵の縦横の比のまま出す。文字は絵ではなく、上に重ねる |
 | 下のタブ：帯・枠 | src/ui-art/tabbar.png・tab-off.png（選んでいない）・tab-sel.png（選んでいる） | 帯は slice 40 30 20 |
-| 見出し：名前・ルーンの札 | src/ui-art/counter.png | 白から緑に変わる地を、白も緑も背景として抜いた |
+| 見出し：名前・ルーンの札 | src/ui-art/topplate.png | 紺の板に金の縁。slice 26 |
 | メニュー・タブのアイコン・矢印・ルーンの宝石 | public/art/ui_hub_*.png・ui_tab_*.png・ui_chevron.png・ui_rune.png | 冒険・配合・商店のタブは、トップのメニューのアイコンを使い回す |
 | 道具のアイコン | public/art/item_<種類>.png（160） | 一覧の行と、マップに落ちている道具。src/render/art.ts の ITEM_ART に種類を足す |
 

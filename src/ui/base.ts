@@ -155,8 +155,6 @@ export class BaseScreen {
       nav.append(b);
       this.navButtons.set(tab.view, b);
     }
-    // 右上のルーンの［＋］は商店へ
-    document.getElementById('base-buy')!.addEventListener('click', () => this.go('shop'));
   }
 
   /**
@@ -319,9 +317,12 @@ export class BaseScreen {
     stage.className = 'hub-stage';
     stage.append(artElement('player', '🧙', 'hub-art'));
     hero.append(stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
-    // 鎖で吊るした［冒険の準備］の看板。どこを押しても冒険の準備へ（［GO!］は飾り）
-    const sign = document.createElement('button');
+    // 鎖で吊るした［冒険の準備］の看板。板のどこを押しても冒険の準備へ（［GO!］は飾り）。
+    // 文字と［GO!］は板の中で上下のまん中にそろえる
+    const sign = document.createElement('div');
     sign.className = 'hub-sign';
+    const plate = document.createElement('button');
+    plate.className = 'hub-sign-plate';
     const signTitle = document.createElement('span');
     signTitle.className = 'hub-sign-title gold-text';
     signTitle.textContent = '冒険の準備';
@@ -331,8 +332,9 @@ export class BaseScreen {
     goText.className = 'go-text';
     goText.textContent = 'GO!';
     go.append(goText);
-    sign.append(signTitle, go);
-    sign.addEventListener('click', () => this.go('prep'));
+    plate.append(signTitle, go);
+    plate.addEventListener('click', () => this.go('prep'));
+    sign.append(plate);
     /** icon は public/art/ui_hub_<icon>.png */
     const item = (view: View, icon: string, name: string, wide = false, otherMode?: OtherMode): HTMLElement => {
       const b = document.createElement('button');
@@ -360,8 +362,8 @@ export class BaseScreen {
 
   /** 下のタブとトップのメニューに付ける知らせ。配合できるようになったら「NEW」、仲間が加わった・品が入れ替わったら赤い丸 */
   private badgeOf(p: Profile, view: View): HTMLElement | null {
-    if (view === 'fusion' && canFuseNow(p) && !p.notices.fusionSeen) return badge('NEW', 'new');
-    if ((view === 'allies' && p.notices.allies) || (view === 'shop' && p.notices.shop)) return badge('！', 'dot');
+    if (view === 'fusion' && canFuseNow(p) && !p.notices.fusionSeen) return badge('new');
+    if ((view === 'allies' && p.notices.allies) || (view === 'shop' && p.notices.shop)) return badge('dot');
     return null;
   }
 
@@ -1063,11 +1065,12 @@ function allyRow(
   return row;
 }
 
-/** 知らせの印。kind は 'new'（斜めのリボン）か 'dot'（赤い丸） */
-function badge(text: string, kind: 'new' | 'dot'): HTMLElement {
+/** 知らせの印。'new' は角に掛けた「NEW」のリボン（絵）、'dot' は赤い丸の「！」 */
+function badge(kind: 'new' | 'dot'): HTMLElement {
   const el = document.createElement('span');
   el.className = `badge ${kind}`;
-  el.textContent = text;
+  if (kind === 'dot') el.textContent = '！';
+  else el.setAttribute('aria-label', 'NEW');
   return el;
 }
 

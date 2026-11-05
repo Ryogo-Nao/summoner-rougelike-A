@@ -1543,7 +1543,7 @@ button {
 #base > * {
   position: relative;
 }
-/* 見出し：左に「初代 召喚士」や画面の名前、右にルーンと［＋］ */
+/* 見出し：左に「初代 召喚士」や画面の名前、右にルーン。紺の板に金の縁 */
 .base-head {
   margin-bottom: 4px;
   padding-bottom: 0;
@@ -1555,46 +1555,25 @@ button {
   align-items: center;
   gap: 4px;
   height: 36px;
-  padding: 0 6px;
+  padding: 0 8px;
   border-style: solid;
-  border-width: 10px 16px;
-  border-image: url('./ui-art/counter.png') 50 60 fill / 10px 16px stretch;
+  border-width: 8px;
+  border-image: url('./ui-art/topplate.png') 26 fill / 8px stretch;
   border-radius: 0;
   background: none;
+  color: #ffe6a6;
   font-size: 15px;
   letter-spacing: 0.06em;
-}
-.base-wallet {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
 .base-head .runes {
-  margin-left: 0;
+  margin-left: auto;
   font-size: 14px;
   letter-spacing: 0.02em;
 }
 .rune-gem {
   width: 18px;
   height: 18px;
-}
-#base-buy {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-style: solid;
-  border-width: 8px;
-  border-image: url('./ui-art/square.png') 20 fill / 8px stretch;
-  background: none;
-  color: #f6e7c6;
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
-}
-#base-buy:active {
-  transform: translateY(1px);
 }
 #base-depart {
   margin-bottom: 6px;
@@ -1662,7 +1641,7 @@ button {
   transform: translateY(1px) scale(0.96);
 }
 
-/* 知らせの印：赤い丸の「！」と、斜めの「NEW」のリボン */
+/* 知らせの印：赤い丸の「！」と、角に掛けた「NEW」のリボン（絵） */
 .badge {
   position: absolute;
   z-index: 3;
@@ -1686,31 +1665,23 @@ button {
   animation: badge-pop 1.8s ease-in-out infinite;
 }
 .badge.new {
-  top: -6px;
-  right: -4px;
-  padding: 1px 7px;
-  border: 1.5px solid #fff3d6;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #ff6a6a, #c4161f);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.45);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  transform: rotate(14deg);
+  top: -4px;
+  right: -2px;
+  width: 30px;
+  height: 30px;
+  background: url('./ui-art/ribbon.png') center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 /* トップのメニューの札では、枠の右上の角に付ける（札の枠の太さの分だけ外へ出す） */
 .hub-item .badge.dot {
-  top: -20px;
-  right: -18px;
+  top: -16px;
+  right: -16px;
 }
 .hub-item .badge.new {
-  top: -20px;
-  right: -20px;
-}
-#base-nav .badge.new {
-  top: -8px;
-  right: -2px;
-  font-size: 9px;
-  padding: 0 4px;
+  top: -14px;
+  right: -14px;
+  width: 50px;
+  height: 50px;
 }
 @keyframes badge-pop {
   0%, 80%, 100% { transform: scale(1); }
@@ -1733,40 +1704,46 @@ button {
 .hub-hero {
   text-align: center;
 }
-/* 魔法陣の台が、ほのかに光る */
+/* 金の唐草の額縁（上に空色の宝石）。中に魔法陣の台を敷き、主人公を立たせる。台はほのかに光る */
 .hub-stage {
-  width: 128px;
-  height: 128px;
+  position: relative;
+  width: 140px;
+  height: 144px;
   margin: 0 auto;
-  border-radius: 50%;
-  background: url('./ui-art/stage.png') center / contain no-repeat;
+  background:
+    url('./ui-art/medallion.png') center / 100% 100% no-repeat,
+    url('./ui-art/stage.png') center 56% / 66% no-repeat;
   animation: hub-glow 3.2s ease-in-out infinite;
 }
 .hub-art {
   display: block;
-  width: 108px;
-  height: 108px;
+  width: 104px;
+  height: 104px;
   margin: 0 auto;
-  padding-top: 8px;
+  padding-top: 22px;
+  box-sizing: content-box;
 }
 @keyframes hub-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 240, 190, 0.6)); }
-  50% { filter: drop-shadow(0 0 16px rgba(255, 240, 190, 0.95)); }
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 240, 190, 0.6)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 240, 190, 0.95)); }
 }
+/* 羽の付いた紺の名札 */
 .hub-name {
   display: inline-block;
-  margin: 2px 0 0;
-  padding: 0 22px;
+  margin: 0;
+  padding: 0 6px;
   border-style: solid;
-  border-width: 10px 14px;
-  border-image: url('./ui-art/nameplate.png') 40 fill / 10px 14px stretch;
-  color: var(--text);
+  border-width: 14px 34px;
+  border-image: url('./ui-art/wingplate.png') 40 95 fill / 14px 34px stretch;
+  color: #ffe6a6;
   font-family: var(--serif);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: bold;
+  line-height: 18px;
   letter-spacing: 0.15em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
 }
-/* 連れていく仲間：木の台に顔、下に Lv。空き枠は［＋］がゆっくり光る */
+/* 連れていく仲間：金の枠に顔、下に Lv。空き枠は［＋］がゆっくり光る */
 .hub-party {
   display: flex;
   justify-content: center;
@@ -1783,17 +1760,25 @@ button {
   background: none;
 }
 .hub-face {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   padding: 6px;
+  background: rgba(40, 28, 16, 0.55);
+  border-radius: 4px;
+}
+/* 金の枠は顔の上に重ねて、顔のふちを隠す */
+.hub-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
 }
 .hub-face img {
   width: 100%;
   height: 100%;
-  border-radius: 4px;
   object-fit: cover;
 }
 .hub-face .face-emoji {
@@ -1804,10 +1789,16 @@ button {
   font-size: 20px;
   font-weight: 900;
   text-shadow: 0 0 6px rgba(255, 230, 150, 0.9);
+}
+.hub-slot.empty .hub-face::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  box-shadow: inset 0 0 10px rgba(255, 225, 140, 0.7);
   animation: slot-blink 1.8s ease-in-out infinite;
 }
 @keyframes slot-blink {
-  0%, 100% { opacity: 0.65; }
+  0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
 .hub-lv {
@@ -1818,59 +1809,46 @@ button {
   line-height: 14px;
   text-shadow: 1px 0 0 #3b2208, -1px 0 0 #3b2208, 0 1px 0 #3b2208, 0 -1px 0 #3b2208;
 }
-/* 鎖で吊るした［冒険の準備］の看板 */
+/* 鎖で吊るした［冒険の準備］の看板。絵の縦横の比のまま出す。上の 27% が鎖 */
 .hub-sign {
   position: relative;
-  display: block;
-  width: 100%;
   flex: none;
-  aspect-ratio: 738 / 424;
-  margin: 0;
-  padding: 0;
-  border: none;
+  width: 100%;
+  height: 0;
+  padding-top: 57.45%;
   background: url('./ui-art/signboard.png') center / 100% 100% no-repeat;
-  pointer-events: none;
 }
-/* 押せるのは板だけ（鎖のあたりは仲間の枠を押せるようにする） */
-.hub-sign > * {
-  pointer-events: auto;
-}
-.hub-sign::after {
-  content: '';
+/* 押せる板。文字と［GO!］を、板の中で上下のまん中にそろえる */
+.hub-sign-plate {
   position: absolute;
   left: 2%;
   right: 2%;
-  top: 28%;
   bottom: 2%;
-  pointer-events: auto;
+  height: 70%;
+  display: flex;
+  align-items: center;
+  gap: 2%;
+  padding: 0 6% 0 6%;
+  border: none;
+  background: none;
 }
-.hub-sign:active {
+.hub-sign-plate:active {
   transform: translateY(2px);
   filter: brightness(0.96);
 }
 .hub-sign-title {
-  position: absolute;
-  z-index: 1;
-  left: 8%;
-  right: 30%;
-  top: 62%;
-  transform: translateY(-50%);
+  flex: 1;
   font-size: 28px;
   text-align: center;
-  pointer-events: none;
 }
 .hub-sign-go {
-  position: absolute;
-  z-index: 1;
-  right: 6%;
-  top: 41%;
-  width: 24%;
-  aspect-ratio: 1;
+  flex: none;
   display: grid;
   place-items: center;
+  width: 25%;
+  aspect-ratio: 1;
   background: url('./ui-art/go.png') center / contain no-repeat;
   animation: go-pulse 2.4s ease-in-out infinite;
-  pointer-events: none;
 }
 .go-text {
   color: #fff;
@@ -1885,7 +1863,7 @@ button {
   0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(150, 220, 255, 0.5)); }
   50% { transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(150, 220, 255, 0.95)); }
 }
-/* ［商店］は幅いっぱい、［記録］［配合］は2つ並べる */
+/* ［商店］は幅いっぱい、［記録］［配合］は2つ並べる。木の縁に真ちゅうの金具の札 */
 .hub-menus {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1897,19 +1875,18 @@ button {
   align-items: center;
   gap: 6px;
   height: 58px;
-  padding: 0 2px;
+  padding: 0 8px;
   border-style: solid;
-  border-width: 13px;
-  border-image: url('./ui-art/menu.png') 48 fill / 13px stretch;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 18px stretch;
   background: none;
-  box-shadow: 0 2px 6px rgba(61, 47, 34, 0.25);
+  filter: drop-shadow(0 2px 3px rgba(61, 47, 34, 0.35));
 }
 .hub-item.wide {
   grid-column: 1 / -1;
 }
 .hub-item:active {
   transform: translateY(2px);
-  filter: brightness(0.96);
 }
 .hub-icon {
   display: grid;
@@ -1932,19 +1909,24 @@ button {
   width: 16px;
   height: 16px;
 }
-/* 背の低い画面（iPhone SE など）では、台・看板・札を小さくして1画面に収める */
+/* 背の低い画面（iPhone SE など）では、額縁・看板・札を小さくして1画面に収める */
 @media (max-height: 740px) {
   .hub-stage {
     width: 100px;
-    height: 100px;
+    height: 103px;
   }
   .hub-art {
-    width: 84px;
-    height: 84px;
-    padding-top: 6px;
+    width: 74px;
+    height: 74px;
+    padding-top: 16px;
+  }
+  .hub-face {
+    width: 46px;
+    height: 46px;
   }
   .hub-sign {
     width: 84%;
+    padding-top: 48.26%;
     margin: 0 auto;
   }
   .hub-sign-title {
@@ -1965,7 +1947,7 @@ button {
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-stage,
-  .hub-slot.empty .hub-face,
+  .hub-slot.empty .hub-face::before,
   .hub-sign-go,
   .badge.dot {
     animation: none;
