@@ -302,7 +302,7 @@ export class BaseScreen {
         icon: cardIcon(card),
         art: card.species.id,
         name: cardName(card),
-        sub: `Lv${card.level}　HP${card.hp}/${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
+        sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
         className: taking ? 'ally taking' : 'ally',
         onSelect: () => this.enter(() => (this.viewing = card)),
       });

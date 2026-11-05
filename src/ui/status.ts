@@ -43,7 +43,8 @@ export function statusView(
   const rows: [string, string][] = [
     ['種族', card.species.name],
     ['レベル', `Lv${card.level}`],
-    ['HP', `${card.hp}/${card.maxHp}`],
+    // 拠点ではHPは減らないので、最大HPだけを出す
+    ['HP', inDungeon ? `${card.hp}/${card.maxHp}` : `${card.maxHp}`],
     ['攻撃力', `${card.atk}`],
     ['防御力', `${card.def}`],
     ['経験値', next === null ? `${Math.floor(card.exp)}（最大レベル）` : `${Math.floor(card.exp)}（次のLvまで${Math.ceil(next)}）`],
