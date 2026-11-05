@@ -1746,6 +1746,8 @@ export class GameState {
 
   /** 主人公のあと、仲間、魔物の順に動く */
   private endTurn(): void {
+    // 転送の印で脱出した・踏破したときは、その場でダンジョンを出る。仲間も魔物も動かない
+    if (this.escaped || this.cleared) return;
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
     this.checkMonsterHouse();
