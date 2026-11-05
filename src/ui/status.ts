@@ -36,14 +36,13 @@ export function statusView(
   portrait.className = 'status-portrait';
   portrait.append(artElement(card.species.id, card.species.emoji, 'status-art'));
 
-  const title = document.createElement('div');
-  title.className = 'status-title';
-  title.textContent = `${cardName(card)}　Lv${card.level}`;
+  const title = nameTitle(card, onRename);
 
   const { name, up, down } = PERSONALITIES[card.personality];
   const next = allyExpToNext(card.exp);
   const rows: [string, string][] = [
     ['種族', card.species.name],
+    ['レベル', `Lv${card.level}`],
     ['HP', `${card.hp}/${card.maxHp}`],
     ['攻撃力', `${card.atk}`],
     ['防御力', `${card.def}`],
@@ -73,47 +72,56 @@ export function statusView(
     dd.textContent = value;
     table.append(dt, dd);
   }
-  root.append(portrait, title);
-  if (onRename) root.append(nicknameEditor(card, onRename));
-  root.append(table);
+  root.append(portrait, title, table);
   return root;
 }
 
 /**
- * ニックネームを付ける欄。8文字まで。空にして［決める］と種族の名前に戻る。
- * 8文字をこえると数を赤にして［決める］を押せなくする
+ * 絵の下の名前。onRename があれば、横の［✎］で名前を打ち込める欄に変わる（8文字まで）。
+ * 8文字をこえると数を赤にして［決める］を押せなくする。空にして決めると種族の名前に戻る
  */
-function nicknameEditor(card: Card, onRename: (name: string) => void): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'nickname';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = card.nickname ?? '';
-  input.placeholder = card.species.name;
-  input.setAttribute('aria-label', 'ニックネーム');
-  input.enterKeyHint = 'done';
-  const count = document.createElement('span');
-  count.className = 'nickname-count';
-  const ok = document.createElement('button');
-  ok.textContent = '決める';
-  const update = () => {
-    const n = nicknameLength(input.value);
-    count.textContent = `${n}/${NICKNAME_LIMIT}`;
-    count.classList.toggle('over', n > NICKNAME_LIMIT);
-    ok.disabled = n > NICKNAME_LIMIT || input.value.trim() === (card.nickname ?? '');
-  };
-  input.addEventListener('input', update);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !ok.disabled) ok.click();
+function nameTitle(card: Card, onRename?: (name: string) => void): HTMLElement {
+  const title = document.createElement('div');
+  title.className = 'status-title';
+  const name = document.createElement('span');
+  name.textContent = cardName(card);
+  title.append(name);
+  if (!onRename) return title;
+  const edit = document.createElement('button');
+  edit.className = 'rename';
+  edit.setAttribute('aria-label', 'ニックネームを変える');
+  edit.textContent = '✎';
+  edit.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = card.nickname ?? '';
+    input.placeholder = card.species.name;
+    input.setAttribute('aria-label', 'ニックネーム');
+    input.enterKeyHint = 'done';
+    const count = document.createElement('span');
+    count.className = 'nickname-count';
+    const ok = document.createElement('button');
+    ok.className = 'rename-ok';
+    ok.textContent = '決める';
+    const update = () => {
+      const n = nicknameLength(input.value);
+      count.textContent = `${n}/${NICKNAME_LIMIT}`;
+      count.classList.toggle('over', n > NICKNAME_LIMIT);
+      ok.disabled = n > NICKNAME_LIMIT;
+    };
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !ok.disabled) ok.click();
+    });
+    ok.addEventListener('click', () => {
+      if (nicknameLength(input.value) > NICKNAME_LIMIT) return;
+      onRename(input.value.trim());
+    });
+    update();
+    title.classList.add('editing');
+    title.replaceChildren(input, count, ok);
+    input.focus();
   });
-  ok.addEventListener('click', () => {
-    if (nicknameLength(input.value) > NICKNAME_LIMIT) return;
-    onRename(input.value.trim());
-  });
-  update();
-  const label = document.createElement('span');
-  label.className = 'nickname-label';
-  label.textContent = 'ニックネーム';
-  box.append(label, input, count, ok);
-  return box;
+  title.append(edit);
+  return title;
 }

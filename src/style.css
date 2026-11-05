@@ -1205,12 +1205,62 @@ button {
   height: 148px;
 }
 .status-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
   margin: 10px 0 6px;
   font-family: var(--serif);
   font-size: 18px;
   font-weight: bold;
   text-align: center;
   letter-spacing: 0.06em;
+}
+/* 名前の横の［✎］。押すと名前を打ち込める */
+.status-title button.rename {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--btn-line);
+  border-radius: 50%;
+  background: var(--btn);
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1;
+}
+.status-title.editing {
+  padding: 0 4px;
+}
+.status-title input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  outline: none;
+}
+.status-title button.rename-ok {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--navy);
+  border-radius: 4px;
+  background: var(--btn-main);
+  color: #fbe7b0;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0;
+}
+.status-title button.rename-ok:disabled {
+  border-color: var(--line);
+  background: var(--paper-2);
+  color: var(--muted);
 }
 .status-table {
   display: grid;
@@ -1232,61 +1282,17 @@ button {
   margin: 0 4px 6px;
   font-size: 14px;
 }
-/* 仲間のつよさの、ニックネームを付ける欄 */
-.nickname {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 4px 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
-}
-.nickname-label {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.nickname input {
-  min-width: 0;
-  height: 36px;
-  padding: 0 8px;
-  border: 1px solid var(--btn-line);
-  border-radius: 6px;
-  background: #fffdf8;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 16px;
-}
-.nickname input:focus {
-  border-color: var(--gold);
-  outline: none;
-}
 .nickname-count {
   color: var(--muted);
+  font-family: var(--font);
   font-size: 12px;
+  font-weight: normal;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 .nickname-count.over {
   color: var(--coral);
   font-weight: bold;
-}
-.nickname button {
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--navy);
-  border-radius: 4px;
-  background: var(--btn-main);
-  color: #fbe7b0;
-  font-size: 14px;
-  font-weight: bold;
-}
-.nickname button:disabled {
-  border-color: var(--line);
-  background: var(--paper-2);
-  color: var(--muted);
 }
 /* 仲間のタブ。行の大きさをそろえ、説明は2行で切る */
 .sheet-row.ally .sub {
