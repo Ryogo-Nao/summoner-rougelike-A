@@ -25,6 +25,8 @@ export interface Terrain {
   tile: number;
   canvas: HTMLCanvasElement;
   torches: Torch[];
+  /** 壁の奥の岩の模様（1マス = 模様の4分の1）。まだ見ていないマスとマップの外を、これで埋める */
+  rock: HTMLCanvasElement;
 }
 
 /** 決まった数から、0〜1 の数をいつも同じに出す */
@@ -130,7 +132,20 @@ interface Textures {
   wall: HTMLCanvasElement;
   face: HTMLCanvasElement;
   rim: HTMLCanvasElement;
+  rock: HTMLCanvasElement;
 }
+
+/** 壁の奥の岩。壁の上の面と同じ石を、奥の壁と同じだけ暗くする */
+function rockTexture(theme: MapTheme): HTMLCanvasElement {
+  const canvas = stoneTexture(theme.wallStone, theme.mortar, 11, 2.5, 2);
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = INNER_SHADE;
+  ctx.fillRect(0, 0, TEXTURE, TEXTURE);
+  return canvas;
+}
+
+/** まわりがすべて壁の、奥の壁にかける暗さ */
+const INNER_SHADE = 'rgba(15, 10, 5, 0.22)';
 
 /** 模様はダンジョンの見た目ごとに1回だけ作る */
 const textureCache = new Map<MapTheme, Textures>();
@@ -143,6 +158,7 @@ function texturesFor(theme: MapTheme): Textures {
       wall: stoneTexture(theme.wallStone, theme.mortar, 11, 2.5, 2),
       face: stoneTexture(theme.face, theme.mortar, 10, 2, 3),
       rim: stoneTexture(theme.rim, theme.mortar, 16, 1.8, 4),
+      rock: rockTexture(theme),
     };
     textureCache.set(theme, t);
   }
@@ -213,7 +229,7 @@ export function buildTerrain(map: GameMap, theme: MapTheme, tile: number): Terra
       let inner = true;
       for (let dy = -1; dy <= 1 && inner; dy++) for (let dx = -1; dx <= 1; dx++) if (!wall(x + dx, y + dy)) inner = false;
       if (inner) {
-        ctx.fillStyle = 'rgba(15, 10, 5, 0.22)';
+        ctx.fillStyle = INNER_SHADE;
         ctx.fillRect(sx, sy, T, T);
       }
       if (openS) {
@@ -232,7 +248,7 @@ export function buildTerrain(map: GameMap, theme: MapTheme, tile: number): Terra
       }
     }
   }
-  return { map, theme, tile: T, canvas, torches };
+  return { map, theme, tile: T, canvas, torches, rock: tex.rock };
 }
 
 /** 下り階段。床に開いた穴に、奥へ下りていく石の段を描く */

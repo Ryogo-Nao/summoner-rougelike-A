@@ -97,6 +97,8 @@ export class Renderer {
   private steps = new Map<string, Step>();
   /** 今の階の床と壁の絵。階やダンジョンが変わったら作り直す */
   private terrain: Terrain | null = null;
+  private rockSource: HTMLCanvasElement | null = null;
+  private rockPattern: CanvasPattern | null = null;
   /** 絵を左右反転しているか。上下を向いたときは前の向きのまま */
   private flipped = new Map<string, boolean>();
 
@@ -170,8 +172,6 @@ export class Renderer {
     const baseY = Math.round(cam.y);
 
     const theme = state.dungeon.theme;
-    ctx.fillStyle = theme.outside;
-    ctx.fillRect(0, 0, viewW, viewH);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -184,6 +184,17 @@ export class Renderer {
       this.terrain = buildTerrain(map, theme, tilePx);
     }
     const T = this.terrain!.tile;
+    // マップの外とまだ見ていないマスは、壁の奥と同じ岩で埋める（通路の形は分からない）。
+    // 岩の模様はマップの左上にそろえ、見たことのある壁とつながるようにする
+    if (this.rockSource !== this.terrain!.rock) {
+      this.rockSource = this.terrain!.rock;
+      this.rockPattern = ctx.createPattern(this.terrain!.rock, 'repeat');
+    }
+    const rock = this.rockPattern!;
+    const rs = (ts * 4) / this.terrain!.rock.width;
+    rock.setTransform(new DOMMatrix().translate(px0 - cam.x * ts, py0 - cam.y * ts).scale(rs));
+    ctx.fillStyle = rock;
+    ctx.fillRect(0, 0, viewW, viewH);
     const x0 = Math.max(0, baseX - HALF - 1);
     const x1 = Math.min(map.width - 1, baseX + HALF + 1);
     const y0 = Math.max(0, baseY - rowsAbove);
@@ -203,7 +214,9 @@ export class Renderer {
         const sx = Math.round(px0 + (mx - cam.x) * ts);
         const sy = Math.round(py0 + (my - cam.y) * ts);
         if (!state.isExplored(mx, my)) {
-          ctx.fillStyle = theme.outside;
+          ctx.fillStyle = rock;
+          ctx.fillRect(sx, sy, ts, ts);
+          ctx.fillStyle = COLORS.memory;
           ctx.fillRect(sx, sy, ts, ts);
           continue;
         }

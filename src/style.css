@@ -879,89 +879,122 @@ button {
   display: none;
 }
 
-/* 拠点のトップ。枠を付けずに、紙の上に主人公の札と3つのメニューを置く */
+/* 拠点のトップ。紙の上に、金具の付いた主人公の札と3つのメニューを置く。どのメニューも同じ紙の札にそろえる */
 #base-body.hub {
   border: none;
-  background: none;
+  background:
+    radial-gradient(circle at 50% 78%, transparent 0 118px, rgba(122, 95, 60, 0.08) 119px 121px, transparent 122px 150px, rgba(122, 95, 60, 0.06) 151px 152px, transparent 153px),
+    none;
   padding: 0 2px;
 }
 .hub-hero {
   position: relative;
   margin: 12px 2px 16px;
-  padding: 14px 12px 14px;
+  padding: 16px 14px 16px;
   text-align: center;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
   background:
-    radial-gradient(circle at 50% 36%, rgba(255, 214, 140, 0.45), transparent 55%),
-    var(--card);
-  box-shadow: 0 4px 16px rgba(61, 47, 34, 0.1);
+    radial-gradient(circle at 50% 34%, rgba(255, 236, 196, 0.9), transparent 60%),
+    linear-gradient(180deg, #f8efdc, #ecdcbc);
+  box-shadow: inset 0 0 0 3px #fbf4e4, inset 0 0 0 4px rgba(183, 154, 105, 0.6), 0 4px 14px rgba(61, 47, 34, 0.16);
 }
-/* 四隅のかぎの線 */
-.hub-hero::before,
-.hub-hero::after {
+/* 四隅の金具 */
+.hub-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 4px solid #6f6253;
+  background: linear-gradient(135deg, #a99a86, #5e5245);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+.hub-corner::after {
   content: '';
   position: absolute;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--line-strong);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f1e2c2, #8a6a3c);
 }
-.hub-hero::before {
-  left: 8px;
-  top: 8px;
-  border-right: none;
-  border-bottom: none;
-}
-.hub-hero::after {
-  right: 8px;
-  bottom: 8px;
-  border-left: none;
-  border-top: none;
+.hub-corner.tl { left: -3px; top: -3px; border-right: none; border-bottom: none; border-radius: 4px 0 0 0; background: none; }
+.hub-corner.tr { right: -3px; top: -3px; border-left: none; border-bottom: none; border-radius: 0 4px 0 0; background: none; }
+.hub-corner.bl { left: -3px; bottom: -3px; border-right: none; border-top: none; border-radius: 0 0 0 4px; background: none; }
+.hub-corner.br { right: -3px; bottom: -3px; border-left: none; border-top: none; border-radius: 0 0 4px 0; background: none; }
+.hub-corner.tl::after, .hub-corner.tr::after { top: 3px; }
+.hub-corner.bl::after, .hub-corner.br::after { bottom: 3px; }
+.hub-corner.tl::after, .hub-corner.bl::after { left: 3px; }
+.hub-corner.tr::after, .hub-corner.br::after { right: 3px; }
+/* 主人公の後ろに、うすい魔法陣 */
+.hub-stage {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.85) 0 34%, transparent 35%),
+    repeating-radial-gradient(circle, rgba(140, 180, 220, 0.28) 0 1px, transparent 1px 12px),
+    radial-gradient(circle, rgba(170, 205, 240, 0.35), transparent 70%);
 }
 .hub-art {
   display: block;
-  width: 150px;
-  height: 150px;
+  width: 160px;
+  height: 160px;
   margin: 0 auto;
+  padding-top: 5px;
 }
+/* 名札。紙の板を一段浮かせる */
 .hub-name {
-  margin: 4px 0 0;
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 6px 30px;
+  border: 1px solid #9c8462;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #f6ecd8, #e2cfaa);
+  box-shadow: inset 0 0 0 2px rgba(255, 250, 240, 0.7), 0 2px 4px rgba(61, 47, 34, 0.25);
   color: var(--text);
   font-family: var(--serif);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: bold;
   letter-spacing: 0.15em;
 }
+/* 連れていく仲間。木の台に顔を乗せる */
 .hub-party {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 12px;
 }
 .hub-party .face {
-  width: 38px;
-  height: 38px;
-  border-color: var(--mint);
+  width: 50px;
+  height: 50px;
+  border: 2px solid #5b4630;
+  border-radius: 10px;
+  background: var(--grain), linear-gradient(180deg, #9a7650, #6a4d31);
+  box-shadow: inset 0 0 0 2px rgba(255, 225, 170, 0.25), 0 2px 4px rgba(61, 47, 34, 0.35);
+}
+.hub-party .face img {
+  border-radius: 7px;
 }
 .hub-party .face-emoji {
-  font-size: 20px;
+  font-size: 22px;
 }
 .hub-party .face.empty {
-  border-color: var(--line-strong);
-  font-size: 14px;
+  color: rgba(255, 230, 190, 0.6);
+  font-size: 16px;
 }
 .hub-item {
   display: grid;
-  grid-template-columns: 54px 1fr 14px;
+  grid-template-columns: 56px 1fr 18px;
   align-items: center;
   gap: 14px;
   width: 100%;
   margin-bottom: 12px;
   padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--card);
-  box-shadow: 0 2px 8px rgba(61, 47, 34, 0.08);
+  border: 1px solid #cdb27a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fdf8ee, #f3e8d2);
+  box-shadow: inset 0 0 0 3px #fdf8ee, inset 0 0 0 4px rgba(201, 154, 62, 0.45), 0 2px 8px rgba(61, 47, 34, 0.12);
   text-align: left;
 }
 .hub-item:active {
@@ -971,22 +1004,24 @@ button {
 .hub-icon {
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--icon-bg);
+  width: 56px;
+  height: 56px;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  background: #fffdf8;
+  box-shadow: inset 0 0 0 2px #fffaf1, inset 0 0 0 3px rgba(201, 154, 62, 0.35);
   font-size: 26px;
 }
 .hub-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 .hub-title {
+  color: var(--text);
   font-family: var(--serif);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: bold;
   letter-spacing: 0.08em;
 }
@@ -995,28 +1030,29 @@ button {
   color: var(--muted);
 }
 .hub-go {
-  color: var(--muted);
-  font-size: 20px;
+  color: var(--navy);
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 1;
 }
-/* いちばん使う［冒険の準備］は、茶色の石に金の縁 */
+/* いちばん使う［冒険の準備］は、同じ紙の札で縁を太い茶色にし、丸い紋章を付ける */
 .hub-item.main {
-  border: 2px solid var(--bronze);
-  background:
-    radial-gradient(120% 90% at 30% 20%, rgba(255, 235, 190, 0.12), transparent 60%),
-    var(--grain),
-    linear-gradient(180deg, #5e4c3a, #3a2e23);
-  box-shadow: inset 0 0 0 2px #241b13, inset 0 0 0 3px rgba(240, 207, 126, 0.45), 0 4px 12px rgba(61, 47, 34, 0.35);
+  padding: 16px;
+  border: 2px solid #7a5a3a;
+  background: linear-gradient(180deg, #f7eedd, #ead9b8);
+  box-shadow: inset 0 0 0 3px #f7eedd, inset 0 0 0 4px #a8835a, 0 4px 12px rgba(61, 47, 34, 0.22);
 }
 .hub-item.main .hub-icon {
-  border-color: rgba(240, 207, 126, 0.6);
-  background: rgba(0, 0, 0, 0.2);
+  border: 3px solid var(--gold);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #5e4c3a, #2e241b);
+  box-shadow: 0 0 0 2px #fffaf1, 0 0 0 3px rgba(122, 90, 58, 0.6);
 }
 .hub-item.main .hub-title {
-  color: #ffd98a;
+  font-size: 22px;
 }
-.hub-item.main .hub-desc,
 .hub-item.main .hub-go {
-  color: #e3cf9f;
+  visibility: hidden;
 }
 #status .runes {
   margin-left: auto;
@@ -1196,14 +1232,91 @@ button {
   margin: 0 4px 6px;
   font-size: 14px;
 }
-/* 連れていくカード */
+/* 仲間のタブ。行の大きさをそろえ、説明は2行で切る */
+.sheet-row.ally .sub {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet-row.ally .name,
+.sheet-row.ally > div {
+  min-width: 0;
+}
+/* 連れていく仲間 */
 .sheet-row.taking {
   border-color: var(--mint);
   background: #f0fbf6;
-  box-shadow: inset 3px 0 0 var(--mint);
+  box-shadow: inset 0 0 0 1px var(--mint), 0 0 6px rgba(63, 191, 138, 0.3);
 }
-.sheet-row.taking .name {
-  color: #23986a;
+/* 行の右の丸い印。押すと連れていく・残すが変わる */
+.sheet-row button.check {
+  min-width: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid var(--btn-line);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #f6efe2, #ddd0b8);
+  box-shadow: inset 0 2px 3px rgba(61, 47, 34, 0.18), 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+.sheet-row button.check.on {
+  border: 2px solid #b8862f;
+  background: radial-gradient(circle at 40% 35%, #f3d27f, #b8862f);
+  box-shadow: inset 0 0 0 2px rgba(255, 245, 210, 0.7), 0 1px 3px rgba(61, 47, 34, 0.3);
+}
+.sheet-row button.check.on::after {
+  content: '';
+  display: block;
+  width: 12px;
+  height: 22px;
+  margin: -4px auto 0;
+  border: solid #2f6b3a;
+  border-width: 0 5px 5px 0;
+  transform: rotate(45deg);
+}
+.sheet-row button.check:disabled {
+  opacity: 0.4;
+}
+/* 連れていく仲間の顔を並べる帯 */
+.party-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 2px solid #7a5a3a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f5ead4, #e6d3ad);
+  box-shadow: inset 0 0 0 2px #f8f0e0, inset 0 0 0 3px #a8835a;
+}
+.party-label {
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.party-count {
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: bold;
+}
+.party-faces {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+.party-faces .face {
+  width: 36px;
+  height: 36px;
+  box-shadow: 0 0 0 1px #fffaf1;
+}
+.party-faces .face.empty {
+  border: none;
+  background: rgba(120, 95, 60, 0.18);
+  box-shadow: inset 0 1px 3px rgba(61, 47, 34, 0.25);
+  color: rgba(255, 250, 240, 0.9);
+  font-size: 18px;
 }
 .sheet-row.tappable {
   cursor: pointer;

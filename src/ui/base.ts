@@ -1,11 +1,11 @@
-import { HAND_LIMIT, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, type Card } from '../game/cards';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
-import { SPELL_ICONS, cardIcon, cardSub } from './screens';
+import { SPELL_ICONS, cardIcon } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement } from '../render/art';
@@ -72,7 +72,7 @@ export class BaseScreen {
       if (this.viewing) this.leave(() => (this.viewing = null));
       else if (this.pouch) this.leave(() => (this.pouch = null));
       else if (this.choosing) this.leave(() => (this.choosing = false));
-      else if (this.handCards().length > 0) this.enter(() => (this.choosing = true));
+      else this.enter(() => (this.choosing = true));
     });
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
@@ -170,10 +170,8 @@ export class BaseScreen {
     document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
-    const hand = this.handCards().length;
     const inside = this.viewing !== null || this.pouch !== null || this.choosing;
-    this.depart.textContent = inside ? '戻る' : hand === 0 ? '仲間を1体以上選ぶ' : 'ダンジョンに向かう';
-    (this.depart as HTMLButtonElement).disabled = !inside && hand === 0;
+    this.depart.textContent = inside ? '戻る' : 'ダンジョンに向かう';
     this.depart.classList.toggle('back', inside);
   }
 
@@ -195,11 +193,15 @@ export class BaseScreen {
       else face.textContent = '＋';
       party.append(face);
     }
-    hero.append(
-      artElement('player', '🧙', 'hub-art'),
-      note(`${generationName(p.generation)} 召喚士`, 'hub-name'),
-      party,
-    );
+    const corners = ['tl', 'tr', 'bl', 'br'].map((c) => {
+      const el = document.createElement('span');
+      el.className = `hub-corner ${c}`;
+      return el;
+    });
+    const stage = document.createElement('div');
+    stage.className = 'hub-stage';
+    stage.append(artElement('player', '🧙', 'hub-art'));
+    hero.append(...corners, stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
     const item = (view: View, icon: string, name: string, desc: string, main = false): HTMLElement => {
       const b = document.createElement('button');
       b.className = main ? 'hub-item main' : 'hub-item';
@@ -246,10 +248,14 @@ export class BaseScreen {
     return [note('挑むダンジョンを選ぶ'), ...rows.map(renderRow)];
   }
 
+  /**
+   * 仲間のタブ。上に並べ替えのボタンと、連れていく仲間の顔（5つの枠）を固定して出す。
+   * 行の右の丸い印を押すと、連れていく・残すを切り替える。行の大きさは変えない
+   */
   private cardRows(p: Profile): HTMLElement[] {
-    const hand = this.handCards().length;
-    const toggle = document.createElement('div');
-    toggle.className = 'base-sort';
+    const hand = this.handCards();
+    const head = document.createElement('div');
+    head.className = 'base-sort';
     // 並べ替えのボタン。1回目は昇順（↑）、同じボタンをもう一度押すと降順（↓）
     const sorts = document.createElement('div');
     sorts.className = 'sort-keys';
@@ -263,30 +269,52 @@ export class BaseScreen {
       if (on) b.classList.add('on');
       sorts.append(b);
     }
-    toggle.append(sorts);
-    const rows: SheetRow[] = p.cards.map((card) => {
+    const party = document.createElement('div');
+    party.className = 'party-band';
+    const label = document.createElement('div');
+    label.className = 'party-label';
+    label.textContent = '連れていく仲間';
+    const count = document.createElement('div');
+    count.className = 'party-count';
+    count.textContent = `${hand.length} / ${HAND_LIMIT}`;
+    const text = document.createElement('div');
+    text.append(label, count);
+    const faces = document.createElement('div');
+    faces.className = 'party-faces';
+    for (let i = 0; i < HAND_LIMIT; i++) {
+      const card = hand[i];
+      const face = document.createElement('span');
+      face.className = card ? 'face' : 'face empty';
+      if (card) face.append(faceElement(card.species.id, cardIcon(card)));
+      else face.textContent = '＋';
+      faces.append(face);
+    }
+    party.append(text, faces);
+    head.append(sorts, party);
+    const rows = p.cards.map((card) => {
       const taking = p.hand.includes(card.id);
-      return {
+      const row = renderRow({
         icon: cardIcon(card),
         art: card.species.id,
         name: card.species.name,
-        sub: cardSub(card, false),
-        className: taking ? 'taking' : undefined,
-        button: taking
-          ? { label: '残す', onClick: () => this.change(() => (p.hand = p.hand.filter((id) => id !== card.id))) }
-          : {
-              label: '連れていく',
-              disabled: hand >= HAND_LIMIT,
-              onClick: () => this.change(() => p.hand.push(card.id)),
-            },
+        sub: `Lv${card.level}　HP${card.hp}/${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
+        className: taking ? 'ally taking' : 'ally',
         onSelect: () => this.enter(() => (this.viewing = card)),
-      };
+      });
+      const check = document.createElement('button');
+      check.className = taking ? 'check on' : 'check';
+      check.setAttribute('aria-label', taking ? '残す' : '連れていく');
+      check.disabled = !taking && hand.length >= HAND_LIMIT;
+      check.addEventListener('click', () =>
+        this.change(() => {
+          if (taking) p.hand = p.hand.filter((id) => id !== card.id);
+          else p.hand.push(card.id);
+        }),
+      );
+      row.append(check);
+      return row;
     });
-    return [
-      note(`連れていく仲間 ${hand}/${HAND_LIMIT}`),
-      toggle,
-      ...rows.map(renderRow),
-    ];
+    return [head, ...rows];
   }
 
   /**
@@ -329,10 +357,11 @@ export class BaseScreen {
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
     const pouch = ITEMS[item.kind].pouch !== undefined;
+    // 袋は押すと中を見られる
     return renderRow({
       icon: ITEMS[item.kind].emoji,
       name,
-      sub: pouch ? `${ITEMS[item.kind].desc}\n押すと中を見る` : ITEMS[item.kind].desc,
+      sub: ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
       onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
     });

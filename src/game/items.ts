@@ -115,8 +115,8 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3, value: 250 },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
-  pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる\nバッグでは1つと数える', pouch: { capacity: [2, 4] }, value: 100 },
-  finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる\nバッグでは1つと数える', pouch: { capacity: [5, 7] }, value: 300 },
+  pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる', pouch: { capacity: [2, 4] }, value: 100 },
+  finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる', pouch: { capacity: [5, 7] }, value: 300 },
   holyPouch: {
     kana: 'せいなるふくろ',
     name: '聖なる袋',
