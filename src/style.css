@@ -1702,3 +1702,166 @@ button {
 .sheet-row.blocked .stepper {
   opacity: 0.75;
 }
+
+/* ==== 拠点のトップと見出しの絵の素材（docs/art-guide.md 8） ==== */
+/* 背景に、うすい魔法陣の透かし */
+#base-body.hub {
+  background: url('./ui-art/watermark.png') center 82% / 400px no-repeat;
+}
+/* 主人公の札：木と革の枠に真ちゅうの金具 */
+.hub-hero {
+  padding: 0;
+  border-style: solid;
+  border-width: 36px 30px;
+  border-image: url('./ui-art/card.png') 105 fill / 36px 30px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 4px 12px rgba(61, 47, 34, 0.25);
+}
+/* 魔法陣の台 */
+.hub-stage {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: url('./ui-art/stage.png') center / contain no-repeat;
+  box-shadow: 0 3px 8px rgba(40, 25, 10, 0.35);
+}
+.hub-art {
+  width: 128px;
+  height: 128px;
+  padding-top: 8px;
+}
+/* 「初代 召喚士」の名札 */
+.hub-name {
+  padding: 4px 26px;
+  border-style: solid;
+  border-width: 12px 16px;
+  border-image: url('./ui-art/nameplate.png') 40 fill / 12px 16px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 19px;
+}
+/* 仲間の顔をはめる木の台 */
+.hub-party .face {
+  width: 50px;
+  height: 50px;
+  padding: 7px;
+  border: none;
+  border-radius: 0;
+  background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+.hub-party .face img {
+  border-radius: 4px;
+}
+/* メニューの札 */
+.hub-item {
+  padding: 0 4px;
+  border-style: solid;
+  border-width: 16px;
+  border-image: url('./ui-art/menu.png') 48 fill / 16px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 2px 6px rgba(61, 47, 34, 0.15);
+}
+.hub-item.main {
+  padding: 2px 4px;
+  border-width: 22px;
+  border-image: url('./ui-art/menu-main.png') 62 fill / 22px stretch;
+  background: none;
+  box-shadow: 0 3px 10px rgba(61, 47, 34, 0.25);
+}
+.hub-icon,
+.hub-item.main .hub-icon {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.hub-icon img {
+  width: 100%;
+  height: 100%;
+}
+.hub-go img {
+  width: 18px;
+  height: 18px;
+}
+.hub-item.main .hub-go {
+  visibility: hidden;
+}
+/* 見出しのルーン：木の札に宝石 */
+.base-head .runes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 6px;
+  border-style: solid;
+  border-width: 10px 16px;
+  border-image: url('./ui-art/counter.png') 50 60 fill / 10px 16px stretch;
+  border-radius: 0;
+  background: none;
+  font-size: 14px;
+}
+.rune-gem {
+  width: 18px;
+  height: 18px;
+}
+/* 左上の［拠点］：左を向いた矢印の札 */
+#base-back {
+  height: 36px;
+  padding: 0 4px 0 2px;
+  border-style: solid;
+  border-width: 9px 8px 9px 22px;
+  border-image: url('./ui-art/backsign.png') 36 24 36 80 fill / 9px 8px 9px 22px stretch;
+  border-radius: 0;
+  background: none;
+  font-size: 14px;
+}
+/* 4つのメニューまで1画面に収める */
+.hub-hero {
+  margin: 4px 2px 10px;
+  border-width: 30px 26px;
+  border-image-width: 30px 26px;
+}
+.hub-stage {
+  width: 128px;
+  height: 128px;
+}
+.hub-art {
+  width: 110px;
+  height: 110px;
+  padding-top: 6px;
+}
+.hub-name {
+  margin-top: 4px;
+  padding: 0 24px;
+  border-width: 10px 14px;
+  border-image-width: 10px 14px;
+  font-size: 17px;
+}
+.hub-party {
+  margin-top: 6px;
+}
+.hub-party .face {
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+}
+.hub-item {
+  margin-bottom: 8px;
+  border-width: 13px;
+  border-image-width: 13px;
+}
+.hub-item.main {
+  border-width: 18px;
+  border-image-width: 18px;
+}
+.hub-icon,
+.hub-item.main .hub-icon {
+  width: 42px;
+  height: 42px;
+}

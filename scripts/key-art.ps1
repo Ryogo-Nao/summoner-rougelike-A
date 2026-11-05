@@ -1,7 +1,8 @@
-﻿param([string]$In, [string]$Out, [int]$Size = 256, [switch]$Icon)
+﻿param([string]$In, [string]$Out, [int]$Size = 256, [switch]$Icon, [switch]$Inner)
 # 緑の背景を透明にして、余白をそろえた正方形の PNG にする（docs/art-guide.md 5）
 # 使い方: powershell -File scripts/key-art.ps1 -In 届いた絵.jpg -Out public/art/monster_chuppi.png
 # -Icon は道具のアイコン用。絵の中の緑（薬草の葉など）を残し、上下もまん中にそろえる
+# -Inner は -Icon でも、囲まれたはっきりした緑（天秤のすき間など）を背景として抜く
 Add-Type -AssemblyName System.Drawing
 if (-not ('Keyer' -as [type])) {
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
@@ -12,7 +13,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 public static class Keyer {
-  public static string Run(string inPath, string outPath, int size, bool icon) {
+  public static string Run(string inPath, string outPath, int size, bool icon, bool inner) {
     Bitmap src0 = new Bitmap(inPath);
     int W = src0.Width, H = src0.Height;
     Bitmap src = new Bitmap(W, H, PixelFormat.Format32bppArgb);
@@ -40,7 +41,7 @@ public static class Keyer {
       if (cy > 0) push(n - W); if (cy < H - 1) push(n + W);
     }
     // 囲まれていても、はっきりした緑は背景
-    if (!icon) for (int n = 0; n < W * H; n++) if (gk(n * 4) > kbg * 0.7) mask[n] = true;
+    if (!icon || inner) for (int n = 0; n < W * H; n++) if (gk(n * 4) > kbg * 0.7) mask[n] = true;
     bool[] near = new bool[W * H];
     const int R = 3;
     for (int n = 0; n < W * H; n++) {
@@ -103,4 +104,4 @@ public static class Keyer {
 }
 '@
 }
-[Keyer]::Run($In, $Out, $Size, [bool]$Icon)
+[Keyer]::Run($In, $Out, $Size, [bool]$Icon, [bool]$Inner)

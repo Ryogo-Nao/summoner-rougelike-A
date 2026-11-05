@@ -204,7 +204,7 @@ export class BaseScreen {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
       else children.push(...this.itemListRows(p));
     }
-    document.getElementById('base-runes')!.textContent = `💠 ${p.runes}ルーン`;
+    document.getElementById('base-runes')!.replaceChildren(uiImage('ui_rune', 'rune-gem'), `${p.runes}ルーン`);
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     const inside = this.viewing !== null || this.pouch !== null || this.choosing;
@@ -235,21 +235,18 @@ export class BaseScreen {
       else face.textContent = '＋';
       party.append(face);
     }
-    const corners = ['tl', 'tr', 'bl', 'br'].map((c) => {
-      const el = document.createElement('span');
-      el.className = `hub-corner ${c}`;
-      return el;
-    });
+    // 魔法陣の台の上に主人公を立たせる
     const stage = document.createElement('div');
     stage.className = 'hub-stage';
     stage.append(artElement('player', '🧙', 'hub-art'));
-    hero.append(...corners, stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
+    hero.append(stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
+    /** icon は public/art/ui_hub_<icon>.png */
     const item = (view: View, icon: string, name: string, desc: string, main = false): HTMLElement => {
       const b = document.createElement('button');
       b.className = main ? 'hub-item main' : 'hub-item';
       const ic = document.createElement('span');
       ic.className = 'hub-icon';
-      ic.textContent = icon;
+      ic.append(uiImage(`ui_hub_${icon}`));
       const text = document.createElement('span');
       text.className = 'hub-text';
       const t = document.createElement('span');
@@ -261,17 +258,17 @@ export class BaseScreen {
       text.append(t, d);
       const go = document.createElement('span');
       go.className = 'hub-go';
-      go.textContent = '›';
+      go.append(uiImage('ui_chevron'));
       b.append(ic, text, go);
       b.addEventListener('click', () => this.go(view));
       return b;
     };
     return [
       hero,
-      item('prep', '⚔️', '冒険の準備', '仲間・持ち物・ダンジョン選択', true),
-      item('shop', '⚖️', '商店', '道具の売買'),
-      item('records', '📜', '記録', 'つよさ・軌跡'),
-      item('fusion', '🧬', '配合', '仲間の配合・イヅツチの転生'),
+      item('prep', 'adventure', '冒険の準備', '仲間・持ち物・ダンジョン選択', true),
+      item('shop', 'shop', '商店', '道具の売買'),
+      item('records', 'records', '記録', 'つよさ・軌跡'),
+      item('fusion', 'fusion', '配合', '仲間の配合・イヅツチの転生'),
     ];
   }
 
@@ -931,6 +928,16 @@ function allyRow(
   check.addEventListener('click', opts.onToggle);
   row.append(check);
   return row;
+}
+
+/** UIの絵（public/art/<name>.png） */
+function uiImage(name: string, className = ''): HTMLImageElement {
+  const img = document.createElement('img');
+  img.src = `art/${name}.png`;
+  img.alt = '';
+  img.draggable = false;
+  if (className) img.className = className;
+  return img;
 }
 
 /** 名前と値を2列に並べた表 */

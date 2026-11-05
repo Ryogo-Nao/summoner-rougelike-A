@@ -175,6 +175,14 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | 木の板 | src/ui-art/plank.png | 選んでいないタブ、一覧の行のボタン。slice 30 |
 | 決めるボタン（彫った木に金の縁と鋲） | src/ui-art/action.png | ［ダンジョンに向かう］［購入］など。slice 34 44 |
 | 小さい四角の板 | src/ui-art/square.png | ［－］［＋］。slice 20 |
+| 拠点トップ：主人公の札の枠 | src/ui-art/card.png | slice 105 |
+| 拠点トップ：魔法陣の台 | src/ui-art/stage.png | 主人公の後ろ（黒い地から丸く切り抜いた） |
+| 拠点トップ：名札 | src/ui-art/nameplate.png | slice 40 |
+| 拠点トップ：仲間の顔の台 | src/ui-art/slot.png | 顔の後ろに敷く |
+| 拠点トップ：メニューの札 | src/ui-art/menu-main.png（冒険の準備）・menu.png | slice 62・48 |
+| 拠点トップ：背景の透かし | src/ui-art/watermark.png | 白い地の線画を、白を透明にして焦げ茶の線にした |
+| 見出し：ルーンの札・戻るの矢印の札 | src/ui-art/counter.png・backsign.png | 白から緑に変わる地を、白も緑も背景として抜いた |
+| メニューのアイコン・矢印・ルーンの宝石 | public/art/ui_hub_*.png・ui_chevron.png・ui_rune.png | |
 | 道具のアイコン | public/art/item_<種類>.png（160） | 一覧の行と、マップに落ちている道具。src/render/art.ts の ITEM_ART に種類を足す |
 
 - 板は、届いた絵から角を丸く切り抜いて作る（まわりの地を透明にする）。素材の絵の半分の大きさにして軽くしている
