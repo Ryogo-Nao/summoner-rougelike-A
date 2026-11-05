@@ -23,7 +23,7 @@ import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } f
 import { SPELL_ICONS, cardIcon } from './screens';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
-import { artElement, faceElement } from '../render/art';
+import { artElement, faceElement, itemArt } from '../render/art';
 
 /** 拠点のトップと、そこから移る4つの画面 */
 type View = 'hub' | 'prep' | 'shop' | 'records' | 'fusion';
@@ -538,6 +538,7 @@ export class BaseScreen {
     // 袋は押すと中を見られる
     return renderRow({
       icon: ITEMS[item.kind].emoji,
+      art: itemArt(item.kind),
       name,
       sub: ITEMS[item.kind].desc,
       button: { label, disabled, onClick: () => this.change(onClick) },
@@ -663,7 +664,8 @@ export class BaseScreen {
       const blocked = max === 0 && n === 0;
       const row = renderRow({
         icon: ITEMS[kind].emoji,
-        name: `${ITEMS[kind].name}　💠${buyPrice(kind)}`,
+        art: itemArt(kind),
+        name: `${ITEMS[kind].name} 💠${buyPrice(kind)}`,
         sub: ITEMS[kind].desc,
         className: blocked ? 'blocked' : n > 0 ? 'chosen' : undefined,
         // 買えない品は、数を選ぶ代わりに理由のボタン（押せない）を出す
@@ -713,6 +715,7 @@ export class BaseScreen {
       const key = `sell:${g.key}`;
       const row = renderRow({
         icon: ITEMS[first.kind].emoji,
+        art: itemArt(first.kind),
         name: `${g.name}${max > 1 ? `　×${max}` : ''}`,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
         className: !ok ? 'blocked' : n > 0 ? 'chosen' : undefined,

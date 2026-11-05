@@ -5,6 +5,7 @@ import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../g
 import { Sheet, wideButton, type SheetRow } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
+import { itemArt } from '../render/art';
 
 /** 一覧から行動したあとに呼ぶ（再描画、力つきたかの確認など） */
 type AfterAction = () => void;
@@ -157,6 +158,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   const p = state.player;
   const rows: SheetRow[] = state.bag.map((item) => ({
     icon: ITEMS[item.kind].emoji,
+    art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
     sub: ITEMS[item.kind].desc,
     button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
@@ -267,6 +269,7 @@ function choiceRows(
     };
     return {
       icon: ITEMS[item.kind].emoji,
+      art: itemArt(item.kind),
       name: label(item),
       sub: ITEMS[item.kind].desc,
       className: on ? 'chosen' : undefined,
@@ -343,6 +346,7 @@ function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: Af
     const mine = there === kind;
     return {
       icon: there ? ITEMS[there].emoji : '',
+      art: there ? itemArt(there) : undefined,
       name: label,
       sub: there ? ITEMS[there].name : '空き',
       button: {
@@ -401,6 +405,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
   if (!base) {
     const rows: SheetRow[] = state.potBases().map((item) => ({
       icon: ITEMS[item.kind].emoji,
+      art: itemArt(item.kind),
       name: label(item),
       sub: ITEMS[item.kind].desc,
       button: { label: '選ぶ', onClick: () => openPotSheet(state, sheet, pot, after, back, item) },
@@ -415,6 +420,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
     const plus = Math.min(PLUS_LIMIT, Math.max(base.plus ?? 0, other.plus ?? 0) + 1);
     return {
       icon: ITEMS[other.kind].emoji,
+      art: itemArt(other.kind),
       name: label(other),
       sub: `合わせると ${ITEMS[base.kind].name}+${plus}`,
       button: {
@@ -439,6 +445,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
   if (!floor) return;
   const rows: SheetRow[] = state.bag.map((item) => ({
     icon: ITEMS[item.kind].emoji,
+    art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
     sub: ITEMS[item.kind].desc,
     button: {

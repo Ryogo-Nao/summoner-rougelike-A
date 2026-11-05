@@ -1,7 +1,7 @@
 import type { ActorView, GameState, Popup, Scene } from '../game/state';
 import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
-import { artImage } from './art';
+import { artImage, itemArt } from './art';
 import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
@@ -240,7 +240,11 @@ export class Renderer {
       if (!state.isExplored(f.pos.x, f.pos.y)) continue;
       const { x: sx, y: sy } = toScreen(f.pos);
       if (sx < -ts || sx > viewW || sy < -ts || sy > viewH) continue;
-      ctx.fillText(ITEMS[f.item.kind].emoji, sx + ts / 2, sy + ts / 2 + 1);
+      // 絵があれば絵で、なければ絵文字で出す
+      const id = itemArt(f.item.kind);
+      const img = id ? artImage(id) : null;
+      if (img) ctx.drawImage(img, sx + ts * 0.14, sy + ts * 0.14, ts * 0.72, ts * 0.72);
+      else ctx.fillText(ITEMS[f.item.kind].emoji, sx + ts / 2, sy + ts / 2 + 1);
     }
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 

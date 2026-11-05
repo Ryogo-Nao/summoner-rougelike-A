@@ -4,9 +4,23 @@
  */
 
 /** 絵のファイルがあるもの。player は主人公、ほかは魔物の id（ファイル名は monster_<id>.png） */
-const ART_IDS = new Set(['player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu']);
+/** 道具の絵があるもの（ファイル名は item_<種類>.png）。ない道具は絵文字のまま出す */
+const ITEM_ART = new Set([
+  'bread', 'bigBread', 'herb', 'bigHerb', 'antidote', 'kitsuke', 'water', 'blank', 'rune',
+  'arrow', 'ironArrow', 'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield', 'pot',
+  'sealReveal', 'sealEscape', 'sealPoison', 'sealConfuse', 'sealPin', 'sealSleep', 'sealSummon', 'sealRevive', 'sealDoom',
+]);
 
-const fileOf = (id: string) => (id === 'player' ? 'art/player.png' : `art/monster_${id}.png`);
+/** 道具の絵の id（artElement・artImage に渡す）。絵がなければ undefined */
+export const itemArt = (kind: string) => (ITEM_ART.has(kind) ? `item_${kind}` : undefined);
+
+const ART_IDS = new Set([
+  'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
+  ...[...ITEM_ART].map((k) => `item_${k}`),
+]);
+
+const fileOf = (id: string) =>
+  id === 'player' ? 'art/player.png' : id.startsWith('item_') ? `art/${id}.png` : `art/monster_${id}.png`;
 
 /** 顔のアイコンの絵があるもの（全身の絵から scripts/crop-face.ps1 で切り出す） */
 const FACE_IDS = new Set(['player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu']);
