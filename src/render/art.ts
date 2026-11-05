@@ -9,6 +9,7 @@ const ITEM_ART = new Set([
   'bread', 'bigBread', 'herb', 'bigHerb', 'antidote', 'kitsuke', 'water', 'blank', 'rune',
   'arrow', 'ironArrow', 'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield', 'pot',
   'sealReveal', 'sealEscape', 'sealPoison', 'sealConfuse', 'sealPin', 'sealSleep', 'sealSummon', 'sealRevive', 'sealDoom',
+  'tomePower', 'tomeGuard', 'fusionBook', 'rebirthBook', 'pouch', 'finePouch', 'holyPouch',
 ]);
 
 /** 道具の絵の id（artElement・artImage に渡す）。絵がなければ undefined */
