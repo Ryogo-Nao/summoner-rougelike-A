@@ -23,7 +23,7 @@ const profile = loadProfile();
 const settings = loadSettings();
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
-const base = new BaseScreen((dungeonId) => startRun(dungeonId));
+const base = new BaseScreen((dungeonId) => startRun(dungeonId), dialog);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);

@@ -843,7 +843,8 @@ export class GameState {
     if (def.slot) return this.isEquipped(item) ? '外す' : '装備';
     if (def.arrow) return '撃つ（向いている方向）';
     // 袋は「中を見る」で開く（画面の側で扱う）
-    if (item.kind === 'blank' || def.pouch) return null;
+    // 配合の書・転生の書は拠点で使う
+    if (item.kind === 'blank' || def.pouch || def.book) return null;
     return '使う';
   }
 

@@ -38,6 +38,8 @@ export type ItemKind =
   | 'sealDoom'
   | 'tomePower'
   | 'tomeGuard'
+  | 'fusionBook'
+  | 'rebirthBook'
   | 'pot'
   | 'pouch'
   | 'finePouch'
@@ -76,6 +78,8 @@ export interface ItemDef {
   bonus?: number;
   /** 使うと覚える魔法 */
   spell?: 'power' | 'guard';
+  /** 拠点の［配合］で使う書（requirements.md 9.2・9.3）。ダンジョンでは使えない */
+  book?: 'fusion' | 'rebirth';
   /** 矢。通常攻撃のダメージに対する倍率 */
   arrow?: number;
   seal?: SealKind;
@@ -115,6 +119,8 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3, value: 250 },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
+  fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', book: 'fusion', value: 3000 },
+  rebirthBook: { kana: 'てんせいのしょ', name: '転生の書', emoji: '📙', desc: '拠点の［配合］で\nイヅツチを転生させる', book: 'rebirth', value: 3000 },
   pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる', pouch: { capacity: [2, 4] }, value: 100 },
   finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる', pouch: { capacity: [5, 7] }, value: 300 },
   holyPouch: {

@@ -32,6 +32,9 @@ const STOCK_POOL: { kind: ItemKind; weight: number }[] = [
   { kind: 'sealSummon', weight: 4 },
   { kind: 'sealRevive', weight: 2 },
   { kind: 'sealDoom', weight: 1 },
+  // 配合の書・転生の書はまれに並ぶ
+  { kind: 'fusionBook', weight: 1 },
+  { kind: 'rebirthBook', weight: 1 },
 ];
 
 /** 入れ替わる品を選び直す。同じ品は並べない */

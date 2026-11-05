@@ -1,4 +1,19 @@
-import { HAND_LIMIT, PERSONALITIES, cardName, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, PERSONALITY_IDS, cardName, growthRate, isPartner, type Card } from '../game/cards';
+import {
+  FUSION_BOOK,
+  FUSION_COST,
+  FUSION_MIN_LEVEL,
+  REBIRTH_BOOK,
+  bookCount,
+  canBeParent,
+  costProblem,
+  fuse,
+  inheritedBonus,
+  nextFusions,
+  personalityOdds,
+  rebirth,
+} from '../game/fusion';
+import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
@@ -10,14 +25,14 @@ import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement } from '../render/art';
 
-/** 拠点のトップと、そこから移る3つの画面 */
-type View = 'hub' | 'prep' | 'shop' | 'records';
+/** 拠点のトップと、そこから移る4つの画面 */
+type View = 'hub' | 'prep' | 'shop' | 'records' | 'fusion';
 /** 冒険の準備のタブ */
 type Tab = 'cards' | 'items';
 /** 道具を置く場所 */
 type Place = 'bag' | 'warehouse';
 
-const VIEW_TITLE: Record<View, string> = { hub: '🏠 拠点', prep: '冒険の準備', shop: '商店', records: '記録' };
+const VIEW_TITLE: Record<View, string> = { hub: '🏠 拠点', prep: '冒険の準備', shop: '商店', records: '記録', fusion: '配合' };
 
 /**
  * 拠点画面（requirements.md 10.4）。トップで目的を選ぶ。
@@ -62,10 +77,18 @@ export class BaseScreen {
   /** つよさ・袋の中・ダンジョンの一覧を開く前の、一覧のスクロールの位置。戻ったときにそこへ戻す */
   private listScroll = 0;
   private readonly onDepart: (dungeonId: string) => void;
+  private readonly dialog: ConfirmDialog;
+  /** 配合の画面で、配合か転生か。選んでいる親（転生では合わせる魔物）と、子の種族にする親 */
+  private fusionMode: 'fusion' | 'rebirth' = 'fusion';
+  private parents: Card[] = [];
+  private childFrom = 0;
+  /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
+  private fusionNote = '';
 
-  /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ */
-  constructor(onDepart: (dungeonId: string) => void) {
+  /** onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ。dialog は配合の前に確かめるのに使う */
+  constructor(onDepart: (dungeonId: string) => void, dialog: ConfirmDialog) {
     this.onDepart = onDepart;
+    this.dialog = dialog;
     // 下のボタン。一覧では［ダンジョンに向かう］、つよさ・袋の中・ダンジョンの一覧では［戻る］
     this.depart.addEventListener('click', () => {
       if (!this.profile) return;
@@ -93,6 +116,8 @@ export class BaseScreen {
     this.pouch = null;
     this.choosing = false;
     this.clearShop();
+    this.parents = [];
+    this.fusionNote = '';
     this.render();
   }
 
@@ -156,6 +181,8 @@ export class BaseScreen {
       children.push(...this.shopRows(p));
     } else if (this.view === 'records') {
       children.push(...this.statusRows(p));
+    } else if (this.view === 'fusion') {
+      children.push(...this.fusionRows(p));
     } else if (this.choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.viewing) {
@@ -234,6 +261,7 @@ export class BaseScreen {
       item('prep', '⚔️', '冒険の準備', '仲間・持ち物・ダンジョン選択', true),
       item('shop', '⚖️', '商店', '道具の売買'),
       item('records', '📜', '記録', 'つよさ・軌跡'),
+      item('fusion', '🧬', '配合', '仲間の配合・イヅツチの転生'),
     ];
   }
 
@@ -298,28 +326,162 @@ export class BaseScreen {
     head.append(sorts, party);
     const rows = p.cards.map((card) => {
       const taking = p.hand.includes(card.id);
-      const row = renderRow({
-        icon: cardIcon(card),
-        art: card.species.id,
-        name: cardName(card),
-        sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
-        className: taking ? 'ally taking' : 'ally',
+      return allyRow(card, {
+        on: taking,
+        label: taking ? '残す' : '連れていく',
+        disabled: !taking && hand.length >= HAND_LIMIT,
+        onToggle: () =>
+          this.change(() => {
+            if (taking) p.hand = p.hand.filter((id) => id !== card.id);
+            else p.hand.push(card.id);
+          }),
         onSelect: () => this.enter(() => (this.viewing = card)),
       });
-      const check = document.createElement('button');
-      check.className = taking ? 'check on' : 'check';
-      check.setAttribute('aria-label', taking ? '残す' : '連れていく');
-      check.disabled = !taking && hand.length >= HAND_LIMIT;
-      check.addEventListener('click', () =>
-        this.change(() => {
-          if (taking) p.hand = p.hand.filter((id) => id !== card.id);
-          else p.hand.push(card.id);
-        }),
-      );
-      row.append(check);
-      return row;
     });
     return [head, ...rows];
+  }
+
+  /**
+   * 配合（requirements.md 9.2・9.3）。上で［配合］［転生］を切り替える。
+   * 配合：Lv10 以上の仲間を2体選び、子の種族を決めて合わせる。転生：イヅツチに Lv10 以上の魔物1体を合わせる。
+   * 選ぶと、生まれる子（転生後のイヅツチ）の見込みと［配合する］を上に出す。合わせる前にもう一度聞く
+   */
+  private fusionRows(p: Profile): HTMLElement[] {
+    const rebirthMode = this.fusionMode === 'rebirth';
+    const book = rebirthMode ? REBIRTH_BOOK : FUSION_BOOK;
+    const partner = p.cards.find(isPartner);
+    const need = rebirthMode ? 1 : 2;
+    // いなくなった仲間を選んだままにしない
+    this.parents = this.parents.filter((c) => p.cards.includes(c) && canBeParent(c));
+    const head = document.createElement('div');
+    head.className = 'base-sort';
+    const modes = document.createElement('div');
+    modes.className = 'sort-keys shop-modes';
+    for (const [mode, label] of [['fusion', '配合'], ['rebirth', '転生']] as const) {
+      const b = wideButton(label, false, () => {
+        this.fusionMode = mode;
+        this.parents = [];
+        this.childFrom = 0;
+        this.fusionNote = '';
+        this.render();
+      });
+      if (this.fusionMode === mode) b.classList.add('on');
+      modes.append(b);
+    }
+    const cost = note(
+      `${ITEMS[book].emoji} ${ITEMS[book].name} ${bookCount(p, book)}個　💠 ${p.runes}ルーン\n1回に ${ITEMS[book].name}1つと ${FUSION_COST}ルーンを使う`,
+      'fusion-cost',
+    );
+    head.append(modes, cost);
+    const out: HTMLElement[] = [head];
+    if (this.fusionNote) out.push(note(this.fusionNote, 'base-section'));
+
+    // 生まれる子の見込みと、合わせるボタン
+    const ready = this.parents.length === need && (!rebirthMode || partner);
+    if (ready) {
+      const [a, b] = rebirthMode ? [partner!, this.parents[0]] : this.parents;
+      out.push(this.fusionPreview(p, a, b, rebirthMode));
+    } else {
+      out.push(
+        note(
+          rebirthMode
+            ? `イヅツチに合わせる魔物を1体選ぶ　Lv${FUSION_MIN_LEVEL}以上`
+            : `親にする仲間を2体選ぶ　Lv${FUSION_MIN_LEVEL}以上`,
+          'base-section',
+        ),
+      );
+    }
+    if (rebirthMode && partner) {
+      out.push(
+        renderRow({
+          icon: cardIcon(partner),
+          art: partner.species.id,
+          name: cardName(partner),
+          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回\n攻撃${partner.atk}　防御${partner.def}　${PERSONALITIES[partner.personality].name}`,
+          className: 'ally taking',
+        }),
+      );
+    }
+    const choices = p.cards.filter(canBeParent);
+    if (choices.length === 0) out.push(note(`Lv${FUSION_MIN_LEVEL}以上の仲間がいない`));
+    for (const card of choices) {
+      const on = this.parents.includes(card);
+      out.push(
+        allyRow(card, {
+          on,
+          label: on ? 'やめる' : '選ぶ',
+          disabled: !on && this.parents.length >= need,
+          onToggle: () => {
+            this.parents = on ? this.parents.filter((c) => c !== card) : [...this.parents, card];
+            this.childFrom = 0;
+            this.fusionNote = '';
+            this.render(true);
+          },
+        }),
+      );
+    }
+    return out;
+  }
+
+  /** 生まれる子（転生後のイヅツチ）の見込み。種族を選ぶボタン、足し算・伸び・性格の確率と、合わせるボタン */
+  private fusionPreview(p: Profile, a: Card, b: Card, rebirthMode: boolean): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'fusion-preview';
+    const fusions = rebirthMode ? (a.fusions ?? 0) + 1 : nextFusions(a, b);
+    const species = rebirthMode ? a.species : [a, b][this.childFrom].species;
+    if (!rebirthMode) {
+      // 子の種族：親1・親2・別の種族（別の種族は、組み合わせを決めるまで選べない）
+      const pick = document.createElement('div');
+      pick.className = 'sort-keys three';
+      [a, b].forEach((parent, i) => {
+        const btn = wideButton(parent.species.name, false, () => {
+          this.childFrom = i;
+          this.render(true);
+        });
+        if (this.childFrom === i) btn.classList.add('on');
+        pick.append(btn);
+      });
+      pick.append(wideButton('別の種族 🔒', true, () => {}));
+      box.append(note('生まれる子の種族', 'fusion-label'), pick);
+    }
+    const bonus = inheritedBonus(a, b);
+    const odds = personalityOdds(a.personality, b.personality);
+    const oddsText = PERSONALITY_IDS.filter((id) => odds[id] > 0)
+      .sort((x, y) => odds[y] - odds[x])
+      .map((id) => `${PERSONALITIES[id].name}${Math.round(odds[id] * 1000) / 10}％`)
+      .join('　');
+    const name = `${(rebirthMode ? a.nickname : [a, b][this.childFrom].nickname) || species.name}+${fusions}`;
+    box.append(
+      renderRow({ icon: species.emoji, art: species.id, name, sub: `Lv1　${rebirthMode ? '転生' : '配合'}${fusions}回` }),
+      table([
+        ['足し算', `HP+${bonus.maxHp}　攻撃+${bonus.atk}　防御+${bonus.def}`],
+        ['伸び', `×${growthRate(fusions).toFixed(2)}`],
+        ['性格', oddsText],
+      ]),
+    );
+    const problem = costProblem(p, rebirthMode ? REBIRTH_BOOK : FUSION_BOOK);
+    const label = rebirthMode ? '転生する' : '配合する';
+    const go = wideButton(problem ?? label, problem !== null, () => {
+      const message = rebirthMode
+        ? `${cardName(a)}はLv1に戻ります\n${cardName(b)}はいなくなります\n転生しますか？`
+        : `${cardName(a)}と${cardName(b)}はいなくなります\n配合しますか？`;
+      this.dialog.open(message, label, 'やめる', () =>
+        this.change(() => {
+          if (rebirthMode) {
+            rebirth(p, a, b);
+            this.fusionNote = `${cardName(a)}に転生した　性格：${PERSONALITIES[a.personality].name}`;
+          } else {
+            const child = fuse(p, a, b, species);
+            this.fusionNote = `${cardName(child)}が生まれた　性格：${PERSONALITIES[child.personality].name}`;
+          }
+          this.parents = [];
+          this.childFrom = 0;
+        }),
+      );
+    });
+    go.classList.add('main');
+    box.append(go);
+    return box;
   }
 
   /**
@@ -726,6 +888,31 @@ function countLine(row: HTMLElement, text: string, error: boolean): void {
   el.className = error ? 'sub count-error' : 'sub';
   el.textContent = text;
   row.querySelector('.sub')!.after(el);
+}
+
+/**
+ * 仲間の1行。説明は2行（Lv・HP・MP／攻撃・防御・性格）にそろえ、右に丸い印を置く。
+ * 印を押すと onToggle、行を押すと onSelect
+ */
+function allyRow(
+  card: Card,
+  opts: { on: boolean; label: string; disabled: boolean; onToggle: () => void; onSelect?: () => void },
+): HTMLElement {
+  const row = renderRow({
+    icon: cardIcon(card),
+    art: card.species.id,
+    name: cardName(card),
+    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
+    className: opts.on ? 'ally taking' : 'ally',
+    onSelect: opts.onSelect,
+  });
+  const check = document.createElement('button');
+  check.className = opts.on ? 'check on' : 'check';
+  check.setAttribute('aria-label', opts.label);
+  check.disabled = opts.disabled;
+  check.addEventListener('click', opts.onToggle);
+  row.append(check);
+  return row;
 }
 
 /** 名前と値を2列に並べた表 */

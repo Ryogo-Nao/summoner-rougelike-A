@@ -71,13 +71,22 @@ export interface Card {
   obtainedHere: boolean;
   /** 付けた名前（ニックネーム）。なければ種族の名前で呼ぶ */
   nickname?: string;
+  /** 配合回数（イヅツチは転生回数）。伸びが上がる（requirements.md 9.2） */
+  fusions?: number;
 }
+
+/** 配合回数1回ごとに上がる伸びの割合と、上がるのをやめる回数（10回で1.5倍） */
+export const FUSION_GROWTH = 0.05;
+export const FUSION_GROWTH_LIMIT = 10;
+
+/** 配合回数 fusions のときの伸びの倍率 */
+export const growthRate = (fusions = 0) => 1 + FUSION_GROWTH * Math.min(fusions, FUSION_GROWTH_LIMIT);
 
 /** ニックネームの長さの上限（文字） */
 export const NICKNAME_LIMIT = 8;
 
-/** 仲間の呼び名。ニックネームがあればそれ、なければ種族の名前 */
-export const cardName = (card: Card) => card.nickname || card.species.name;
+/** 仲間の呼び名。ニックネームがあればそれ、なければ種族の名前。配合・転生していれば「+3」を付ける */
+export const cardName = (card: Card) => `${card.nickname || card.species.name}${card.fusions ? `+${card.fusions}` : ''}`;
 
 /** 文字の数。絵文字なども1文字と数える */
 export const nicknameLength = (text: string) => Array.from(text.trim()).length;
@@ -157,8 +166,8 @@ function growthSteps(pace: GrowthPace, level: number): number {
  * 仲間の能力（requirements.md 6.2）。
  * （Lv1の値 ＋ 1レベルの伸び × 成長の型 × 成長の早さ） × 性格 ＋ 足し算の補正
  */
-export function cardStats(species: Species, level: number, personality: PersonalityId = 'sunao', bonus?: Stats): Stats {
-  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus);
+export function cardStats(species: Species, level: number, personality: PersonalityId = 'sunao', bonus?: Stats, fusions = 0): Stats {
+  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus, growthRate(fusions));
 }
 
 /**
@@ -169,8 +178,9 @@ export function monsterStats(species: Species, level: number): Stats {
   return statsAt(species, level, 1, 'sunao');
 }
 
-function statsAt(species: Species, level: number, startRate: number, personality: PersonalityId, bonus?: Stats): Stats {
-  const steps = growthSteps(species.pace, level);
+function statsAt(species: Species, level: number, startRate: number, personality: PersonalityId, bonus?: Stats, rate = 1): Stats {
+  // 配合回数の分だけ、伸びを大きくする
+  const steps = growthSteps(species.pace, level) * rate;
   const type = GROWTH_TYPES[species.growth];
   const { up, down } = PERSONALITIES[personality];
   const base: Stats = { maxHp: species.hp, atk: species.atk, def: species.def };
@@ -185,7 +195,7 @@ function statsAt(species: Species, level: number, startRate: number, personality
 
 /** レベルや補正が変わったあとに、能力を求め直す。今のHPは最大HPを超えないようにする */
 export function refreshStats(card: Card): void {
-  Object.assign(card, cardStats(card.species, card.level, card.personality, card.bonus));
+  Object.assign(card, cardStats(card.species, card.level, card.personality, card.bonus, card.fusions));
   card.hp = Math.min(card.hp, card.maxHp);
 }
 

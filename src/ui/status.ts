@@ -1,4 +1,4 @@
-import { NICKNAME_LIMIT, ORDER_LABEL, PERSONALITIES, STAT_LABEL, cardName, isPartner, nicknameLength, type Ally, type Card } from '../game/cards';
+import { NICKNAME_LIMIT, ORDER_LABEL, PERSONALITIES, STAT_LABEL, cardName, growthRate, isPartner, nicknameLength, type Ally, type Card } from '../game/cards';
 import { allyExpToNext } from '../game/combat';
 import type { Species } from '../game/monsters';
 import { artElement } from '../render/art';
@@ -43,6 +43,9 @@ export function statusView(
   const rows: [string, string][] = [
     ['種族', card.species.name],
     ['レベル', `Lv${card.level}`],
+    ...(card.fusions
+      ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])
+      : []),
     // 拠点ではHPは減らないので、最大HPだけを出す
     ['HP', inDungeon ? `${card.hp}/${card.maxHp}` : `${card.maxHp}`],
     ['攻撃力', `${card.atk}`],

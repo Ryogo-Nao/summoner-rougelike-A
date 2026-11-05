@@ -294,6 +294,9 @@ const ICE: Dungeon = {
     { kind: 'ironShield', weight: 3.5 },
     { kind: 'tomePower', weight: 1.5 },
     { kind: 'tomeGuard', weight: 1.5 },
+    // 配合の書・転生の書は、深い階でまれに拾える
+    { kind: 'fusionBook', weight: 0.5, floors: [6, 20] },
+    { kind: 'rebirthBook', weight: 0.5, floors: [6, 20] },
   ],
   monsters: [
     // 浅い階：強い魔物がLv5〜6で出る。弱い魔物は出さない
