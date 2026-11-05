@@ -369,7 +369,8 @@ export class BaseScreen {
       modes.append(b);
     }
     const cost = note(
-      `${ITEMS[book].emoji} ${ITEMS[book].name} ${bookCount(p, book)}個　💠 ${p.runes}ルーン\n1回に ${ITEMS[book].name}1つと ${FUSION_COST}ルーンを使う`,
+      // 持っている数 / 1回に使う数
+      `${ITEMS[book].emoji} ${ITEMS[book].name} ${bookCount(p, book)}/1　💠 ルーン ${p.runes}/${FUSION_COST}`,
       'fusion-cost',
     );
     head.append(modes, cost);
