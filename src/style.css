@@ -1698,3 +1698,7 @@ button {
   min-width: 0;
   padding: 0 4px;
 }
+/* 買えない品の［－］数［＋］は、行と一緒に暗くする */
+.sheet-row.blocked .stepper {
+  opacity: 0.75;
+}

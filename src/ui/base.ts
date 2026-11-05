@@ -658,9 +658,8 @@ export class BaseScreen {
       const otherCount = count - n;
       const shelf = ALWAYS_SOLD.includes(kind) ? Infinity : p.shopStock.filter((k) => k === kind).length;
       const max = Math.max(0, Math.min(shelf, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
-      const noRunes = p.runes - otherRunes < buyPrice(kind);
-      const why = noRunes ? 'ルーンが足りない' : `${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}がいっぱい`;
       const key = `buy:${kind}`;
+      // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
       const row = renderRow({
         icon: ITEMS[kind].emoji,
@@ -668,11 +667,11 @@ export class BaseScreen {
         name: `${ITEMS[kind].name} 💠${buyPrice(kind)}`,
         sub: ITEMS[kind].desc,
         className: blocked ? 'blocked' : n > 0 ? 'chosen' : undefined,
-        // 買えない品は、数を選ぶ代わりに理由のボタン（押せない）を出す
-        button: blocked ? { label: noRunes ? 'ルーン不足' : '空きなし', disabled: true, onClick: () => {} } : undefined,
       });
-      countLine(row, blocked ? why : `${max}個まで購入可能`, this.countError === key);
-      if (!blocked) row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
+      // 数に限りのある品（入れ替わる品）だけ、棚にある数を出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
+      if (this.countError === key) countLine(row, `${max}個まで購入可能`, true);
+      else if (shelf !== Infinity) countLine(row, `${shelf}個まで購入可能`, false);
+      row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
       return row;
     });
   }
