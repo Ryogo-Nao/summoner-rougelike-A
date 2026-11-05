@@ -75,6 +75,9 @@ export function costProblem(p: Profile, book: ItemKind): string | null {
   return null;
 }
 
+/** 配合できる組み合わせ（Lv10 以上の仲間2体・配合の書・ルーン）がそろっているか。拠点の「NEW」に使う */
+export const canFuseNow = (p: Profile) => p.cards.filter(canBeParent).length >= 2 && costProblem(p, FUSION_BOOK) === null;
+
 /** 仲間の一覧と連れていく仲間から、いなくなった魔物を除く */
 function remove(p: Profile, gone: Card[]): void {
   p.cards = p.cards.filter((c) => !gone.includes(c));

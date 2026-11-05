@@ -519,42 +519,32 @@ function statChange(
   return el;
 }
 
-/** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
-export function openMenuSheet(
-  state: GameState,
-  sheet: Sheet,
-  settings: Settings,
-  onChange: () => void,
-  onGiveUp: () => void,
-): void {
-  const reopen = () => openMenuSheet(state, sheet, settings, onChange, onGiveUp);
-  const rows: SheetRow[] = [
+/** 遊び方の短い説明。ダンジョンのメニューと、拠点のその他に出す */
+export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる';
+
+/**
+ * 設定の行（ダンジョンのメニューと、拠点のその他で同じものを出す）。
+ * 押すと settings を切り替えて onChange を呼ぶ（保存とダンジョンへの反映は onChange でする）
+ */
+export function settingRows(settings: Settings, onChange: () => void): SheetRow[] {
+  const toggle = (f: () => void) => () => {
+    f();
+    onChange();
+  };
+  return [
     {
       icon: '↻',
       name: 'タップで振り向く',
-      sub: state.turnFirst
-        ? '1回目で向く\n2回目で進む'
-        : 'すぐ進む',
-      button: {
-        label: state.turnFirst ? 'オン' : 'オフ',
-        onClick: () => {
-          state.turnFirst = !state.turnFirst;
-          onChange();
-          reopen();
-        },
-      },
+      sub: settings.turnFirst ? '1回目で向く\n2回目で進む' : 'すぐ進む',
+      button: { label: settings.turnFirst ? 'オン' : 'オフ', onClick: toggle(() => (settings.turnFirst = !settings.turnFirst)) },
     },
     {
       icon: '🔁',
       name: '仲間のいるマスへ進む',
-      sub: state.allyMove === 'swap' ? '仲間と入れ替わる' : '仲間を1マス押し出す\n押せないときは入れ替わる',
+      sub: settings.allyMove === 'swap' ? '仲間と入れ替わる' : '仲間を1マス押し出す\n押せないときは入れ替わる',
       button: {
-        label: state.allyMove === 'swap' ? '入れ替わる' : '押す',
-        onClick: () => {
-          state.allyMove = state.allyMove === 'swap' ? 'push' : 'swap';
-          onChange();
-          reopen();
-        },
+        label: settings.allyMove === 'swap' ? '入れ替わる' : '押す',
+        onClick: toggle(() => (settings.allyMove = settings.allyMove === 'swap' ? 'push' : 'swap')),
       },
     },
     {
@@ -563,16 +553,20 @@ export function openMenuSheet(
       sub: settings.padSide === 'left' ? '左にパッド\n右にボタン' : '右にパッド\n左にボタン',
       button: {
         label: settings.padSide === 'left' ? '左' : '右',
-        onClick: () => {
-          settings.padSide = settings.padSide === 'left' ? 'right' : 'left';
-          onChange();
-          reopen();
-        },
+        onClick: toggle(() => (settings.padSide = settings.padSide === 'left' ? 'right' : 'left')),
       },
     },
   ];
+}
+
+/** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
+export function openMenuSheet(sheet: Sheet, settings: Settings, onChange: () => void, onGiveUp: () => void): void {
+  const rows = settingRows(settings, () => {
+    onChange();
+    openMenuSheet(sheet, settings, onChange, onGiveUp);
+  });
   sheet.open('メニュー', rows, {
-    note: '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる',
+    note: HOW_TO_PLAY,
     footer: wideButton('ダンジョンをあきらめる', false, () => {
       sheet.close();
       onGiveUp();

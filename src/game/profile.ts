@@ -39,7 +39,22 @@ export interface Profile {
   records: Records;
   /** 何代目の召喚士か（requirements.md 9.1 世代継承）。今は継承の仕組みがないので、いつも1（初代） */
   generation: number;
+  /** 拠点の知らせ */
+  notices: Notices;
 }
+
+/**
+ * 拠点の下のタブとメニューに出す知らせ（requirements.md 10.4）。
+ * allies：新しい仲間が加わった。shop：商店の品が入れ替わった。どちらも、その画面を開くと消える。
+ * fusionSeen：配合できる組み合わせがそろったのを、配合の画面で見たか（そろわなくなったら戻す）
+ */
+export interface Notices {
+  allies: boolean;
+  shop: boolean;
+  fusionSeen: boolean;
+}
+
+const noNotices = (): Notices => ({ allies: false, shop: false, fusionSeen: false });
 
 /** 「初代」「2代目」… */
 export const generationName = (g: number) => (g <= 1 ? '初代' : `${g}代目`);
@@ -109,6 +124,7 @@ interface ProfileData {
   shopStock?: ItemKind[];
   records?: Records;
   generation?: number;
+  notices?: Notices;
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -130,6 +146,7 @@ export function newProfile(): Profile {
     shopStock: rollStock(),
     records: newRecords(),
     generation: 1,
+    notices: noNotices(),
   };
 }
 
@@ -148,6 +165,7 @@ export function loadProfile(): Profile {
       shopStock: data.shopStock ?? rollStock(),
       records: { ...newRecords(), ...data.records },
       generation: data.generation ?? 1,
+      notices: { ...noNotices(), ...data.notices },
     };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));
@@ -226,6 +244,7 @@ function giveUpToBase(profile: Profile, state: GameState): Losses {
   profile.bag = bag;
   profile.runes -= runesLost;
   profile.shopStock = rollStock();
+  profile.notices.shop = true;
   saveProfile(profile);
   clearRun();
   return { cards: found, items: lost, downgraded, runesKept: 0, runesLost };
@@ -291,6 +310,8 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.runes += losses.runesKept;
   // 戻るたびに、商店の品を入れ替える
   profile.shopStock = rollStock();
+  profile.notices.shop = true;
+  if (kept.some((c) => !brought.has(c.id))) profile.notices.allies = true;
   if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
   saveProfile(profile);
   clearRun();

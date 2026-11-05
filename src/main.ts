@@ -23,7 +23,7 @@ const profile = loadProfile();
 const settings = loadSettings();
 const dialog = new ConfirmDialog(() => pad.release());
 const sheet = new Sheet(() => pad.release());
-const base = new BaseScreen((dungeonId) => startRun(dungeonId), dialog);
+const base = new BaseScreen((dungeonId) => startRun(dungeonId), dialog, settings, () => settingsChanged());
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);
@@ -455,15 +455,9 @@ onButton('btn-magic', () => openMagicSheet(state, sheet, afterAction));
 onButton('btn-bag', () => openBagSheet(state, sheet, afterAction));
 onButton('btn-menu', () =>
   openMenuSheet(
-    state,
     sheet,
     settings,
-    () => {
-      settings.turnFirst = state.turnFirst;
-      settings.allyMove = state.allyMove;
-      saveSettings(settings);
-      applyPadSide();
-    },
+    () => settingsChanged(),
     // あきらめると、ダンジョンに入る前に戻ったうえで、持っているルーンと持っていった道具の半分を失う
     () =>
       dialog.open('ダンジョンをあきらめる？\nダンジョンに入る前に戻り\n持っているルーンと\n持っていった道具の半分を失う', 'あきらめる', 'やめる', () => {
@@ -472,6 +466,14 @@ onButton('btn-menu', () =>
       }),
   ),
 );
+
+/** 設定を変えたとき（ダンジョンのメニューと、拠点のその他）。保存して、遊んでいるダンジョンにも当てる */
+function settingsChanged(): void {
+  state.turnFirst = settings.turnFirst;
+  state.allyMove = settings.allyMove;
+  saveSettings(settings);
+  applyPadSide();
+}
 
 /** 設定に合わせて、パッドを左右どちらかに置く */
 function applyPadSide(): void {

@@ -86,11 +86,13 @@
       </div>
       <!-- 拠点。ダンジョンに入る前と、戻ってきたあとに開く -->
       <div id="base" hidden>
-        <!-- 拠点のトップから［冒険の準備］［商店］［記録］へ移る。トップ以外では左上の［‹ 拠点］で戻る -->
+        <!-- 下のタブで、拠点のトップ・冒険・仲間・配合・商店・その他を行き来する。右上の［＋］は商店へ -->
         <header class="base-head">
-          <button id="base-back" hidden>拠点</button>
-          <span id="base-title">🏠 拠点</span>
-          <span id="base-runes" class="runes"></span>
+          <span id="base-title"></span>
+          <span class="base-wallet">
+            <span id="base-runes" class="runes"></span>
+            <button id="base-buy" aria-label="商店へ">＋</button>
+          </span>
         </header>
         <nav id="base-tabs">
           <button data-tab="cards">仲間</button>
@@ -98,6 +100,7 @@
         </nav>
         <div id="base-body"></div>
         <button id="base-depart"></button>
+        <nav id="base-nav"></nav>
       </div>
       <!-- 階に入ったときに、ダンジョンの名前と階を出す -->
       <div id="floor-title" hidden>
