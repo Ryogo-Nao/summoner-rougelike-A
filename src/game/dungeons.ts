@@ -150,13 +150,14 @@ const FIRST: Dungeon = {
 };
 
 /**
- * 2つ目のダンジョン（案）。15階で、魔物のレベルは浅い階のLv3から、深い階のLv9まで上がる。
- * 階段での仲間の回復は少なめ。上薬草と強い装備が出やすい
+ * 2つ目のダンジョン（案）。難しさは中くらい（balance.md 7.4）。
+ * B1F から中くらいの魔物（シュルル・ポコタケ）が出て、強い魔物は B3F から。
+ * レベルは入口のLv3から、深い階のLv10まで上がる。階段での仲間の回復は少なめ。上薬草と強い装備が出やすい
  */
 const FOREST: Dungeon = {
   id: 'forest',
   name: 'ささやきの森',
-  desc: '全15階　魔物はLv3〜9\n階段での仲間の回復が少ない',
+  desc: '全15階　魔物はLv3〜10\n階段での仲間の回復が少ない',
   requires: 'first',
   floors: 15,
   allyStairsHeal: 0.15,
@@ -176,7 +177,7 @@ const FOREST: Dungeon = {
   },
   itemsPerFloor: [4, 6],
   monsterLevel: 3,
-  monsterHouse: { chance: 0.15, fromFloor: 2, monsters: [8, 12], items: [5, 8] },
+  monsterHouse: { chance: 0.15, fromFloor: 3, monsters: [6, 10], items: [5, 8] },
   items: [
     { kind: 'herb', weight: 18 },
     { kind: 'bigHerb', weight: 8, floors: [3, 15] },
@@ -211,27 +212,24 @@ const FOREST: Dungeon = {
     { kind: 'tomeGuard', weight: 1.25 },
   ],
   monsters: [
-    // 浅い階：はじまりの洞窟の魔物を、少し強くして出す
-    { species: 'chuppi', floors: [1, 3], level: 3 },
+    // 浅い階：中くらいの魔物がLv3で出る。ガルフは B3F から
+    { species: 'shururu', floors: [1, 5], level: 3 },
+    { species: 'pokotake', floors: [1, 5], level: 3 },
     { species: 'berogg', floors: [1, 4], level: 3 },
-    { species: 'patari', floors: [2, 5], level: 3 },
-    { species: 'pokotake', floors: [3, 7], level: 4 },
-    { species: 'shururu', floors: [3, 7], level: 4 },
-    { species: 'garuf', floors: [4, 8], level: 4 },
-    // 中ほど
-    { species: 'kaburamu', floors: [6, 10], level: 5 },
-    { species: 'moyari', floors: [6, 10], level: 5 },
-    { species: 'berogg', floors: [7, 10], level: 6 },
-    { species: 'hidamari', floors: [8, 12], level: 6 },
-    { species: 'goromu', floors: [9, 12], level: 6 },
-    { species: 'garuf', floors: [9, 12], level: 7 },
-    // 深い階：弱い魔物もレベルを上げて、手ごわい敵にする
-    { species: 'chuppi', floors: [11, 15], level: 8 },
-    { species: 'patari', floors: [11, 15], level: 8 },
-    { species: 'shururu', floors: [11, 15], level: 8 },
-    { species: 'moyari', floors: [12, 15], level: 8 },
-    { species: 'hidamari', floors: [13, 15], level: 9 },
-    { species: 'goromu', floors: [13, 15], level: 9 },
+    { species: 'garuf', floors: [3, 5], level: 3 },
+    // 中ほど：カブラムとモヤリが出てくる
+    { species: 'shururu', floors: [6, 10], level: 6 },
+    { species: 'pokotake', floors: [6, 10], level: 6 },
+    { species: 'garuf', floors: [6, 10], level: 6 },
+    { species: 'kaburamu', floors: [6, 10], level: 6 },
+    { species: 'moyari', floors: [8, 10], level: 7 },
+    // 深い階：強い魔物が中心。パタリは深い階だけ、レベルを上げて出す
+    { species: 'garuf', floors: [11, 15], level: 9 },
+    { species: 'kaburamu', floors: [11, 15], level: 9 },
+    { species: 'moyari', floors: [11, 15], level: 9 },
+    { species: 'shururu', floors: [11, 15], level: 9 },
+    { species: 'hidamari', floors: [12, 15], level: 10 },
+    { species: 'patari', floors: [11, 15], level: 10 },
   ],
 };
 
