@@ -559,6 +559,11 @@ button {
   background: linear-gradient(180deg, #e2b85a, #b8862f);
   border-color: #9a6f25;
 }
+/* 数を選ぶ［－］［＋］は、選んでいる行でも茶色の板のまま */
+.sheet-row.chosen .stepper button:not(.stepper-num) {
+  border-color: var(--navy);
+  background: var(--btn-main);
+}
 
 /* 操作部。茶色の石の帯の上に、金の縁の石のボタンを並べる。画面の幅に合わせて大きくする */
 #controls {
@@ -1062,12 +1067,12 @@ button {
 .stepper {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 /* まん中の数。押すと、じかに打ち込める */
 .sheet-row .stepper .stepper-num {
-  min-width: 44px;
-  width: 44px;
+  min-width: 40px;
+  width: 40px;
   height: 38px;
   padding: 0;
   border: 1px solid var(--btn-line);
@@ -1091,39 +1096,61 @@ button {
   font-weight: bold;
 }
 .sheet-row .stepper button {
-  min-width: 38px;
-  width: 38px;
+  min-width: 34px;
+  width: 34px;
   height: 38px;
   padding: 0;
-  font-size: 18px;
+  border-radius: 6px;
+  font-size: 20px;
+}
+/* －・＋は、押せないときも茶色の板のまま薄くする */
+.sheet-row .stepper button:disabled:not(.stepper-num) {
+  border-color: var(--navy);
+  background: var(--btn-main);
+  color: #fbe7b0;
+  opacity: 0.7;
+}
+/* 商店：名前と値段は1行に収める */
+#base-body.shop .sheet-row .name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#base-body.shop .sheet-row > div {
+  min-width: 0;
+}
+#base-body.shop .sheet-row {
+  gap: 8px;
+  padding: 6px;
 }
 /* 持ち物の［バッグ］［倉庫］の切り替え。選んでいる方は濃い茶に金の下線、ほかは薄いベージュ */
 .place-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid var(--btn-line);
+  border: 2px solid #3d3024;
   border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(61, 47, 34, 0.3);
 }
 .place-tabs button {
   height: 42px;
   margin: 0;
   padding: 0 4px;
   border: 0;
-  border-bottom: 3px solid transparent;
-  background: var(--paper-2);
-  color: var(--muted);
+  background: var(--btn-main);
+  color: #e8d6b0;
   font-family: var(--font);
   font-size: 14px;
   font-weight: bold;
 }
 .place-tabs button + button {
-  border-left: 1px solid var(--btn-line);
+  border-left: 1px solid #2e241b;
 }
+/* 選んでいる方は、明るい紙に金の縁 */
 .place-tabs button.on {
-  border-bottom-color: var(--gold-soft);
-  background: var(--btn-main);
-  color: #fbe7b0;
+  background: linear-gradient(180deg, #fffaf0, #f1e4c8);
+  box-shadow: inset 0 0 0 2px #fffaf0, inset 0 0 0 3px var(--gold);
+  color: var(--text);
 }
 /* 並べ替えを選ぶボタン。上に透明な select を重ね、押すと選ぶ画面が開く */
 .sort-select {
@@ -1180,6 +1207,49 @@ button {
   margin-top: 8px;
 }
 /* 商店の［買う］［売る］は2つ並べる */
+/* 商店：枠を革と木の板にする */
+#base-body.shop {
+  border: 6px solid #5a3f28;
+  border-radius: 8px;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255, 245, 220, 0.6), transparent 70%),
+    linear-gradient(180deg, #f3e6cc, #e6d3ad);
+  box-shadow: inset 0 0 0 2px #a8835a, inset 0 0 0 3px #f6ead2, 0 4px 12px rgba(61, 47, 34, 0.3);
+}
+#base-body.shop .base-sort {
+  background: transparent;
+}
+/* 選んでいない［買う］［売る］（配合の［配合］［転生］も）は茶色の板、選んでいる方は明るい紙に金の縁 */
+.sort-keys.shop-modes .sheet-wide {
+  border-color: #3d3024;
+  background: var(--btn-main);
+  box-shadow: inset 0 0 0 2px rgba(240, 207, 126, 0.25);
+  color: #e8d6b0;
+  font-size: 15px;
+}
+.sort-keys.shop-modes .sheet-wide.on {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #fffaf0, #f1e4c8);
+  box-shadow: inset 0 0 0 2px #fffaf0, inset 0 0 0 3px var(--gold);
+  color: var(--text);
+}
+/* 買えない・売れない品は、くすんだ色にして理由のボタンを出す */
+.sheet-row.blocked {
+  border-color: #7d7264;
+  background: linear-gradient(180deg, #9d9385, #8b8174);
+}
+.sheet-row.blocked .name,
+.sheet-row.blocked .sub {
+  color: #ece4d6;
+}
+.sheet-row.blocked .icon {
+  opacity: 0.6;
+}
+.sheet-row.blocked button:disabled {
+  border-color: #2e241b;
+  background: linear-gradient(180deg, #4e4237, #3a3029);
+  color: #b9ab95;
+}
 .sort-keys.shop-modes {
   grid-template-columns: repeat(2, 1fr);
 }

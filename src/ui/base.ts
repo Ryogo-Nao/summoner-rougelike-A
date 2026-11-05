@@ -82,6 +82,8 @@ export class BaseScreen {
   private fusionMode: 'fusion' | 'rebirth' = 'fusion';
   private parents: Card[] = [];
   private childFrom = 0;
+  /** 商店で、下のボタンを押したときにすること（まとめて買う・売る） */
+  private shopAction: { label: string; disabled: boolean; run: () => void } | null = null;
   /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
   private fusionNote = '';
 
@@ -89,10 +91,12 @@ export class BaseScreen {
   constructor(onDepart: (dungeonId: string) => void, dialog: ConfirmDialog) {
     this.onDepart = onDepart;
     this.dialog = dialog;
-    // 下のボタン。一覧では［ダンジョンに向かう］、つよさ・袋の中・ダンジョンの一覧では［戻る］
+    // 下のボタン。冒険の準備の一覧では［ダンジョンに向かう］、つよさ・袋の中・ダンジョンの一覧では［戻る］。
+    // 商店では［購入する］［売却する］
     this.depart.addEventListener('click', () => {
       if (!this.profile) return;
-      if (this.viewing) this.leave(() => (this.viewing = null));
+      if (this.view === 'shop') this.shopAction?.run();
+      else if (this.viewing) this.leave(() => (this.viewing = null));
       else if (this.pouch) this.leave(() => (this.pouch = null));
       else if (this.choosing) this.leave(() => (this.choosing = false));
       else this.enter(() => (this.choosing = true));
@@ -172,8 +176,9 @@ export class BaseScreen {
     this.title.textContent = VIEW_TITLE[this.view];
     this.back.hidden = this.view === 'hub';
     this.tabBar.hidden = !prep;
-    this.depart.hidden = !prep;
+    this.depart.hidden = !prep && this.view !== 'shop';
     this.body.classList.toggle('hub', this.view === 'hub');
+    this.body.classList.toggle('shop', this.view === 'shop');
     const children: HTMLElement[] = [];
     if (this.view === 'hub') {
       children.push(...this.hubRows(p));
@@ -205,6 +210,11 @@ export class BaseScreen {
     const inside = this.viewing !== null || this.pouch !== null || this.choosing;
     this.depart.textContent = inside ? '戻る' : 'ダンジョンに向かう';
     this.depart.classList.toggle('back', inside);
+    (this.depart as HTMLButtonElement).disabled = false;
+    if (this.view === 'shop' && this.shopAction) {
+      this.depart.textContent = this.shopAction.label;
+      (this.depart as HTMLButtonElement).disabled = this.shopAction.disabled;
+    }
   }
 
   /**
@@ -628,16 +638,18 @@ export class BaseScreen {
         },
       ),
     );
-    const buyButton = wideButton(count > 0 ? `${count}個を買う 💠${total}` : '買う数を選ぶ', count === 0, () =>
-      this.change(() => {
-        for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
-        this.shopNote = `${count}個を買って ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
-        this.buyCount.clear();
-        this.countError = null;
-      }),
-    );
-    buyButton.classList.add('main');
-    head.append(buyButton);
+    // 下のボタンでまとめて買う
+    this.shopAction = {
+      label: count > 0 ? `${count}個を購入　💠${total}` : '購入する',
+      disabled: count === 0,
+      run: () =>
+        this.change(() => {
+          for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
+          this.shopNote = `${count}個を購入して ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
+          this.buyCount.clear();
+          this.countError = null;
+        }),
+    };
     return kinds.map((kind) => {
       const n = this.buyCount.get(kind) ?? 0;
       // ほかの品で選んだ分を引いて、この品をあと何個まで買えるか
@@ -645,17 +657,20 @@ export class BaseScreen {
       const otherCount = count - n;
       const shelf = ALWAYS_SOLD.includes(kind) ? Infinity : p.shopStock.filter((k) => k === kind).length;
       const max = Math.max(0, Math.min(shelf, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
-      const why = p.runes - otherRunes < buyPrice(kind) ? 'ルーンが足りない' : room - otherCount <= 0 ? `${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}がいっぱい` : '';
+      const noRunes = p.runes - otherRunes < buyPrice(kind);
+      const why = noRunes ? 'ルーンが足りない' : `${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}がいっぱい`;
       const key = `buy:${kind}`;
+      const blocked = max === 0 && n === 0;
       const row = renderRow({
         icon: ITEMS[kind].emoji,
         name: `${ITEMS[kind].name}　💠${buyPrice(kind)}`,
         sub: ITEMS[kind].desc,
-        dim: max === 0 && n === 0,
-        className: n > 0 ? 'chosen' : undefined,
+        className: blocked ? 'blocked' : n > 0 ? 'chosen' : undefined,
+        // 買えない品は、数を選ぶ代わりに理由のボタン（押せない）を出す
+        button: blocked ? { label: noRunes ? 'ルーン不足' : '空きなし', disabled: true, onClick: () => {} } : undefined,
       });
-      countLine(row, max > 0 || n > 0 ? `${max}個まで購入できます` : why, this.countError === key);
-      if (max > 0 || n > 0) row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
+      countLine(row, blocked ? why : `${max}個まで購入可能`, this.countError === key);
+      if (!blocked) row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
       return row;
     });
   }
@@ -676,19 +691,19 @@ export class BaseScreen {
         this.render();
       },
     );
-    const sellButton = wideButton(
-      picked.length > 0 ? `${picked.length}個を売る 💠${total}` : '売る数を選ぶ',
-      picked.length === 0,
-      () =>
+    // 下のボタンでまとめて売る
+    this.shopAction = {
+      label: picked.length > 0 ? `${picked.length}個を売却　💠${total}` : '売却する',
+      disabled: picked.length === 0,
+      run: () =>
         this.change(() => {
           const got = sell(p, picked);
           this.sellCount.clear();
           this.countError = null;
-          this.shopNote = `${picked.length}個を売って ${got}ルーンを得た`;
+          this.shopNote = `${picked.length}個を売却して ${got}ルーンを得た`;
         }),
-    );
-    sellButton.classList.add('main');
-    head.append(places, sellButton);
+    };
+    head.append(places);
     const sellRow = (g: ItemGroup): HTMLElement => {
       const first = g.items[0];
       const ok = canSell(first);
@@ -700,10 +715,10 @@ export class BaseScreen {
         icon: ITEMS[first.kind].emoji,
         name: `${g.name}${max > 1 ? `　×${max}` : ''}`,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
-        dim: !ok,
-        className: n > 0 ? 'chosen' : undefined,
+        className: !ok ? 'blocked' : n > 0 ? 'chosen' : undefined,
+        button: ok ? undefined : { label: '売却不可', disabled: true, onClick: () => {} },
       });
-      if (ok) countLine(row, `${max}個まで売却できます`, this.countError === key);
+      if (ok) countLine(row, `${max}個まで売却可能`, this.countError === key);
       if (ok) row.append(this.stepper(key, n, max, (v) => this.sellCount.set(g.key, v)));
       return row;
     };
