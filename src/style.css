@@ -1865,3 +1865,12 @@ button {
   width: 42px;
   height: 42px;
 }
+/* 道具の絵は、丸い台の中に収まる大きさにする（四角い絵の角が切れないように） */
+.sheet-row .icon .item-art {
+  width: 34px;
+  height: 34px;
+}
+#base-body.shop .sheet-row .icon .item-art {
+  width: 30px;
+  height: 30px;
+}

@@ -83,7 +83,8 @@ export function renderRow(row: SheetRow): HTMLElement {
   el.className = ['sheet-row', row.dim ? 'dim' : '', row.className ?? ''].filter(Boolean).join(' ');
   const icon = document.createElement('span');
   icon.className = 'icon';
-  if (row.art && hasArt(row.art)) icon.append(artElement(row.art, row.icon));
+  // 道具の絵は四角いので、丸い台からはみ出さないよう小さく出す
+  if (row.art && hasArt(row.art)) icon.append(artElement(row.art, row.icon, row.art.startsWith('item_') ? 'art item-art' : 'art'));
   else icon.textContent = row.icon;
   const text = document.createElement('div');
   const name = document.createElement('div');
