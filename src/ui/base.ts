@@ -46,7 +46,7 @@ const VIEW_TITLE: Record<Exclude<View, 'hub'>, string> = {
 };
 
 /** 紺と金の共通の部品（docs/art-guide.md 8.2）で出す画面。ほかの画面も、そろえたら足していく */
-const NAVY_VIEWS: View[] = ['prep'];
+const NAVY_VIEWS: View[] = ['prep', 'allies', 'fusion'];
 
 /** 下のタブ。icon は public/art/<icon>.png */
 const NAV: { view: View; label: string; icon: string }[] = [
@@ -520,7 +520,7 @@ export class BaseScreen {
     );
     head.append(modes, cost);
     const out: HTMLElement[] = [head];
-    if (this.fusionNote) out.push(note(this.fusionNote, 'base-section'));
+    if (this.fusionNote) out.push(note(this.fusionNote, 'fusion-done'));
 
     // 生まれる子の見込みと、合わせるボタン
     const ready = this.parents.length === need && (!rebirthMode || partner);
@@ -533,7 +533,7 @@ export class BaseScreen {
           rebirthMode
             ? `イヅツチに合わせる魔物を1体選ぶ　Lv${FUSION_MIN_LEVEL}以上`
             : `親にする仲間を2体選ぶ　Lv${FUSION_MIN_LEVEL}以上`,
-          'base-section',
+          'fusion-hint',
         ),
       );
     }

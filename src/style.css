@@ -2280,3 +2280,64 @@ body:has(#base:not([hidden])) {
   color: #ffe596;
   text-shadow: 0 1px 1px #000;
 }
+
+/* 配合：説明の文と、合わせたあとの知らせ（見出しの帯にはしない） */
+#base-body.navy .sheet-note.fusion-hint {
+  margin: 10px 4px 4px;
+  text-align: center;
+}
+#base-body.navy .sheet-note.fusion-done {
+  margin: 10px 4px 4px;
+  color: #ffe596;
+  font-weight: bold;
+  text-align: center;
+}
+/* 配合：生まれる子の見込みは、明るい紙の札にまとめる。中の子の行は札を重ねない */
+#base-body.navy .fusion-preview {
+  padding: 6px 8px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+#base-body.navy .fusion-preview .sheet-note.fusion-label {
+  color: #6b5236;
+  font-weight: bold;
+}
+#base-body.navy .fusion-preview .sheet-row {
+  margin: 6px 0;
+  padding: 0;
+  border: none;
+  border-image: none;
+}
+/* ⑤ 大きなボタン（［配合する］［転生する］） */
+#base-body.navy .sheet-wide.main {
+  height: 54px;
+  border-style: solid;
+  border-width: 14px 30px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 14px 30px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #fff;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66, 0 2px 3px rgba(0, 0, 0, 0.45);
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.3));
+}
+#base-body.navy .sheet-wide.main:disabled {
+  border-image-source: url('./ui-art/btn-main.png');
+  color: #e4e8f0;
+  font-size: 15px;
+  filter: grayscale(0.75) brightness(0.85);
+}
+/* 配合：子の種族のボタンは1行に収める（「別の種族 🔒」） */
+#base-body.navy .sort-keys.three .sheet-wide {
+  padding: 0 2px;
+  font-size: 13px;
+  white-space: nowrap;
+}
