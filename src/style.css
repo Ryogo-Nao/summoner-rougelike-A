@@ -1953,6 +1953,12 @@ body:has(#base:not([hidden])) {
 
 /* ==== 拠点のトップの字体（scripts/subset-fonts.py で、使う文字だけ切り出したもの） ==== */
 @font-face {
+  font-family: 'Hub Fantasy';
+  src: url('./fonts/hub-fantasy.woff2') format('woff2');
+  font-weight: 800;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Hub Display';
   src: url('./fonts/hub-display.woff2') format('woff2');
   font-weight: 400;
@@ -1964,17 +1970,18 @@ body:has(#base:not([hidden])) {
   font-weight: 900;
   font-display: swap;
 }
-/* 看板の「冒険の準備」：明るい黄色から橙がかった金のグラデーションに、濃い茶の太い縁取り */
+/* 看板の「冒険の準備」：重厚な明朝。上が明るい黄色・下が深い金のグラデーションに、濃い茶と金の二重の縁取り */
 .hub-sign-title.gold-text {
-  font-family: 'Hub Display', 'Hiragino Sans', sans-serif;
-  font-size: min(31px, calc(var(--sign-w) * 0.078));
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  background: linear-gradient(180deg, #fffbe0 0%, #ffe680 35%, #ffc23c 65%, #f08c1c 100%);
+  font-family: 'Hub Fantasy', 'Hiragino Mincho ProN', serif;
+  font-size: min(32px, calc(var(--sign-w) * 0.08));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, #fff7c2 0%, #ffe36e 38%, #f2b234 66%, #b8721a 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(2px 0 0 #3a1c06) drop-shadow(-2px 0 0 #3a1c06) drop-shadow(0 2px 0 #3a1c06)
-    drop-shadow(0 -2px 0 #3a1c06) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(1.5px 0 0 #3a1f08) drop-shadow(-1.5px 0 0 #3a1f08) drop-shadow(0 1.5px 0 #3a1f08)
+    drop-shadow(0 -1.5px 0 #3a1f08) drop-shadow(1px 0 0 #e8b54a) drop-shadow(-1px 0 0 #e8b54a)
+    drop-shadow(0 1px 0 #e8b54a) drop-shadow(0 -1px 0 #e8b54a) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
 }
 /* ［GO!］：同じ字体を少し斜めにし、白から水色のグラデーションに紺の縁取り */
 .go-text {
