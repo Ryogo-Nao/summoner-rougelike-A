@@ -1,6 +1,6 @@
 import { PERSONALITY_IDS, createCard, isPartner, refreshStats, type Card, type PersonalityId, type Stats } from './cards';
 import type { ItemKind } from './items';
-import type { Species } from './monsters';
+import { SPECIES, type Species } from './monsters';
 import type { Profile } from './profile';
 
 /**
@@ -24,6 +24,26 @@ export const INHERIT_RATE = 0.05;
 /** 配合の書・転生の書 */
 export const FUSION_BOOK: ItemKind = 'fusionBook';
 export const REBIRTH_BOOK: ItemKind = 'rebirthBook';
+
+/**
+ * 別の種族の組み合わせ（requirements.md 9.2）。[親, 親, 子] の種族の id。親の組の順番は問わない。
+ * 子は親2体より強い種族にする。表にない組と、同じ種族どうしの組からは、別の種族は生まれない
+ */
+export const RECIPES: readonly (readonly [string, string, string])[] = [
+  ['chuppi', 'berogg', 'shururu'], // へびは、ねずみとかえるを食べる
+  ['chuppi', 'shururu', 'garuf'], // 獣の系統
+  ['patari', 'pokotake', 'moyari'], // 闇の翼と胞子から、霊
+  ['shururu', 'pokotake', 'kaburamu'], // 毒の系統
+  ['berogg', 'shururu', 'hidamari'], // かえるとへびから、トカゲ
+  ['garuf', 'patari', 'hidamari'], // 翼のある獣から、竜に近いトカゲ
+  ['kaburamu', 'pokotake', 'goromu'], // 硬い殻と、根を張る茸から、岩
+];
+
+/** 親2体から生まれる別の種族。組み合わせがなければ null */
+export function otherSpecies(a: Species, b: Species): Species | null {
+  const recipe = RECIPES.find(([x, y]) => (x === a.id && y === b.id) || (x === b.id && y === a.id));
+  return recipe ? (SPECIES.find((s) => s.id === recipe[2]) ?? null) : null;
+}
 
 /** 親になれるか。イヅツチは親にできない（転生を使う） */
 export const canBeParent = (card: Card) => !isPartner(card) && card.level >= FUSION_MIN_LEVEL;
@@ -96,6 +116,8 @@ export function fuse(p: Profile, a: Card, b: Card, species: Species, random: () 
   child.fusions = nextFusions(a, b);
   const parent = species === a.species ? a : species === b.species ? b : null;
   if (parent?.nickname) child.nickname = parent.nickname;
+  // 別の種族を生んだら覚えておく（配合の画面で「？？？」ではなく名前を出す）
+  if (!parent && !p.bred.includes(species.id)) p.bred.push(species.id);
   refreshStats(child);
   child.hp = child.maxHp;
   const at = p.cards.indexOf(a);

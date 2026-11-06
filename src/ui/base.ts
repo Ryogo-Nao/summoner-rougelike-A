@@ -9,6 +9,7 @@ import {
   canFuseNow,
   costProblem,
   fuse,
+  otherSpecies,
   inheritedBonus,
   nextFusions,
   personalityOdds,
@@ -106,7 +107,7 @@ export class BaseScreen {
   private readonly dialog: ConfirmDialog;
   private readonly settings: Settings;
   private readonly onSettings: () => void;
-  /** 配合の画面で、配合か転生か。選んでいる親（転生では合わせる魔物）と、子の種族にする親 */
+  /** 配合の画面で、配合か転生か。選んでいる親（転生では合わせる魔物）と、子の種族（0・1 は親1・親2、2 は別の種族） */
   private fusionMode: 'fusion' | 'rebirth' = 'fusion';
   private parents: Card[] = [];
   private childFrom = 0;
@@ -576,9 +577,14 @@ export class BaseScreen {
     const box = document.createElement('div');
     box.className = 'fusion-preview';
     const fusions = rebirthMode ? (a.fusions ?? 0) + 1 : nextFusions(a, b);
-    const species = rebirthMode ? a.species : [a, b][this.childFrom].species;
+    // 別の種族（組み合わせの表にある親の組だけ）。まだ生んだことのない種族は「？？？」と出す
+    const other = rebirthMode ? null : otherSpecies(a.species, b.species);
+    if (this.childFrom === 2 && !other) this.childFrom = 0;
+    const fromOther = this.childFrom === 2 && other !== null;
+    const unknown = fromOther && !p.bred.includes(other.id);
+    const species = rebirthMode ? a.species : fromOther ? other : [a, b][this.childFrom].species;
     if (!rebirthMode) {
-      // 子の種族：親1・親2・別の種族（別の種族は、組み合わせを決めるまで選べない）
+      // 子の種族：親1・親2・別の種族
       const pick = document.createElement('div');
       pick.className = 'sort-keys three';
       [a, b].forEach((parent, i) => {
@@ -589,7 +595,13 @@ export class BaseScreen {
         if (this.childFrom === i) btn.classList.add('on');
         pick.append(btn);
       });
-      pick.append(wideButton('別の種族 🔒', true, () => {}));
+      const otherLabel = other ? (p.bred.includes(other.id) ? other.name : '？？？') : 'なし';
+      const otherButton = wideButton(otherLabel, other === null, () => {
+        this.childFrom = 2;
+        this.render(true);
+      });
+      if (fromOther) otherButton.classList.add('on');
+      pick.append(otherButton);
       box.append(note('生まれる子の種族', 'fusion-label'), pick);
     }
     const bonus = inheritedBonus(a, b);
@@ -598,9 +610,15 @@ export class BaseScreen {
       .sort((x, y) => odds[y] - odds[x])
       .map((id) => `${PERSONALITIES[id].name}${Math.round(odds[id] * 1000) / 10}％`)
       .join('　');
-    const name = `${(rebirthMode ? a.nickname : [a, b][this.childFrom].nickname) || species.name}+${fusions}`;
+    const nickname = rebirthMode ? a.nickname : fromOther ? undefined : [a, b][this.childFrom].nickname;
+    const name = `${unknown ? '？？？' : nickname || species.name}+${fusions}`;
     box.append(
-      renderRow({ icon: species.emoji, art: species.id, name, sub: `Lv1　${rebirthMode ? '転生' : '配合'}${fusions}回` }),
+      renderRow({
+        icon: unknown ? '？' : species.emoji,
+        art: unknown ? undefined : species.id,
+        name,
+        sub: `Lv1　${rebirthMode ? '転生' : '配合'}${fusions}回`,
+      }),
       table([
         ['足し算', `HP+${bonus.maxHp}　攻撃+${bonus.atk}　防御+${bonus.def}`],
         ['伸び', `×${growthRate(fusions).toFixed(2)}`],

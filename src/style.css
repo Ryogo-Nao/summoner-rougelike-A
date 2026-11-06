@@ -2504,11 +2504,11 @@ body {
   color: #fff;
   text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66;
 }
-/* つよさの札（明るい紙）の中の字は、紺の窓の白い字にしない */
-:is(#base-body.navy, #sheet-body) .status-view {
+/* つよさの札・生まれる子の見込み（明るい紙）の中の字は、紺の窓の白い字にしない */
+:is(#base-body.navy, #sheet-body) :is(.status-view, .fusion-preview) {
   color: #3a2410;
 }
-:is(#base-body.navy, #sheet-body) .status-view .status-table dt {
+:is(#base-body.navy, #sheet-body) :is(.status-view, .fusion-preview) .status-table dt {
   color: #6b5236;
 }
 /* 指示の一覧のように絵のない行は、空の枠を出さない */

@@ -41,6 +41,8 @@ export interface Profile {
   generation: number;
   /** 拠点の知らせ */
   notices: Notices;
+  /** 配合の「別の種族」で生んだことのある種族の id。まだ生んでいない種族は、配合の画面で「？？？」と出す */
+  bred: string[];
 }
 
 /**
@@ -125,6 +127,7 @@ interface ProfileData {
   records?: Records;
   generation?: number;
   notices?: Notices;
+  bred?: string[];
 }
 
 const PROFILE_KEY = 'summoner-profile';
@@ -147,6 +150,7 @@ export function newProfile(): Profile {
     records: newRecords(),
     generation: 1,
     notices: noNotices(),
+    bred: [],
   };
 }
 
@@ -166,6 +170,7 @@ export function loadProfile(): Profile {
       records: { ...newRecords(), ...data.records },
       generation: data.generation ?? 1,
       notices: { ...noNotices(), ...data.notices },
+      bred: data.bred ?? [],
     };
     reserveCardIds(Math.max(0, ...profile.cards.map((c) => c.id)));
     reserveItemIds(Math.max(0, ...allItems([...profile.bag, ...profile.warehouse]).map((i) => i.id)));
