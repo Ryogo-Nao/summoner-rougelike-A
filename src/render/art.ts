@@ -22,9 +22,9 @@ function artKind(kind: ItemKind): string {
   return kind;
 }
 
-/** 絵のファイルがあるもの（ファイル名は item_<名前>.png）。星はまだ絵がないので、絵文字で出す */
+/** 絵のファイルがあるもの（ファイル名は item_<名前>.png） */
 const ITEM_ART = new Set([
-  'herb', 'bread', 'arrow', 'sealSummon', 'tomeGuard', 'holyPouch',
+  'herb', 'bread', 'arrow', 'sealSummon', 'star', 'tomeGuard', 'holyPouch',
   'water', 'blank', 'rune', 'pot', 'fusionBook', 'rebirthBook',
   'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield',
 ]);

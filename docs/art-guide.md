@@ -131,7 +131,7 @@ Recraft では、最初に絵柄（スタイル）を1つ作り、すべての�
 | 食べ物 | item_bread（パン） | パン・大きなパン |
 | 矢 | item_arrow（ふつうの矢） | ふつうの矢・鉄の矢 |
 | 印 | item_sealSummon（召喚の印） | 9種類の印 |
-| 星 | まだない（⭐の絵文字） | 9種類の星。絵を作ったら item_star.png にして ITEM_ART に足す |
+| 星 | item_star（金の星に空色の芯。Gemini で作った） | 9種類の星 |
 | 魔導書 | item_tomeGuard（守りの魔導書） | 力の魔導書・守りの魔導書 |
 | 袋 | item_holyPouch（聖なる袋） | ふつうの袋・高級な袋・聖なる袋 |
 | 1つずつ | それぞれの絵 | 武器・盾、魔力の水・白紙カード・ルーン・錬金釜・配合の書・転生の書 |
@@ -159,7 +159,7 @@ Transparent background, no text, no shadow, no border.
 | arrow | ふつうの矢 | a bundle of three wooden arrows with white feathers |
 | ironArrow | 鉄の矢 | a bundle of three arrows with iron tips |
 | seal | ○○の印 | a rolled magic scroll with a ribbon（今は召喚の印の絵を、すべての印で使う） |
-| star | ○○の星 | a small glowing golden star candy（まだない。星9種類で1枚） |
+| star | ○○の星 | a plump rounded gold star like a soft candy, with a small sky-blue gem core（星9種類で1枚） |
 | tomePower | 力の魔導書 | a thick red magic book with a fist emblem |
 | tomeGuard | 守りの魔導書 | a thick blue magic book with a shield emblem |
 | pot | 錬金釜 | a small round alchemy cauldron with bubbling liquid |
@@ -205,7 +205,7 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 - 道具のアイコンは 3×3 の9個を1枚で作ってもらい、1つずつ切り出して scripts/key-art.ps1 -Icon で背景を抜く
   - -Icon は、絵の中の緑（薬草の葉など）を消さないための指定。それでも葉が消えるとき（薬草・上薬草・毒消し草）は、背景の色に近い所だけを外側から抜く
   - 名前の文字が絵に入っていたら、文字の行を外して切り出す。右下の透かしは、背景の色で塗ってから抜く
-- 道具の絵は種類ごとに1枚（7章）。今ある種類で絵がないのは星だけ。新しい種類の道具や装備を足したら、同じ頼み方で絵を作り、ITEM_ART に足す
+- 道具の絵は種類ごとに1枚（7章）。今ある道具は、すべて絵がある。新しい種類の道具や装備を足したら、同じ頼み方で絵を作り、ITEM_ART に足す
 - 届いた絵に区切りの罫線があるときは、罫線も外して切り出す
 - つるの葉など、絵の中に緑があるときは、地の色との近さで抜く（緑みの強さで抜くと葉も薄くなる）。抜いた所のそばは、緑のにじみを弱める
 - 鎖の輪や歯車の穴のように、絵に囲まれた緑は外側からの塗りつぶしでは抜けない。囲まれたはっきりした緑も抜く（uikey の -Inner、key-art の -Inner）
