@@ -1704,7 +1704,7 @@ body:has(#base:not([hidden])) {
  * 余った高さは、鎖を少し伸ばして受ける
  */
 #base-body.hub {
-  --sign-w: min(100cqw - 12px, 64cqh);
+  --sign-w: min(100cqw - 12px, 54cqh);
   container-type: size;
   overflow: hidden;
   display: flex;
@@ -1726,8 +1726,8 @@ body:has(#base:not([hidden])) {
 /* 金の唐草の額縁（上に空色の宝石）。中に魔法陣の台を敷き、主人公を立たせる。台はほのかに光る */
 .hub-stage {
   position: relative;
-  width: min(166px, 23cqh);
-  height: min(171px, 23.7cqh);
+  width: min(210px, 26cqh);
+  height: min(216px, 26.8cqh);
   margin: 0 auto;
   background:
     url('./ui-art/medallion.png') center / 100% 100% no-repeat,
@@ -1736,10 +1736,10 @@ body:has(#base:not([hidden])) {
 }
 .hub-art {
   display: block;
-  width: min(124px, 17.2cqh);
-  height: min(124px, 17.2cqh);
+  width: min(156px, 19.4cqh);
+  height: min(156px, 19.4cqh);
   margin: 0 auto;
-  padding-top: min(26px, 3.6cqh);
+  padding-top: min(33px, 4.1cqh);
   box-sizing: content-box;
 }
 @keyframes hub-glow {
@@ -1788,8 +1788,8 @@ body:has(#base:not([hidden])) {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(50px, 7.4cqh);
-  height: min(50px, 7.4cqh);
+  width: min(62px, 8.6cqh);
+  height: min(62px, 8.6cqh);
   padding: 6px;
   background: rgba(40, 28, 16, 0.55);
   border-radius: 4px;
@@ -1807,7 +1807,7 @@ body:has(#base:not([hidden])) {
   object-fit: cover;
 }
 .hub-face .face-emoji {
-  font-size: 22px;
+  font-size: 26px;
 }
 .hub-slot.empty .hub-face {
   color: #fff3c4;
@@ -1829,7 +1829,7 @@ body:has(#base:not([hidden])) {
 .hub-lv {
   min-height: 14px;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 14px;
   text-shadow: 1px 0 0 #3b2208, -1px 0 0 #3b2208, 0 1px 0 #3b2208, 0 -1px 0 #3b2208;
@@ -1907,7 +1907,7 @@ body:has(#base:not([hidden])) {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: min(62px, 9.6cqh);
+  height: min(58px, 8cqh);
   padding: 0 8px;
   border-style: solid;
   border-width: 8px;
@@ -1925,8 +1925,8 @@ body:has(#base:not([hidden])) {
   display: grid;
   place-items: center;
   flex: none;
-  width: min(40px, 6.6cqh);
-  height: min(40px, 6.6cqh);
+  width: min(38px, 5.6cqh);
+  height: min(38px, 5.6cqh);
 }
 .hub-icon img {
   width: 100%;
@@ -1934,7 +1934,7 @@ body:has(#base:not([hidden])) {
 }
 .hub-title {
   flex: 1;
-  font-size: 20px;
+  font-size: min(20px, 3.6cqh);
   text-align: left;
 }
 .hub-go img {
