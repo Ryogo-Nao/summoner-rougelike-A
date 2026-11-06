@@ -250,6 +250,20 @@ export function allItems(items: Item[]): Item[] {
 }
 
 /** 並べ替える。種類順はアイテムの表の順、名前順は読みの五十音順。同じなら手に入れた順 */
+/** 道具の種類の呼び名と読み。拠点の一覧の検索で使う（「印」「いん」「星」などで探せる） */
+export function itemCategory(kind: ItemKind): string {
+  const d = ITEMS[kind];
+  if (d.slot) return d.slot === 'weapon' ? '武器 ぶき 装備 そうび' : '盾 たて 装備 そうび';
+  if (d.seal) return '印 いん しるし';
+  if (d.star) return '星 ほし';
+  if (d.pouch) return '袋 ふくろ';
+  if (d.spell) return '魔導書 まどうしょ 本';
+  if (d.heal || d.cure) return '草 くさ';
+  if (d.arrow) return '矢 や';
+  if (d.food) return '食べ物 たべもの 食料 しょくりょう';
+  return '';
+}
+
 export function sortItems(items: Item[], by: 'kind' | 'name'): Item[] {
   const kinds = Object.keys(ITEMS);
   const kana = (i: Item) => ITEMS[i.kind].kana;

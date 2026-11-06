@@ -914,6 +914,50 @@ button {
   opacity: 0;
   font-size: 16px;
 }
+/* 拠点の一覧の検索欄。iPhone で拡大されないよう、字は16px にする */
+.list-search {
+  display: block;
+  margin-top: 6px;
+}
+.list-search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--btn-line);
+  border-radius: 8px;
+  background: #fffaf0;
+  color: var(--text);
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.list-search input::placeholder {
+  color: var(--muted);
+}
+/* 一覧のページを移るボタン（10行ごと） */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.pager .sheet-wide {
+  flex: 0 0 auto;
+  width: 96px;
+  margin: 0;
+}
+.pager-at {
+  flex: 1;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+:is(#base-body.navy) .pager-at {
+  color: #d9e0f2;
+}
 /* 配合：子の種族を選ぶ3つのボタン */
 .sort-keys.three {
   grid-template-columns: repeat(3, 1fr);

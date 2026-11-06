@@ -19,7 +19,7 @@ import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
-import { BAG_LIMIT, ITEMS, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, itemCategory, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
 import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows } from './screens';
@@ -115,6 +115,8 @@ export class BaseScreen {
   private shopAction: { label: string; disabled: boolean; run: () => void } | null = null;
   /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
   private fusionNote = '';
+  /** 一覧ごと（仲間・連れていく仲間・バッグ・倉庫）の、検索の文字と、見ているページ（0から） */
+  private lists = new Map<string, { query: string; page: number }>();
 
   /**
    * onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ。dialog は配合の前に確かめるのに使う。
@@ -179,6 +181,7 @@ export class BaseScreen {
     this.clearShop();
     this.parents = [];
     this.fusionNote = '';
+    this.lists.clear();
     this.render();
   }
 
@@ -381,11 +384,83 @@ export class BaseScreen {
   private alliesRows(p: Profile): HTMLElement[] {
     const head = document.createElement('div');
     head.className = 'base-sort';
-    head.append(this.cardSortKeys(p), note(`仲間 ${p.cards.length}体　連れていく ${p.hand.length}/${HAND_LIMIT}`, 'allies-count'));
-    const rows = p.cards.map((card) =>
+    const list = this.pagedList('allies', p.cards, cardSearchText, '種族・ニックネームで探す', (card) =>
       allyRow(card, { on: p.hand.includes(card.id), onSelect: () => this.enter(() => (this.viewing = card)) }),
     );
-    return [head, ...rows];
+    head.append(
+      this.cardSortKeys(p),
+      list.search,
+      note(`仲間 ${p.cards.length}体　連れていく ${p.hand.length}/${HAND_LIMIT}`, 'allies-count'),
+    );
+    return [head, list.list];
+  }
+
+  /**
+   * 一覧を1ページ10行ずつ出し、上に検索の欄を置く（requirements.md 10.4）。
+   * 検索は search を head に、list を本文に置く。打つたびに一覧だけを描き直す（欄から指が離れないように）。
+   * 検索の文字はひらがなとカタカナを区別しない
+   */
+  private pagedList<T>(
+    id: string,
+    items: T[],
+    text: (item: T) => string,
+    placeholder: string,
+    row: (item: T) => HTMLElement,
+  ): { search: HTMLElement; list: HTMLElement } {
+    let state = this.lists.get(id);
+    if (!state) {
+      state = { query: '', page: 0 };
+      this.lists.set(id, state);
+    }
+    const st = state;
+    const list = document.createElement('div');
+    list.className = 'paged-list';
+    const draw = () => {
+      const q = searchKey(st.query);
+      const hits = q ? items.filter((item) => searchKey(text(item)).includes(q)) : items;
+      const pages = Math.max(1, Math.ceil(hits.length / PAGE_SIZE));
+      st.page = Math.min(st.page, pages - 1);
+      const shown = hits.slice(st.page * PAGE_SIZE, (st.page + 1) * PAGE_SIZE).map(row);
+      const parts: HTMLElement[] = shown.length > 0 ? shown : [note(q ? '見つからない' : 'まだいない')];
+      if (pages > 1) parts.push(this.pager(st.page, pages, hits.length, (page) => {
+        st.page = page;
+        draw();
+        this.body.scrollTop = 0;
+      }));
+      list.replaceChildren(...parts);
+    };
+    const box = document.createElement('label');
+    box.className = 'list-search';
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.placeholder = `🔍 ${placeholder}`;
+    input.value = st.query;
+    input.enterKeyHint = 'search';
+    input.addEventListener('input', () => {
+      st.query = input.value;
+      st.page = 0;
+      draw();
+    });
+    // 決定を押したらキーボードを閉じる
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+    box.append(input);
+    draw();
+    return { search: box, list };
+  }
+
+  /** ページを移るボタン。［‹ 前へ］ 2 / 5　43件［次へ ›］ */
+  private pager(page: number, pages: number, total: number, onPage: (page: number) => void): HTMLElement {
+    const bar = document.createElement('div');
+    bar.className = 'pager';
+    const prev = wideButton('‹ 前へ', page === 0, () => onPage(page - 1));
+    const next = wideButton('次へ ›', page >= pages - 1, () => onPage(page + 1));
+    const at = document.createElement('span');
+    at.className = 'pager-at';
+    at.textContent = `${page + 1} / ${pages}　${total}件`;
+    bar.append(prev, at, next);
+    return bar;
   }
 
   /** その他（記録と設定）。上で［記録］［設定］を切り替える。設定はダンジョンのメニューと同じもの */
@@ -458,8 +533,7 @@ export class BaseScreen {
       faces.append(face);
     }
     party.append(text, faces);
-    head.append(sorts, party);
-    const rows = p.cards.map((card) => {
+    const list = this.pagedList('cards', p.cards, cardSearchText, '種族・ニックネームで探す', (card) => {
       const taking = p.hand.includes(card.id);
       return allyRow(card, {
         on: taking,
@@ -473,7 +547,8 @@ export class BaseScreen {
         onSelect: () => this.enter(() => (this.viewing = card)),
       });
     });
-    return [head, ...rows];
+    head.append(sorts, party, list.search);
+    return [head, list.list];
   }
 
   /** 仲間の並べ替えのボタン。1回目は昇順（↑）、同じボタンをもう一度押すと降順（↓） */
@@ -681,15 +756,24 @@ export class BaseScreen {
       }),
     );
     // 選んでいる並べ方で出す（あとから入れた道具も、その並びに入る）
-    const rows = groupItems(sortStock(from, this.itemSort)).map((g) => {
-      const first = g.items[0];
-      // 矢は本数を足して出す
-      const name = ITEMS[first.kind].arrow
-        ? `${ITEMS[first.kind].name}（${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
-        : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
-      return this.itemRow(first, bag ? '倉庫へ送る' : 'バッグへ入れる', full, () => move(first, from, to), name);
-    });
-    return [head, ...(rows.length > 0 ? rows : [note(bag ? 'バッグは空' : '倉庫は空')])];
+    const groups = groupItems(sortStock(from, this.itemSort));
+    if (groups.length === 0) return [head, note(bag ? 'バッグは空' : '倉庫は空')];
+    const list = this.pagedList(
+      this.itemPlace,
+      groups,
+      (g) => `${g.name} ${ITEMS[g.items[0].kind].kana} ${itemCategory(g.items[0].kind)}`,
+      '名前・種類（印・星など）で探す',
+      (g) => {
+        const first = g.items[0];
+        // 矢は本数を足して出す
+        const name = ITEMS[first.kind].arrow
+          ? `${ITEMS[first.kind].name}（${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
+          : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
+        return this.itemRow(first, bag ? '倉庫へ送る' : 'バッグへ入れる', full, () => move(first, from, to), name);
+      },
+    );
+    head.append(list.search);
+    return [head, list.list];
   }
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
@@ -1092,6 +1176,22 @@ function allyRow(
   row.append(check);
   return row;
 }
+
+/** 拠点の一覧の、1ページの行数 */
+const PAGE_SIZE = 10;
+
+/** 検索で比べる形。全角・半角をそろえ、ひらがなはカタカナに、英字は小文字にする */
+function searchKey(text: string): string {
+  return text
+    .normalize('NFKC')
+    .replace(/[\u3041-\u3096]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60))
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** 仲間を探すときの文字。種族の名前とニックネーム */
+const cardSearchText = (card: Card) => `${card.species.name} ${card.nickname ?? ''}`;
 
 /** Safari の上のバーの色。拠点は村の絵の空の色、ダンジョンは上の帯の紺 */
 const BAR_BASE = '#a3defb';

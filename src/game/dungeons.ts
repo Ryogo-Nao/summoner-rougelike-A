@@ -215,6 +215,8 @@ const FOREST: Dungeon = {
     { kind: 'ironShield', weight: 2.5 },
     { kind: 'tomePower', weight: 1.25 },
     { kind: 'tomeGuard', weight: 1.25 },
+    // 配合の書は B6F から、まれに拾える（転生の書は森では出ない）
+    { kind: 'fusionBook', weight: 1, floors: [6, 15] },
   ],
   monsters: [
     // 浅い階：中くらいの魔物がLv3で出る。ガルフは B3F から
@@ -311,8 +313,8 @@ const ICE: Dungeon = {
     { kind: 'ironShield', weight: 3.5 },
     { kind: 'tomePower', weight: 1.5 },
     { kind: 'tomeGuard', weight: 1.5 },
-    // 配合の書・転生の書は、深い階でまれに拾える
-    { kind: 'fusionBook', weight: 0.5, floors: [6, 20] },
+    // 配合の書・転生の書は、深い階でまれに拾える（配合の書は印や装備よりは出にくい）
+    { kind: 'fusionBook', weight: 1, floors: [6, 20] },
     { kind: 'rebirthBook', weight: 0.5, floors: [6, 20] },
   ],
   monsters: [
