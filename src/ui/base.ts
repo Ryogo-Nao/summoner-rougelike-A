@@ -1,4 +1,4 @@
-import { HAND_LIMIT, PERSONALITIES, PERSONALITY_IDS, cardName, growthRate, isPartner, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, PERSONALITY_IDS, SUMMON_LIMIT, cardName, growthRate, isPartner, type Card } from '../game/cards';
 import {
   FUSION_BOOK,
   FUSION_COST,
@@ -214,9 +214,10 @@ export class BaseScreen {
   }
 
 
+  /** 連れていく仲間を、選んだ順に。最初の3体は、召喚した状態でダンジョンに入る */
   private handCards(): Card[] {
     const p = this.profile!;
-    return p.cards.filter((c) => p.hand.includes(c.id));
+    return p.hand.map((id) => p.cards.find((c) => c.id === id)).filter((c): c is Card => c !== undefined);
   }
 
   /** 中身を変えて保存する。一覧のスクロールの位置はそのままにする */
@@ -305,6 +306,8 @@ export class BaseScreen {
       const card = hand[i];
       const slot = document.createElement('button');
       slot.className = card ? 'hub-slot' : 'hub-slot empty';
+      // 4体目からは控え（ダンジョンでは、最初の3体だけを召喚した状態で入る）
+      if (i >= SUMMON_LIMIT) slot.classList.add('reserve');
       const face = document.createElement('span');
       face.className = 'hub-face';
       if (card) face.append(faceElement(card.species.id, cardIcon(card)));
@@ -449,6 +452,7 @@ export class BaseScreen {
       const card = hand[i];
       const face = document.createElement('span');
       face.className = card ? 'face' : 'face empty';
+      if (i >= SUMMON_LIMIT) face.classList.add('reserve');
       if (card) face.append(faceElement(card.species.id, cardIcon(card)));
       else face.textContent = '＋';
       faces.append(face);

@@ -191,8 +191,11 @@ export function saveProfile(profile: Profile): void {
 
 /** 持っていくカード・バッグ・魔法。カードは召喚できる状態にする */
 export function loadoutOf(profile: Profile): Loadout {
-  // 拠点のカードの一覧の順に持っていく
-  const cards = profile.cards.filter((c) => profile.hand.includes(c.id)).slice(0, HAND_LIMIT);
+  // 連れていく仲間に選んだ順に持っていく（最初の3体は、召喚した状態で入る）
+  const cards = profile.hand
+    .map((id) => profile.cards.find((c) => c.id === id))
+    .filter((c): c is Card => c !== undefined)
+    .slice(0, HAND_LIMIT);
   return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks }, shortcuts: [...profile.shortcuts] };
 }
 

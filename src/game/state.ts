@@ -397,6 +397,13 @@ export class GameState {
       guardTurns: 0,
       ailments: noAilments(),
     };
+    // 連れていく仲間のうち最初の3体は、召喚した状態で入る（MPは使わない）。置く場所は enterFloor で決める
+    if (loadout) {
+      for (const card of this.cards.filter((c) => c.status === 'ready').slice(0, SUMMON_LIMIT)) {
+        card.status = 'summoned';
+        this.allies.push({ card, pos: { x: 0, y: 0 }, facing: 4, order: 'follow', ailments: noAilments() });
+      }
+    }
     this.enterFloor();
   }
 

@@ -2518,3 +2518,12 @@ body {
 :is(#base-body.navy, #sheet-body) .sheet-row .icon:empty::after {
   display: none;
 }
+/* 連れていく仲間の4体目・5体目は控え。ダンジョンでは最初の3体だけが召喚した状態で入るので、少し離して薄くする */
+.hub-slot.reserve,
+#base-body .party-faces .face.reserve {
+  opacity: 0.7;
+}
+.hub-slot.reserve:nth-child(4),
+#base-body .party-faces .face.reserve:nth-child(4) {
+  margin-left: 6px;
+}

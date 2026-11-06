@@ -9,7 +9,7 @@ import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { setupQuick } from './ui/quick';
 import { ITEMS } from './game/items';
-import { ORDER_LABEL } from './game/cards';
+import { ORDER_LABEL, cardName } from './game/cards';
 import { useShortcut, cardIcon, openAllySheet, openBagSheet, openFloorSheet, openOrderSheet, openCardSheet, openMagicSheet, openMenuSheet, openSwapSheet } from './ui/screens';
 import { BaseScreen } from './ui/base';
 import { loadSettings, saveSettings } from './ui/settings';
@@ -58,6 +58,7 @@ function useState(next: GameState): void {
 function startRun(dungeonId: string): void {
   useState(new GameState(nextSeed(), loadoutOf(profile), dungeonId));
   state.addLog(`${state.dungeon.name}に入った`);
+  if (state.allies.length > 0) state.addLog(`${state.allies.map((a) => cardName(a.card)).join('・')}も一緒に入った`);
   ending = null;
   saveRun(state);
   base.close();
