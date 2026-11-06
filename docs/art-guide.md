@@ -201,14 +201,14 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 - 一覧の行の丸い台に出す道具の絵は、四角い絵の角が丸からはみ出さないよう、台より小さく出す
 
 ### 8.1 拠点のトップの字体
-日本語の字体は丸ごと入れると重いので、拠点のトップに出る文字だけを Google Fonts から切り出して src/fonts/ に置く（4つで約14KB）。どれも SIL Open Font License。
+日本語の字体は丸ごと入れると重いので、拠点のトップに出る文字だけを Google Fonts から切り出して src/fonts/ に置く（2つで約8KB）。どちらも SIL Open Font License。
 
 | ファイル | 字体 | 使うところ |
 |---|---|---|
-| hub-fantasy.woff2 | しっぽり明朝 B1（ExtraBold） | 看板の「冒険の準備」 |
-| hub-go.woff2 | Cinzel（Black） | ［GO!］ |
-| hub-antique.woff2 | Zen Antique | ［商店］［記録］［配合］ |
-| hub-ui.woff2 | Zen 丸ゴシック（Bold） | 見出しの名前とルーン・名札・Lv・下のタブ・知らせの「！」 |
+| hub-display.woff2 | Dela Gothic One | 看板の「冒険の準備」・［GO!］・［商店］［記録］［配合］ |
+| hub-ui.woff2 | Zen Kaku Gothic New（Black） | 見出しの名前とルーン・名札・Lv・下のタブ・知らせの「！」 |
+
+- 丸ゴシックは安っぽく見えるので使わない。札の字は暗くせず、明るい黄色から金にする
 
 - 拠点のトップに新しい言葉（称号・ほかの代の名前など）を出すときは、scripts/subset-fonts.py の文字に足して `python scripts/subset-fonts.py` で取り直す。足し忘れた字は、端末の字で出る
 - 仲間のニックネームのように自由に打ち込める文字には使わない

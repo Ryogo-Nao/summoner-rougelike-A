@@ -1953,68 +1953,57 @@ body:has(#base:not([hidden])) {
 
 /* ==== 拠点のトップの字体（scripts/subset-fonts.py で、使う文字だけ切り出したもの） ==== */
 @font-face {
-  font-family: 'Hub Fantasy';
-  src: url('./fonts/hub-fantasy.woff2') format('woff2');
-  font-weight: 800;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Hub Go';
-  src: url('./fonts/hub-go.woff2') format('woff2');
-  font-weight: 900;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Hub Antique';
-  src: url('./fonts/hub-antique.woff2') format('woff2');
+  font-family: 'Hub Display';
+  src: url('./fonts/hub-display.woff2') format('woff2');
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: 'Hub UI';
   src: url('./fonts/hub-ui.woff2') format('woff2');
-  font-weight: 700;
+  font-weight: 900;
   font-display: swap;
 }
-/* 大きな主役（看板）：重厚な明朝。上が明るい黄色・下が深い金のグラデーションに、濃い茶と金の二重の縁取り */
+/* 看板の「冒険の準備」：明るい黄色から橙がかった金のグラデーションに、濃い茶の太い縁取り */
 .hub-sign-title.gold-text {
-  font-family: 'Hub Fantasy', 'Hiragino Mincho ProN', serif;
-  font-size: min(32px, calc(var(--sign-w) * 0.08));
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  background: linear-gradient(180deg, #fff7c2 0%, #ffe36e 38%, #f2b234 66%, #b8721a 100%);
+  font-family: 'Hub Display', 'Hiragino Sans', sans-serif;
+  font-size: min(31px, calc(var(--sign-w) * 0.078));
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffe680 35%, #ffc23c 65%, #f08c1c 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(1.5px 0 0 #3a1f08) drop-shadow(-1.5px 0 0 #3a1f08) drop-shadow(0 1.5px 0 #3a1f08)
-    drop-shadow(0 -1.5px 0 #3a1f08) drop-shadow(1px 0 0 #e8b54a) drop-shadow(-1px 0 0 #e8b54a)
-    drop-shadow(0 1px 0 #e8b54a) drop-shadow(0 -1px 0 #e8b54a) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(2px 0 0 #3a1c06) drop-shadow(-2px 0 0 #3a1c06) drop-shadow(0 2px 0 #3a1c06)
+    drop-shadow(0 -2px 0 #3a1c06) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
 }
-/* ［GO!］：重厚なクラシックの英字。白から水色のグラデーションに、紺の縁取り */
+/* ［GO!］：同じ字体を少し斜めにし、白から水色のグラデーションに紺の縁取り */
 .go-text {
-  font-family: 'Hub Go', 'Times New Roman', serif;
+  display: inline-block;
+  font-family: 'Hub Display', 'Hiragino Sans', sans-serif;
   font-style: normal;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  background: linear-gradient(180deg, #ffffff 0%, #eaf8ff 45%, #9fdcff 100%);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  transform: skewX(-8deg);
+  background: linear-gradient(180deg, #ffffff 0%, #f0faff 45%, #a8e0ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   text-shadow: none;
-  filter: drop-shadow(1.5px 0 0 #163e6b) drop-shadow(-1.5px 0 0 #163e6b) drop-shadow(0 1.5px 0 #163e6b)
-    drop-shadow(0 -1.5px 0 #163e6b) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(1.5px 0 0 #143a66) drop-shadow(-1.5px 0 0 #143a66) drop-shadow(0 1.5px 0 #143a66)
+    drop-shadow(0 -1.5px 0 #143a66) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
 }
-/* 中くらいの札（商店・記録・配合）：羊皮紙に合うアンティークの明朝。暗めの金から茶に、濃い縁取り */
+/* ［商店］［記録］［配合］：明るい黄色から金のグラデーションに、濃い茶の縁取り */
 .hub-title.gold-text {
-  font-family: 'Hub Antique', 'Hiragino Mincho ProN', serif;
+  font-family: 'Hub Display', 'Hiragino Sans', sans-serif;
   font-weight: 400;
-  letter-spacing: 0.1em;
-  background: linear-gradient(180deg, #f6d57e 0%, #d9a23c 50%, #8f5a1a 100%);
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffe27a 42%, #f5b33a 78%, #d98a1e 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(1px 0 0 #2e1806) drop-shadow(-1px 0 0 #2e1806) drop-shadow(0 1px 0 #2e1806)
-    drop-shadow(0 -1px 0 #2e1806) drop-shadow(0 1.5px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(1.5px 0 0 #3a1c06) drop-shadow(-1.5px 0 0 #3a1c06) drop-shadow(0 1.5px 0 #3a1c06)
+    drop-shadow(0 -1.5px 0 #3a1c06) drop-shadow(0 2px 1px rgba(0, 0, 0, 0.35));
 }
-/* 小さな情報（見出し・名札・ルーン・Lv・下のタブ）：読みやすい太い丸ゴシック */
+/* 小さな情報（見出し・名札・ルーン・Lv・下のタブ）：丸くない太いゴシック */
 #base-title,
 .base-head .runes,
 .hub-name,
@@ -2022,17 +2011,19 @@ body:has(#base:not([hidden])) {
 #base-nav button,
 .badge {
   font-family: 'Hub UI', 'Hiragino Sans', sans-serif;
-  font-weight: 700;
+  font-weight: 900;
 }
 /* 紺の札の字は、明るい金に濃い紺の縁取り */
 #base-title,
 .base-head .runes,
 .hub-name {
-  color: #ffe08a;
+  color: #ffe596;
+  letter-spacing: 0.08em;
   text-shadow: 1px 0 0 #0d1530, -1px 0 0 #0d1530, 0 1px 0 #0d1530, 0 -1px 0 #0d1530, 0 2px 3px rgba(0, 0, 0, 0.55);
 }
 .base-head .runes {
-  color: #fff4d0;
+  color: #fff6d8;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 /* Lv は白い字に黒の縁取り（袋文字） */

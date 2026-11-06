@@ -16,16 +16,12 @@ UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 DIGITS = '0123456789'
 # 名前（ファイル名）: (字体, 太さ, 切り出す文字)
 FONTS = {
-    # 看板の「冒険の準備」：重厚な明朝
-    'hub-fantasy': ('Shippori Mincho B1', 800, '冒険の準備'),
-    # ［GO!］：重厚なクラシックの英字
-    'hub-go': ('Cinzel', 900, 'GO!'),
-    # ［商店］［記録］［配合］：羊皮紙に合うアンティークの明朝
-    'hub-antique': ('Zen Antique', 400, '商店記録配合'),
-    # 見出し・名札・ルーン・Lv・下のタブ：読みやすい太い丸ゴシック
+    # 看板の「冒険の準備」・［GO!］・［商店］［記録］［配合］：太くて四角い、ゲームのロゴ風の字体
+    'hub-display': ('Dela Gothic One', 400, '冒険の準備GO!商店記録配合'),
+    # 見出し・名札・ルーン・Lv・下のタブ：丸くない太いゴシック
     'hub-ui': (
-        'Zen Maru Gothic',
-        700,
+        'Zen Kaku Gothic New',
+        900,
         '初代召喚士目' + DIGITS + 'ルーン冒険の準備仲間配合商店その他拠点記録Lv＋！ ',
     ),
 }
