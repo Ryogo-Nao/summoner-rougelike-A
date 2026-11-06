@@ -2055,7 +2055,7 @@ body:has(#base:not([hidden])) {
 
 /*
  * ==== 紺と金の共通の部品（docs/art-guide.md 8.2）====
- * #base-body に navy を付けた画面に当てる（今は冒険の準備）。ほかの画面も、そろえたら base.ts の NAVY_VIEWS に足す。
+ * #base-body に navy を付けた画面に当てる（base.ts の NAVY_VIEWS。今は拠点のトップ以外のすべて）。
  * ① 画面の枠 ② 行の札 ③ 見出しの帯 ④ タブ ⑤ 大きなボタン ⑥ 小さなボタン ⑦ 選ぶ印。顔の枠は拠点のトップと同じ金の枠
  */
 /* ① 画面の枠：紺の地に、四隅に金の唐草 */
@@ -2281,12 +2281,12 @@ body:has(#base:not([hidden])) {
   text-shadow: 0 1px 1px #000;
 }
 
-/* 配合：説明の文と、合わせたあとの知らせ（見出しの帯にはしない） */
+/* 配合の説明の文と、合わせたあと・買ったあとの知らせ（見出しの帯にはしない） */
 #base-body.navy .sheet-note.fusion-hint {
   margin: 10px 4px 4px;
   text-align: center;
 }
-#base-body.navy .sheet-note.fusion-done {
+#base-body.navy .sheet-note.done-note {
   margin: 10px 4px 4px;
   color: #ffe596;
   font-weight: bold;
@@ -2340,4 +2340,69 @@ body:has(#base:not([hidden])) {
   padding: 0 2px;
   font-size: 13px;
   white-space: nowrap;
+}
+/* 商店：買えない・売れない品は、札ごとくすませる */
+#base-body.navy .sheet-row.blocked {
+  filter: grayscale(0.6) brightness(0.8);
+}
+#base-body.navy .sheet-row.blocked .name {
+  color: #4a3a2a;
+}
+#base-body.navy .sheet-row.blocked .sub {
+  color: #6b5a48;
+}
+#base-body.navy .sheet-row.blocked .icon {
+  opacity: 1;
+}
+/* 商店：［－］［＋］のあいだの数は、紙の札に合う薄い紙の箱 */
+#base-body.navy .sheet-row .stepper .stepper-num {
+  border: 1px solid #a8834a;
+  border-radius: 4px;
+  background: #fffaf0;
+  box-shadow: inset 0 1px 2px rgba(80, 50, 20, 0.25);
+  color: #3a2410;
+}
+/* その他の記録：主人公の絵と表は、行と同じ明るい紙の札に乗せる。名前は紺の地に金の字 */
+#base-body.navy > .status-portrait {
+  margin-top: 8px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+  border-radius: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(240, 200, 130, 0.4), transparent 62%);
+  box-shadow: none;
+}
+#base-body.navy > .status-title {
+  width: fit-content;
+  min-height: 0;
+  margin: 10px auto 4px;
+  padding: 0 6px;
+  border-style: solid;
+  border-width: 14px 34px;
+  border-image: url('./ui-art/wingplate.png') 40 95 fill / 14px 34px stretch;
+  color: #ffe596;
+  font-family: 'Hub UI', 'Hiragino Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 18px;
+  letter-spacing: 0.08em;
+  text-shadow: 1px 0 0 #0d1530, -1px 0 0 #0d1530, 0 1px 0 #0d1530, 0 -1px 0 #0d1530, 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+#base-body.navy > .base-table {
+  margin: 4px 0 8px;
+  padding: 4px 8px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+  color: #3a2410;
+}
+#base-body.navy > .base-table dt {
+  color: #6b5236;
+}
+/* 商店の［バッグへ送る］［倉庫へ送る］は、狭い画面でも数まで1行に収める */
+#base-body.navy .place-tabs button {
+  border-width: 8px 6px;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0;
 }
