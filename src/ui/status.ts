@@ -12,6 +12,7 @@ const STATUS_LABEL: Record<Card['status'], string> = { ready: '待機', summoned
 function traits(species: Species, partner: boolean): string {
   const list: string[] = [];
   if (partner) list.push('いかずち（2マス先に雷）\n召喚中は雷の魔法を使える');
+  if (species.twoHits) list.push('1ターンに2回攻撃');
   if (species.reach) list.push(`舌で${species.reach}マス先まで攻撃`);
   if (species.erratic) list.push('ふらふらと飛ぶ');
   if (species.phasing) list.push('壁をすり抜ける');
@@ -58,7 +59,15 @@ export function statusView(
     ['状態', STATUS_LABEL[card.status]],
   ];
   if (ally) {
-    const sick = [ally.ailments.confused > 0 ? `🌀混乱 残り${ally.ailments.confused}` : '', ally.ailments.poisoned > 0 ? `☠️毒 残り${ally.ailments.poisoned}` : '']
+    const a = ally.ailments;
+    const sick = [
+      a.confused > 0 ? `🌀混乱 残り${a.confused}` : '',
+      a.poisoned > 0 ? `☠️毒 残り${a.poisoned}` : '',
+      a.pinned > 0 ? `📌はりつけ 残り${a.pinned}` : '',
+      a.asleep > 0 ? `💤昏睡 残り${a.asleep}` : '',
+      a.raged > 0 ? `💢激昂 残り${a.raged}` : '',
+      a.fortified > 0 ? `🏰要塞 残り${a.fortified}` : '',
+    ]
       .filter(Boolean)
       .join('　');
     rows.push(['指示', ORDER_LABEL[ally.order]]);

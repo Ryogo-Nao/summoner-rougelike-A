@@ -1,4 +1,4 @@
-import { ARROW_DROP, ITEMS, createItem, createRune, type Item, type ItemKind } from './items';
+import { ARROW_DROP, ITEMS, STAR_ITEMS, createItem, createRune, type Item, type ItemKind } from './items';
 import type { Rng } from './rng';
 
 /** 落ちているアイテム1行ぶん。floors を省くと全階に出る（同じアイテムを階ごとに分けて書いてもよい） */
@@ -76,6 +76,9 @@ export interface Dungeon {
   runes: { piles: [number, number]; amount: [number, number]; perFloor: number };
 }
 
+/** 星（9種類）を、それぞれ同じ重みで並べる。重みは、そのダンジョンの印と同じくらいにする */
+const stars = (weight: number): ItemEntry[] => STAR_ITEMS.map((kind) => ({ kind, weight }));
+
 /** 最初のダンジョン（balance.md 6.2、4章） */
 const FIRST: Dungeon = {
   id: 'first',
@@ -120,6 +123,7 @@ const FIRST: Dungeon = {
     { kind: 'sealPin', weight: 1 },
     { kind: 'sealSleep', weight: 1 },
     { kind: 'sealDoom', weight: 0.5 },
+    ...stars(1.5),
     { kind: 'pot', weight: 1 },
     // 袋はめったに出ない
     { kind: 'pouch', weight: 0.5 },
@@ -198,6 +202,7 @@ const FOREST: Dungeon = {
     { kind: 'sealPin', weight: 1.5 },
     { kind: 'sealSleep', weight: 1.5 },
     { kind: 'sealDoom', weight: 0.5 },
+    ...stars(1.5),
     { kind: 'pot', weight: 1.5 },
     { kind: 'pouch', weight: 0.6 },
     { kind: 'finePouch', weight: 0.3 },
@@ -282,6 +287,7 @@ const ICE: Dungeon = {
     { kind: 'sealPin', weight: 2 },
     { kind: 'sealSleep', weight: 2 },
     { kind: 'sealDoom', weight: 0.8 },
+    ...stars(1.5),
     { kind: 'pot', weight: 2 },
     { kind: 'pouch', weight: 0.6 },
     { kind: 'finePouch', weight: 0.4 },

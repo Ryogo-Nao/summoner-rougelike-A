@@ -1,4 +1,4 @@
-import { BAG_LIMIT, ITEMS, buyPrice, createItem, sellPrice, type Item, type ItemKind } from './items';
+import { BAG_LIMIT, ITEMS, STAR_ITEMS, buyPrice, createItem, sellPrice, type Item, type ItemKind } from './items';
 import type { Profile } from './profile';
 import { WAREHOUSE_LIMIT } from './profile';
 
@@ -32,6 +32,8 @@ const STOCK_POOL: { kind: ItemKind; weight: number }[] = [
   { kind: 'sealSummon', weight: 4 },
   { kind: 'sealRevive', weight: 2 },
   { kind: 'sealDoom', weight: 1 },
+  // 星は、印と同じくらい並ぶ
+  ...STAR_ITEMS.map((kind) => ({ kind, weight: 5 })),
   // 配合の書・転生の書はまれに並ぶ
   { kind: 'fusionBook', weight: 1 },
   { kind: 'rebirthBook', weight: 1 },

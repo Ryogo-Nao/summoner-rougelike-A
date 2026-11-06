@@ -163,7 +163,13 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
     sub: ITEMS[item.kind].desc,
     button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
   }));
-  const buffs = [p.powerTurns > 0 ? `力${p.powerTurns}T` : '', p.guardTurns > 0 ? `守り${p.guardTurns}T` : '']
+  const buffs = [
+    p.powerTurns > 0 ? `力${p.powerTurns}T` : '',
+    p.guardTurns > 0 ? `守り${p.guardTurns}T` : '',
+    p.ailments.raged > 0 ? `激昂${p.ailments.raged}T` : '',
+    p.ailments.fortified > 0 ? `要塞${p.ailments.fortified}T` : '',
+    p.manaTurns > 0 ? `魔力${p.manaTurns}T` : '',
+  ]
     .filter((b) => b)
     .join('　');
   const sort = document.createElement('div');

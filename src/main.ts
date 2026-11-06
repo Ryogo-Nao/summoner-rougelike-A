@@ -149,6 +149,9 @@ function updateHud(moment?: HudMoment): void {
     p.ailments.asleep > 0 ? `💤${p.ailments.asleep}` : '',
     p.powerTurns > 0 ? `💪${p.powerTurns}` : '',
     p.guardTurns > 0 ? `🧱${p.guardTurns}` : '',
+    p.ailments.raged > 0 ? `💢${p.ailments.raged}` : '',
+    p.ailments.fortified > 0 ? `🏰${p.ailments.fortified}` : '',
+    p.manaTurns > 0 ? `🔮${p.manaTurns}` : '',
   ];
   document.getElementById('effects')!.textContent = effects.filter(Boolean).join(' ');
   setGauge('.gauge.hp', 'hp-text', hp, p.maxHp, `${hp}/${p.maxHp}`);

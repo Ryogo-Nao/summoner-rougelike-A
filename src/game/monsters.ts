@@ -1,4 +1,4 @@
-import { monsterStats, type Ailments } from './cards';
+import { monsterStats, noAilments, type Ailments } from './cards';
 import type { Dir, Pos } from './dir';
 
 export type Speed = 'normal' | 'fast' | 'slow';
@@ -20,6 +20,8 @@ export interface Species {
   capture: number;
   cost: number;
   speed: Speed;
+  /** 1ターンに2回攻撃する（隣の相手への通常攻撃だけ。動くのは1回） */
+  twoHits?: boolean;
   /** 2マス先まで、まっすぐ攻撃が届く */
   reach?: number;
   /** 動きがふらつく（半分の確率で、でたらめな方向に動く。隣にいるときは、半分の確率で行動を失う） */
@@ -38,10 +40,10 @@ export interface Species {
 export const SPECIES: readonly Species[] = [
   { id: 'chuppi', name: 'チュッピ', emoji: '🐭', hp: 8, atk: 3, def: 1, exp: 3, capture: 0.3, cost: 3, speed: 'normal', growth: 'balance', pace: 'early' },
   { id: 'berogg', name: 'ベロッグ', emoji: '🐸', hp: 12, atk: 4, def: 2, exp: 5, capture: 0.25, cost: 4, speed: 'normal', reach: 2, growth: 'balance', pace: 'normal' },
-  { id: 'patari', name: 'パタリ', emoji: '🦇', hp: 10, atk: 4, def: 1, exp: 6, capture: 0.2, cost: 4, speed: 'fast', erratic: true, growth: 'balance', pace: 'early' },
+  { id: 'patari', name: 'パタリ', emoji: '🦇', hp: 10, atk: 4, def: 1, exp: 6, capture: 0.2, cost: 4, speed: 'normal', twoHits: true, erratic: true, growth: 'balance', pace: 'early' },
   { id: 'pokotake', name: 'ポコタケ', emoji: '🍄', hp: 18, atk: 5, def: 4, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'spore', growth: 'hp', pace: 'late' },
   { id: 'shururu', name: 'シュルル', emoji: '🐍', hp: 16, atk: 6, def: 3, exp: 10, capture: 0.15, cost: 6, speed: 'normal', special: 'venom', growth: 'attack', pace: 'early' },
-  { id: 'garuf', name: 'ガルフ', emoji: '🐺', hp: 24, atk: 8, def: 4, exp: 16, capture: 0.12, cost: 8, speed: 'fast', growth: 'attack', pace: 'normal' },
+  { id: 'garuf', name: 'ガルフ', emoji: '🐺', hp: 24, atk: 8, def: 4, exp: 16, capture: 0.12, cost: 8, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
   { id: 'kaburamu', name: 'カブラム', emoji: '🦂', hp: 26, atk: 9, def: 7, exp: 20, capture: 0.1, cost: 8, speed: 'normal', growth: 'defense', pace: 'normal' },
   { id: 'moyari', name: 'モヤリ', emoji: '👻', hp: 20, atk: 8, def: 3, exp: 22, capture: 0.08, cost: 9, speed: 'normal', phasing: true, growth: 'attack', pace: 'late' },
   { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', hp: 30, atk: 10, def: 5, exp: 28, capture: 0.07, cost: 10, speed: 'normal', special: 'breath', growth: 'balance', pace: 'normal' },
@@ -82,7 +84,7 @@ export function createMonster(species: Species, pos: Pos, level = 1): Monster {
     maxHp,
     lastSeen: null,
     wanderTarget: null,
-    ailments: { confused: 0, poisoned: 0, pinned: 0, asleep: 0 },
+    ailments: noAilments(),
   };
 }
 

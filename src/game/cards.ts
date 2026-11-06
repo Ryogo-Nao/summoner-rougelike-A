@@ -119,9 +119,12 @@ export interface Ailments {
   pinned: number;
   /** 昏睡。2〜4ターン行動できない。攻撃されると起きる */
   asleep: number;
+  /** 激昂（攻撃が2倍）と要塞（受けるダメージを60％減らす）の残りターン。激昂の星・要塞の星でかかる。状態異常ではないので、癒しの星では消えない */
+  raged: number;
+  fortified: number;
 }
 
-export const noAilments = (): Ailments => ({ confused: 0, poisoned: 0, pinned: 0, asleep: 0 });
+export const noAilments = (): Ailments => ({ confused: 0, poisoned: 0, pinned: 0, asleep: 0, raged: 0, fortified: 0 });
 
 let nextCardId = 1;
 

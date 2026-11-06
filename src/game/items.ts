@@ -36,6 +36,15 @@ export type ItemKind =
   | 'sealPin'
   | 'sealSleep'
   | 'sealDoom'
+  | 'starSleep'
+  | 'starConfuse'
+  | 'starPoison'
+  | 'starBurst'
+  | 'starRage'
+  | 'starFort'
+  | 'starHoly'
+  | 'starHeal'
+  | 'starMana'
   | 'tomePower'
   | 'tomeGuard'
   | 'fusionBook'
@@ -54,6 +63,15 @@ export type ItemKind =
 
 /** 印の効き目（requirements.md 6章）。どれも1回使うとなくなる */
 export type SealKind = 'revive' | 'summon' | 'escape' | 'reveal' | 'poison' | 'confuse' | 'pin' | 'sleep' | 'doom';
+
+/**
+ * 星の効き目（balance.md 6.6）。食べると自分に効き（満腹度も5増える）、投げて当てると当たった相手に効く。
+ * どれも1回でなくなる
+ */
+export type StarKind = 'sleep' | 'confuse' | 'poison' | 'burst' | 'rage' | 'fort' | 'holy' | 'heal' | 'mana';
+
+/** 星の道具（表の順）。商店とダンジョンに、印と同じくらいの割合で出す */
+export const STAR_ITEMS: ItemKind[] = ['starSleep', 'starConfuse', 'starPoison', 'starBurst', 'starRage', 'starFort', 'starHoly', 'starHeal', 'starMana'];
 
 /** 装備するところ。あとで装飾品などを足す */
 export type Slot = 'weapon' | 'shield';
@@ -83,6 +101,7 @@ export interface ItemDef {
   /** 矢。通常攻撃のダメージに対する倍率 */
   arrow?: number;
   seal?: SealKind;
+  star?: StarKind;
   /** 印が部屋の敵に効かない確率 */
   miss?: number;
   /** 袋。中に道具をしまえる。入る数は1つずつ違う（この幅の中で決まる） */
@@ -117,6 +136,15 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   sealPin: { kana: 'こうちょくのしるし', name: '硬直の印', emoji: '📜', desc: '部屋の敵をすべてはりつける\n1体ごとに10％で外れる', seal: 'pin', miss: 0.1, value: 80 },
   sealSleep: { kana: 'こんすいのしるし', name: '昏睡の印', emoji: '📜', desc: '部屋の敵をすべて眠らせる\n1体ごとに10％で外れる', seal: 'sleep', miss: 0.1, value: 80 },
   sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3, value: 250 },
+  starSleep: { kana: 'すいみんのほし', name: '睡眠の星', emoji: '⭐', desc: '食べると眠る\n投げると相手が眠る', food: 5, star: 'sleep', value: 60 },
+  starConfuse: { kana: 'こんらんのほし', name: '混乱の星', emoji: '⭐', desc: '食べると混乱する\n投げると相手が混乱', food: 5, star: 'confuse', value: 60 },
+  starPoison: { kana: 'どくのほし', name: '毒の星', emoji: '⭐', desc: '食べると毒になる\n投げると相手が毒に', food: 5, star: 'poison', value: 60 },
+  starBurst: { kana: 'さくれつのほし', name: '炸裂の星', emoji: '⭐', desc: '食べると前が爆発\n投げると20ダメージ', food: 5, star: 'burst', value: 100 },
+  starRage: { kana: 'げっこうのほし', name: '激昂の星', emoji: '⭐', desc: '10ターン攻撃2倍\n食べる・投げるで効く', food: 5, star: 'rage', value: 100 },
+  starFort: { kana: 'ようさいのほし', name: '要塞の星', emoji: '⭐', desc: '受けるダメージ60％減\n食べる・投げるで効く', food: 5, star: 'fort', value: 100 },
+  starHoly: { kana: 'せいなるほし', name: '聖なる星', emoji: '⭐', desc: '階段の部屋へ移る\n食べる・投げるで効く', food: 5, star: 'holy', value: 120 },
+  starHeal: { kana: 'いやしのほし', name: '癒しの星', emoji: '⭐', desc: '状態異常がすべて治る\n食べる・投げるで効く', food: 5, star: 'heal', value: 80 },
+  starMana: { kana: 'まりょくのほし', name: '魔力の星', emoji: '⭐', desc: '10ターンMPが回復\n食べると効く', food: 5, star: 'mana', value: 80 },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
   fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', book: 'fusion', value: 3000 },

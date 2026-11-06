@@ -44,6 +44,7 @@ import {
   type FloorItem,
   type Item,
   type SealKind,
+  type StarKind,
   type ItemKind,
   type Shortcuts,
 } from './items';
@@ -100,6 +101,16 @@ const AILMENT_CHANCE = 0.3;
 const BREATH_CHANCE = 0.3;
 const BREATH_RANGE = 4;
 const BREATH_DAMAGE = 8;
+
+/** 星（balance.md 6.6）。激昂・要塞・魔力が続くターン、激昂の攻撃の倍率、要塞で受けるダメージの倍率 */
+const STAR_TURNS = 10;
+const RAGE_RATE = 2;
+const FORT_RATE = 0.4;
+/** 魔力の星で、毎ターン回復するMP（最大MPの割合） */
+const MANA_RATE = 0.02;
+/** 炸裂の星のダメージ。食べると1マス先が爆発し、投げると当たった相手に当たる。防御力に関係なく決まった分 */
+const BURST_EAT_DAMAGE = 50;
+const BURST_THROW_DAMAGE = 20;
 
 /** 残しておくログの行数 */
 const LOG_LIMIT = 100;
@@ -175,7 +186,9 @@ export interface Player {
   /** 力の魔法・守りの魔法の残りターン */
   powerTurns: number;
   guardTurns: number;
-  /** 混乱・毒の残りターン */
+  /** 魔力の星の残りターン。毎ターンMPが回復する */
+  manaTurns: number;
+  /** 状態異常と、激昂・要塞の残りターン */
   ailments: Ailments;
 }
 
@@ -245,9 +258,14 @@ export function speciesById(id: string): Species {
 }
 
 export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
-/** 状態異常の印。混乱は🌀、毒は☠️（仮の絵文字。あとで絵に差し替える） */
+/** 状態異常の印。混乱は🌀、毒は☠️。激昂は💢、要塞は🏰（仮の絵文字。あとで絵に差し替える） */
 export const sickMark = (a: Ailments) =>
-  `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}${a.pinned > 0 ? '📌' : ''}${a.asleep > 0 ? '💤' : ''}`;
+  `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}${a.pinned > 0 ? '📌' : ''}${a.asleep > 0 ? '💤' : ''}${a.raged > 0 ? '💢' : ''}${a.fortified > 0 ? '🏰' : ''}`;
+
+/** 激昂していれば攻撃を2倍にする */
+const raged = (atk: number, a: Ailments) => (a.raged > 0 ? atk * RAGE_RATE : atk);
+/** 要塞なら受けるダメージを60％減らす（最低1） */
+const fortified = (dmg: number, a: Ailments) => (a.fortified > 0 ? Math.max(1, Math.round(dmg * FORT_RATE)) : dmg);
 
 /** 毒のダメージ。残りターンが3の倍数のターンだけ、最大HPの1％（最低1）。毒で力つきることもある */
 function poisonHit(ailments: Ailments, maxHp: number): number {
@@ -395,6 +413,7 @@ export class GameState {
       shield: null,
       powerTurns: 0,
       guardTurns: 0,
+      manaTurns: 0,
       ailments: noAilments(),
     };
     // 連れていく仲間のうち最初の3体は、召喚した状態で入る（MPは使わない）。置く場所は enterFloor で決める
@@ -459,6 +478,7 @@ export class GameState {
     const itemById = (id: number | null) => (id === null ? null : (s.bag.find((i) => i.id === id) ?? null));
     s.player = {
       ...data.player,
+      manaTurns: data.player.manaTurns ?? 0,
       weapon: itemById(data.player.weapon),
       shield: itemById(data.player.shield),
       ailments: { ...noAilments(), ...data.player.ailments },
@@ -820,7 +840,8 @@ export class GameState {
 
   /** 仲間の攻撃力。力の魔法がかかっていれば上がる（味方全体にかかる） */
   private allyAttack(a: Ally): number {
-    return this.player.powerTurns > 0 ? Math.round(a.card.atk * powerRate(this.rankOf('power'))) : a.card.atk;
+    const atk = raged(a.card.atk, a.ailments);
+    return this.player.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
   }
 
   /** 主人公と仲間が受けるダメージ。守りの魔法がかかっていれば減る（味方全体にかかる） */
@@ -831,7 +852,7 @@ export class GameState {
   /** 攻撃力と防御力。装備と、力の魔法の分を含む */
   attackPower(): number {
     const p = this.player;
-    const atk = p.atk + (p.weapon ? equipBonus(p.weapon) : 0);
+    const atk = raged(p.atk + (p.weapon ? equipBonus(p.weapon) : 0), p.ailments);
     return p.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
   }
 
@@ -1032,7 +1053,9 @@ export class GameState {
       this.endTurn();
       return;
     }
-    if (def.food) {
+    if (def.star) {
+      this.eatStar(def.star, def.name, def.food ?? 0);
+    } else if (def.food) {
       p.food = Math.min(p.maxFood, p.food + def.food);
       this.addLog(`${def.name}を食べた`);
     } else if (def.spell && this.learned.has(def.spell)) {
@@ -1056,6 +1079,113 @@ export class GameState {
       this.addLog(`${def.name}を飲んだ（MP+${gain}）`);
     }
     this.endTurn();
+  }
+
+  /** 星を食べる。満腹度が増え、自分に効く。炸裂の星は、向いている方向の1マス先が爆発する */
+  private eatStar(kind: StarKind, name: string, food: number): void {
+    const p = this.player;
+    p.food = Math.min(p.maxFood, p.food + food);
+    this.addLog(`${name}を食べた`);
+    if (kind === 'burst') {
+      const at = this.ahead(p.pos, p.facing);
+      const target = this.monsterAt(at.x, at.y);
+      this.scene(p.pos, at, () => {
+        this.addLog('1マス先で爆発が起きた');
+        if (target) this.damageMonster(target, BURST_EAT_DAMAGE, null, '爆発');
+      });
+      return;
+    }
+    if (kind === 'mana') {
+      p.manaTurns = STAR_TURNS;
+      this.addLog('魔力が満ちてきた');
+      return;
+    }
+    if (kind === 'holy') {
+      if (this.warpToStairs(p)) this.addLog('あなたは階段の部屋に移動した');
+      else this.addLog('何も起きなかった');
+      return;
+    }
+    this.starEffect(kind, p.ailments, 'あなた');
+    // 食べたターンの終わりにも1減るので、そのぶん足して、次のターンから10ターン効くようにする
+    if (kind === 'rage') p.ailments.raged++;
+    if (kind === 'fort') p.ailments.fortified++;
+  }
+
+  /**
+   * 星を投げて当てたとき。当たった相手（魔物か仲間）に効く。
+   * 炸裂の星は決まったダメージ、聖なる星は相手を階段の部屋へ移す。魔力の星はほかの者には効かない
+   */
+  private starHit(kind: StarKind, name: string, monster?: Monster, ally?: Ally): void {
+    const hitName = ally ? cardName(ally.card) : monster!.species.name;
+    if (monster) monster.lastSeen = { ...this.player.pos };
+    if (kind === 'burst') {
+      if (monster) this.damageMonster(monster, BURST_THROW_DAMAGE, null, `投げた${name}`);
+      return;
+    }
+    this.addLog(`${name}を投げた → ${hitName}に当たった`);
+    if (kind === 'mana') {
+      this.addLog('何も起きなかった');
+      return;
+    }
+    if (kind === 'holy') {
+      const who = ally ?? monster!;
+      if (this.warpToStairs(who)) this.addLog(`${hitName}は階段の部屋に移動した`);
+      else this.addLog('何も起きなかった');
+      if (monster && this.provoker === monster) this.provoker = null;
+      return;
+    }
+    this.starEffect(kind, ally ? ally.ailments : monster!.ailments, hitName);
+  }
+
+  /** 状態を変える星（睡眠・混乱・毒・激昂・要塞・癒し）の効き目。who はログに出す名前 */
+  private starEffect(kind: StarKind, a: Ailments, who: string): void {
+    if (kind === 'sleep') {
+      a.asleep = this.rng.int(...SLEEP_TURNS);
+      this.addLog(`${who}は眠ってしまった`);
+    } else if (kind === 'confuse') {
+      a.confused = CONFUSE_TURNS;
+      this.addLog(`${who}は混乱した`);
+    } else if (kind === 'poison') {
+      a.poisoned = POISON_TURNS;
+      this.addLog(`${who}は毒を受けた`);
+    } else if (kind === 'rage') {
+      a.raged = STAR_TURNS;
+      this.addLog(`${who}は激昂した（攻撃2倍）`);
+    } else if (kind === 'fort') {
+      a.fortified = STAR_TURNS;
+      this.addLog(`${who}の守りが固くなった（受けるダメージ60％減）`);
+    } else if (kind === 'heal') {
+      if (a.confused + a.poisoned + a.pinned + a.asleep === 0) {
+        this.addLog(`${who}は状態異常になっていない`);
+        return;
+      }
+      a.confused = 0;
+      a.poisoned = 0;
+      a.pinned = 0;
+      a.asleep = 0;
+      this.addLog(`${who}の状態異常がすべて治った`);
+    }
+  }
+
+  /** 階段のある部屋の、空いているマスへ移す。部屋が見つからない・空きがなければ false */
+  private warpToStairs(who: { pos: Pos }): boolean {
+    const { width, height } = this.map;
+    let room: Room | undefined;
+    for (let i = 0; i < width * height && !room; i++) {
+      const x = i % width;
+      const y = Math.floor(i / width);
+      if (this.map.get(x, y) === Tile.Stairs) room = this.map.roomAt(x, y);
+    }
+    if (!room) return false;
+    const free: Pos[] = [];
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (this.map.isWalkable(x, y) && !this.isOccupied(x, y)) free.push({ x, y });
+      }
+    }
+    if (free.length === 0) return false;
+    who.pos = this.rng.pick(free);
+    return true;
   }
 
   /** 毒消し草・キツケソウで治す。who はログに出す名前 */
@@ -1214,12 +1344,16 @@ export class GameState {
       return;
     }
     this.release(item);
-    const { monster, ally, landing } = this.traceThrow(def.heal !== undefined || def.cure !== undefined);
+    // 回復する道具と、仲間を助ける星（激昂・要塞・癒し）は、仲間にも当たる。ほかは仲間の上を越えていく
+    const helps = def.heal !== undefined || def.cure !== undefined || (def.star !== undefined && ['rage', 'fort', 'heal'].includes(def.star));
+    const { monster, ally, landing } = this.traceThrow(helps);
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       const hitName = ally ? cardName(ally.card) : monster?.species.name;
       const hitPos = ally?.pos ?? monster?.pos;
       if (item.kind === 'blank' && monster) {
         this.seal(monster);
+      } else if (def.star && (monster || ally)) {
+        this.starHit(def.star, name, monster, ally);
       } else if (def.heal && hitName && hitPos) {
         const target = ally ? ally.card : monster!;
         const heal = Math.min(this.rng.int(...def.heal), target.maxHp - target.hp);
@@ -1355,7 +1489,8 @@ export class GameState {
   }
 
   /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前 */
-  private damageMonster(m: Monster, dmg: number, by: Ally | null, how: string): void {
+  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string): void {
+    const dmg = fortified(raw, m.ailments);
     m.hp -= dmg;
     this.wake(m.ailments);
     m.dormant = false;
@@ -1796,6 +1931,13 @@ export class GameState {
     if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
     if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
     if (this.dead) return;
+    // 魔力の星：最大MPの2％ずつ。端数は、効いているあいだの合計で切り捨てる
+    if (p.manaTurns > 0) {
+      const done = STAR_TURNS - p.manaTurns;
+      const gain = Math.floor(p.maxMp * MANA_RATE * (done + 1)) - Math.floor(p.maxMp * MANA_RATE * done);
+      p.mp = Math.min(p.maxMp, p.mp + gain);
+      if (--p.manaTurns === 0) this.addLog('魔力の星の効き目が切れた');
+    }
     p.hp = Math.max(0, p.hp - poisonHit(p.ailments, p.maxHp));
     if (p.hp === 0) {
       this.dead = true;
@@ -1824,6 +1966,8 @@ export class GameState {
       if (m.ailments.poisoned > 0) m.ailments.poisoned--;
       // 魔物のはりつけは、攻撃されるまで解けない
       if (m.ailments.asleep > 0) m.ailments.asleep--;
+      if (m.ailments.raged > 0) m.ailments.raged--;
+      if (m.ailments.fortified > 0) m.ailments.fortified--;
     }
   }
 
@@ -1832,6 +1976,8 @@ export class GameState {
     if (ailments.poisoned > 0 && --ailments.poisoned === 0) this.addLog(`${who}の毒が消えた`);
     if (ailments.pinned > 0 && --ailments.pinned === 0) this.addLog(`${who}のはりつけが解けた`);
     if (ailments.asleep > 0 && --ailments.asleep === 0) this.addLog(`${who}は目を覚ました`);
+    if (ailments.raged > 0 && --ailments.raged === 0) this.addLog(`${who}の激昂がおさまった`);
+    if (ailments.fortified > 0 && --ailments.fortified === 0) this.addLog(`${who}の守りが元に戻った`);
   }
 
   /** 攻撃されると、はりつけと昏睡は解ける */
@@ -1993,10 +2139,15 @@ export class GameState {
         if (allyTarget) allyTarget.facing = turnTo;
         else this.player.facing = turnTo;
       }
-      this.scene(m.pos, target, () => {
-        if (allyTarget) this.monsterAttackAlly(m, allyTarget);
-        else this.monsterAttack(m);
-      });
+      // ガルフ・パタリは、続けてもう1回攻撃する（相手が倒れたら、そこでやめる）
+      const hits = m.species.twoHits ? 2 : 1;
+      for (let i = 0; i < hits; i++) {
+        if (this.dead || (allyTarget && !this.allies.includes(allyTarget))) break;
+        this.scene(m.pos, target, () => {
+          if (allyTarget) this.monsterAttackAlly(m, allyTarget);
+          else this.monsterAttack(m);
+        });
+      }
       return;
     }
 
@@ -2061,14 +2212,14 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    this.hurtPlayer(m, rollDamage(this.rng, m.atk, this.defensePower()), how);
+    this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower()), how);
     if (!this.dead) this.afflict(m.species, p.ailments, 'あなた');
   }
 
   /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
   private hurtPlayer(m: Monster, raw: number, how: string): void {
     const p = this.player;
-    const dmg = this.guarded(raw);
+    const dmg = fortified(this.guarded(raw), p.ailments);
     p.hp = Math.max(0, p.hp - dmg);
     this.wake(p.ailments);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
@@ -2086,7 +2237,7 @@ export class GameState {
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = this.guarded(rollDamage(this.rng, m.atk, a.card.def));
+    const dmg = fortified(this.guarded(rollDamage(this.rng, raged(m.atk, m.ailments), a.card.def)), a.ailments);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
@@ -2128,16 +2279,20 @@ export class GameState {
       if (species.erratic && this.rng.chance(0.5)) return;
       const target = adjacent[0];
       a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-      this.scene(a.pos, target.pos, () => {
-        if (this.rng.chance(HIT_RATE)) {
-          this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
-          // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
-          if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
-        } else {
-          this.addLog(`${target.species.name}はかわした`);
-          this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
-        }
-      });
+      // ガルフ・パタリは、続けてもう1回攻撃する（相手をたおしたら、そこでやめる）
+      const hits = species.twoHits ? 2 : 1;
+      for (let i = 0; i < hits && this.monsters.includes(target); i++) {
+        this.scene(a.pos, target.pos, () => {
+          if (this.rng.chance(HIT_RATE)) {
+            this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
+            // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
+            if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
+          } else {
+            this.addLog(`${target.species.name}はかわした`);
+            this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
+          }
+        });
+      }
       return;
     }
 
