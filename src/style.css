@@ -1936,6 +1936,8 @@ body:has(#base:not([hidden])) {
   flex: 1;
   font-size: min(20px, 3.6cqh);
   text-align: left;
+  /* 狭い画面でも「記録」「配合」を縦に折らない */
+  white-space: nowrap;
 }
 .hub-go img {
   display: block;
@@ -2055,7 +2057,7 @@ body:has(#base:not([hidden])) {
 
 /*
  * ==== 紺と金の共通の部品（docs/art-guide.md 8.2）====
- * #base-body に navy を付けた画面に当てる（base.ts の NAVY_VIEWS。今は拠点のトップ以外のすべて）。
+ * #base-body に navy を付けた画面（base.ts の NAVY_VIEWS。今は拠点のトップ以外のすべて）と、ダンジョンの中の一覧（#sheet-body）に当てる。
  * ① 画面の枠 ② 行の札 ③ 見出しの帯 ④ タブ ⑤ 大きなボタン ⑥ 小さなボタン ⑦ 選ぶ印。顔の枠は拠点のトップと同じ金の枠
  */
 /* ① 画面の枠：紺の地に、四隅に金の唐草 */
@@ -2068,11 +2070,11 @@ body:has(#base:not([hidden])) {
   background: #1a2747;
   border-bottom: 1px solid rgba(230, 190, 100, 0.35);
 }
-#base-body.navy .sheet-note {
+:is(#base-body.navy, #sheet-body) .sheet-note {
   color: #d9e0f2;
 }
 /* ③ 見出しの帯：紺のリボン */
-#base-body.navy .base-section {
+:is(#base-body.navy, #sheet-body) .base-section {
   margin: 12px auto 4px;
   padding: 1px 6px;
   border-style: solid;
@@ -2088,9 +2090,9 @@ body:has(#base:not([hidden])) {
 }
 /* ④ タブ：選んでいる方は明るい紺に光る金の縁、ほかは暗い紺 */
 #base-tabs button,
-#base-body.navy .sort-keys .sheet-wide,
-#base-body.navy .place-tabs button,
-#base-body.navy .sort-select {
+:is(#base-body.navy, #sheet-body) .sort-keys .sheet-wide,
+:is(#base-body.navy, #sheet-body) .place-tabs button,
+:is(#base-body.navy, #sheet-body) .sort-select {
   border-style: solid;
   border-width: 8px 10px;
   border-image: url('./ui-art/tab2-off.png') 24 fill / 8px 10px stretch;
@@ -2103,26 +2105,26 @@ body:has(#base:not([hidden])) {
   text-shadow: 0 1px 1px #000;
 }
 #base-tabs button.active,
-#base-body.navy .sort-keys .sheet-wide.on,
-#base-body.navy .place-tabs button.on {
+:is(#base-body.navy, #sheet-body) .sort-keys .sheet-wide.on,
+:is(#base-body.navy, #sheet-body) .place-tabs button.on {
   border-image-source: url('./ui-art/tab2-on.png');
   color: #ffe596;
 }
-#base-body.navy .place-tabs {
+:is(#base-body.navy, #sheet-body) .place-tabs {
   border: none;
   box-shadow: none;
 }
-#base-body.navy .sort-select {
+:is(#base-body.navy, #sheet-body) .sort-select {
   height: 38px;
   padding: 0 24px 0 6px;
   font-size: 14px;
 }
-#base-body.navy .sort-select::after {
+:is(#base-body.navy, #sheet-body) .sort-select::after {
   right: 4px;
   color: #ffe596;
 }
 /* ② 行の札：拠点のトップの札と同じ、木の縁に金具の明るい紙。選んでいる行は金の光で縁取る */
-#base-body.navy .sheet-row {
+:is(#base-body.navy, #sheet-body) .sheet-row {
   grid-template-columns: 48px 1fr auto;
   margin: 8px 0;
   padding: 2px 4px;
@@ -2133,20 +2135,20 @@ body:has(#base:not([hidden])) {
   background: none;
   box-shadow: none;
 }
-#base-body.navy .sheet-row.taking,
-#base-body.navy .sheet-row.chosen {
+:is(#base-body.navy, #sheet-body) .sheet-row.taking,
+:is(#base-body.navy, #sheet-body) .sheet-row.chosen {
   background: none;
   box-shadow: none;
   filter: drop-shadow(0 0 4px rgba(255, 214, 110, 0.95));
 }
-#base-body.navy .sheet-row .name {
+:is(#base-body.navy, #sheet-body) .sheet-row .name {
   color: #3a2410;
 }
-#base-body.navy .sheet-row .sub {
+:is(#base-body.navy, #sheet-body) .sheet-row .sub {
   color: #6b5236;
 }
 /* 顔と道具の絵：拠点のトップと同じ金の四角い枠 */
-#base-body.navy .sheet-row .icon {
+:is(#base-body.navy, #sheet-body) .sheet-row .icon {
   position: relative;
   width: 48px;
   height: 48px;
@@ -2155,38 +2157,38 @@ body:has(#base:not([hidden])) {
   box-shadow: none;
   overflow: visible;
 }
-#base-body.navy .sheet-row .icon::after {
+:is(#base-body.navy, #sheet-body) .sheet-row .icon::after {
   content: '';
   position: absolute;
   inset: -2px;
   background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
   pointer-events: none;
 }
-#base-body.navy .sheet-row .icon .art {
+:is(#base-body.navy, #sheet-body) .sheet-row .icon .art {
   width: 40px;
   height: 40px;
 }
-#base-body.navy .sheet-row .icon .item-art {
+:is(#base-body.navy, #sheet-body) .sheet-row .icon .item-art {
   width: 34px;
   height: 34px;
 }
 /* ⑦ 選ぶ印：金の丸に緑のチェック、空の金の丸 */
-#base-body.navy .sheet-row button.check {
+:is(#base-body.navy, #sheet-body) .sheet-row button.check {
   width: 44px;
   height: 44px;
   border: none;
   background: url('./ui-art/check-off.png') center / contain no-repeat;
   box-shadow: none;
 }
-#base-body.navy .sheet-row button.check.on {
+:is(#base-body.navy, #sheet-body) .sheet-row button.check.on {
   background-image: url('./ui-art/check-on.png');
 }
-#base-body.navy .sheet-row button.check.on::after {
+:is(#base-body.navy, #sheet-body) .sheet-row button.check.on::after {
   display: none;
 }
 /* ⑥ 小さなボタン：紺の板に金の縁（行の［出発］［倉庫へ送る］、［－］［＋］） */
-#base-body.navy .sheet-row > button:not(.check),
-#base-body.navy .sheet-row .stepper button:not(.stepper-num) {
+:is(#base-body.navy, #sheet-body) .sheet-row > button:not(.check),
+:is(#base-body.navy, #sheet-body) .sheet-row .stepper button:not(.stepper-num) {
   border-style: solid;
   border-width: 8px;
   border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
@@ -2196,14 +2198,14 @@ body:has(#base:not([hidden])) {
   color: #ffe596;
   text-shadow: 0 1px 1px #000;
 }
-#base-body.navy .sheet-row > button:not(.check):disabled,
-#base-body.navy .sheet-row .stepper button:not(.stepper-num):disabled {
+:is(#base-body.navy, #sheet-body) .sheet-row > button:not(.check):disabled,
+:is(#base-body.navy, #sheet-body) .sheet-row .stepper button:not(.stepper-num):disabled {
   border-image-source: url('./ui-art/btn-small.png');
   color: #b9bfd0;
   filter: grayscale(0.7) brightness(0.8);
 }
 /* 連れていく仲間の帯：拠点のトップと同じ紺の台と、金の枠の顔 */
-#base-body.navy .party-band {
+:is(#base-body.navy, #sheet-body) .party-band {
   gap: 4px;
   padding: 8px;
   border: 1px solid rgba(240, 200, 110, 0.75);
@@ -2211,18 +2213,18 @@ body:has(#base:not([hidden])) {
   background: linear-gradient(180deg, rgba(36, 52, 92, 0.95), rgba(22, 30, 56, 0.98));
   box-shadow: inset 0 0 0 2px rgba(20, 28, 52, 0.6);
 }
-#base-body.navy .party-label {
+:is(#base-body.navy, #sheet-body) .party-label {
   color: #ffe596;
 }
-#base-body.navy .party-count {
+:is(#base-body.navy, #sheet-body) .party-count {
   color: #fff4d0;
   font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
   font-weight: 900;
 }
-#base-body.navy .party-faces {
+:is(#base-body.navy, #sheet-body) .party-faces {
   gap: 3px;
 }
-#base-body.navy .party-faces .face {
+:is(#base-body.navy, #sheet-body) .party-faces .face {
   width: 36px;
   height: 36px;
   padding: 4px;
@@ -2231,20 +2233,20 @@ body:has(#base:not([hidden])) {
   background: rgba(40, 28, 16, 0.55);
   box-shadow: none;
 }
-#base-body.navy .party-faces .face::after {
+:is(#base-body.navy, #sheet-body) .party-faces .face::after {
   content: '';
   position: absolute;
   inset: 0;
   background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
 }
-#base-body.navy .party-faces .face img {
+:is(#base-body.navy, #sheet-body) .party-faces .face img {
   border-radius: 0;
 }
-#base-body.navy .party-faces .face.empty {
+:is(#base-body.navy, #sheet-body) .party-faces .face.empty {
   color: #fff3c4;
 }
 /* つよさの画面は、明るい紙の札に乗せる */
-#base-body.navy .status-view {
+:is(#base-body.navy, #sheet-body) .status-view {
   margin: 8px 0;
   padding: 4px 6px;
   border-style: solid;
@@ -2282,18 +2284,18 @@ body:has(#base:not([hidden])) {
 }
 
 /* 配合の説明の文と、合わせたあと・買ったあとの知らせ（見出しの帯にはしない） */
-#base-body.navy .sheet-note.fusion-hint {
+:is(#base-body.navy, #sheet-body) .sheet-note.fusion-hint {
   margin: 10px 4px 4px;
   text-align: center;
 }
-#base-body.navy .sheet-note.done-note {
+:is(#base-body.navy, #sheet-body) .sheet-note.done-note {
   margin: 10px 4px 4px;
   color: #ffe596;
   font-weight: bold;
   text-align: center;
 }
 /* 配合：生まれる子の見込みは、明るい紙の札にまとめる。中の子の行は札を重ねない */
-#base-body.navy .fusion-preview {
+:is(#base-body.navy, #sheet-body) .fusion-preview {
   padding: 6px 8px;
   border-style: solid;
   border-width: 8px;
@@ -2302,18 +2304,18 @@ body:has(#base:not([hidden])) {
   background: none;
   box-shadow: none;
 }
-#base-body.navy .fusion-preview .sheet-note.fusion-label {
+:is(#base-body.navy, #sheet-body) .fusion-preview .sheet-note.fusion-label {
   color: #6b5236;
   font-weight: bold;
 }
-#base-body.navy .fusion-preview .sheet-row {
+:is(#base-body.navy, #sheet-body) .fusion-preview .sheet-row {
   margin: 6px 0;
   padding: 0;
   border: none;
   border-image: none;
 }
 /* ⑤ 大きなボタン（［配合する］［転生する］） */
-#base-body.navy .sheet-wide.main {
+:is(#base-body.navy, #sheet-body) .sheet-wide.main {
   height: 54px;
   border-style: solid;
   border-width: 14px 30px;
@@ -2329,33 +2331,33 @@ body:has(#base:not([hidden])) {
   text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66, 0 2px 3px rgba(0, 0, 0, 0.45);
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.3));
 }
-#base-body.navy .sheet-wide.main:disabled {
+:is(#base-body.navy, #sheet-body) .sheet-wide.main:disabled {
   border-image-source: url('./ui-art/btn-main.png');
   color: #e4e8f0;
   font-size: 15px;
   filter: grayscale(0.75) brightness(0.85);
 }
 /* 配合：子の種族のボタンは1行に収める（「別の種族 🔒」） */
-#base-body.navy .sort-keys.three .sheet-wide {
+:is(#base-body.navy, #sheet-body) .sort-keys.three .sheet-wide {
   padding: 0 2px;
   font-size: 13px;
   white-space: nowrap;
 }
 /* 商店：買えない・売れない品は、札ごとくすませる */
-#base-body.navy .sheet-row.blocked {
+:is(#base-body.navy, #sheet-body) .sheet-row.blocked {
   filter: grayscale(0.6) brightness(0.8);
 }
-#base-body.navy .sheet-row.blocked .name {
+:is(#base-body.navy, #sheet-body) .sheet-row.blocked .name {
   color: #4a3a2a;
 }
-#base-body.navy .sheet-row.blocked .sub {
+:is(#base-body.navy, #sheet-body) .sheet-row.blocked .sub {
   color: #6b5a48;
 }
-#base-body.navy .sheet-row.blocked .icon {
+:is(#base-body.navy, #sheet-body) .sheet-row.blocked .icon {
   opacity: 1;
 }
 /* 商店：［－］［＋］のあいだの数は、紙の札に合う薄い紙の箱 */
-#base-body.navy .sheet-row .stepper .stepper-num {
+:is(#base-body.navy, #sheet-body) .sheet-row .stepper .stepper-num {
   border: 1px solid #a8834a;
   border-radius: 4px;
   background: #fffaf0;
@@ -2400,9 +2402,283 @@ body:has(#base:not([hidden])) {
   color: #6b5236;
 }
 /* 商店の［バッグへ送る］［倉庫へ送る］は、狭い画面でも数まで1行に収める */
-#base-body.navy .place-tabs button {
+:is(#base-body.navy, #sheet-body) .place-tabs button {
   border-width: 8px 6px;
   padding: 0;
   font-size: 12px;
   letter-spacing: 0;
+}
+
+/*
+ * ==== ダンジョンの中：紺と金（docs/art-guide.md 8.3）====
+ * 拠点と同じ紺と金の部品にそろえる。上の帯・仲間の枠・ログ・操作部は紺の地に金の線、
+ * 一覧（#sheet）・これまでのログ・確かめの窓は①の画面の枠、［攻撃］と［はい］は⑤の大きなボタン
+ */
+html,
+body {
+  background: #121a33;
+}
+#app {
+  background:
+    radial-gradient(70% 35% at 50% 0%, rgba(60, 90, 160, 0.35), transparent 70%),
+    linear-gradient(180deg, #1a2747, #121a33);
+  color: #eef1fa;
+}
+/* 上の帯：紺の地に金の下線。階は拠点の見出しと同じ紺の札 */
+#status {
+  background: linear-gradient(180deg, rgba(26, 39, 71, 0.95), rgba(20, 30, 56, 0.95));
+  border-bottom: 2px solid rgba(230, 190, 100, 0.7);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  color: #eef1fa;
+}
+#floor {
+  padding: 0 4px;
+  border-style: solid;
+  border-width: 6px 14px;
+  border-image: url('./ui-art/topplate.png') 26 fill / 6px 14px stretch;
+  border-radius: 0;
+  background: none;
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 1px #000;
+}
+#status .runes {
+  color: #fff6d8;
+}
+#turn {
+  color: #aeb8d4;
+}
+.label {
+  color: #e8c97a;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+}
+.value {
+  color: #fff4d0;
+}
+.gauge,
+.slot-hp {
+  background: #0b1228;
+  box-shadow: inset 0 0 0 1px rgba(230, 190, 100, 0.45);
+}
+.gauge-row.danger .label,
+.gauge-row.danger .value {
+  color: #ff8a7a;
+}
+/* 顔の枠：金の縁に紺の台。Lv の札は紺に金 */
+.face {
+  background: radial-gradient(circle at 40% 35%, #33467a, #1a2747);
+  box-shadow: 0 0 0 2px #0d1530, 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.face .lv {
+  border-color: #e8c97a;
+  background: linear-gradient(180deg, #2a3c6e, #141d38);
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+}
+/* 仲間の枠：空きは金の点線の丸 */
+.face.empty {
+  border-color: rgba(232, 201, 122, 0.75);
+  background: rgba(13, 21, 48, 0.55);
+  color: #e8c97a;
+}
+.ally-slot {
+  color: #aeb8d4;
+}
+.ally-slot.filled .face {
+  box-shadow: 0 0 0 2px #0d1530, 0 0 8px rgba(63, 191, 138, 0.6);
+}
+.slot-name {
+  color: #fff4d0;
+}
+.ally-slot:not(.filled) .slot-name {
+  color: #aeb8d4;
+}
+/* ログ：濃い紺の札に金の細い縁 */
+#log {
+  background: rgba(11, 18, 40, 0.88);
+  border: 1px solid rgba(230, 190, 100, 0.6);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2px rgba(13, 21, 48, 0.9), 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #eef1fa;
+}
+#log p:not(:last-child) {
+  color: #8f9bba;
+}
+/* 操作部：濃い紺の帯に金の上の線。ボタンは⑥の小さなボタン、［攻撃］は⑤の大きなボタン */
+#controls {
+  background: linear-gradient(180deg, #1c2a4e, #0f162c);
+  border-top: 2px solid #c9a24e;
+  box-shadow: inset 0 2px 0 rgba(255, 225, 150, 0.2), 0 -4px 16px rgba(0, 0, 0, 0.4);
+  color: #ffe596;
+}
+#pad button,
+#buttons button,
+#pad button[data-dir='7'],
+#pad button[data-dir='1'],
+#pad button[data-dir='5'],
+#pad button[data-dir='3'],
+#pad button.center {
+  padding: 0;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+  text-shadow: 0 1px 1px #000, 0 0 6px rgba(255, 210, 120, 0.3);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+}
+/* ななめは字を少し小さく薄くして、上下左右と見分ける */
+#pad button[data-dir='7'],
+#pad button[data-dir='1'],
+#pad button[data-dir='5'],
+#pad button[data-dir='3'] {
+  color: #d8c08a;
+}
+#buttons #btn-attack {
+  border-width: 14px 30px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 14px 30px stretch;
+  box-shadow: none;
+  color: #fff;
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66, 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+#pad button.pressed,
+#buttons button.pressed {
+  transform: translateY(2px);
+  box-shadow: none;
+  filter: brightness(1.3) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+/* ［攻撃］の長押しの扇：紺の丸に金の縁 */
+.quick-slot {
+  border: 2px solid #c9a24e;
+  background: radial-gradient(circle at 40% 35%, #33467a, #1a2747);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+.quick-slot small {
+  color: #ffe596;
+}
+.quick-slot.hover {
+  border-color: #ffe596;
+  box-shadow: 0 0 0 4px rgba(255, 214, 110, 0.35), 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+/* 階に入ったときの画面：紺の地に金の字 */
+#floor-title {
+  background:
+    radial-gradient(50% 30% at 50% 50%, rgba(80, 120, 200, 0.3), transparent 70%),
+    #121a33;
+}
+#floor-title-name {
+  border-bottom-color: rgba(230, 190, 100, 0.7);
+  color: #d9e0f2;
+}
+#floor-title-floor {
+  color: #ffe596;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+/* 一覧・これまでのログ・確かめの窓：①の画面の枠 */
+#sheet,
+#log-history,
+#dialog {
+  background: rgba(5, 10, 25, 0.5);
+}
+.sheet-box,
+.dialog-box {
+  border-style: solid;
+  border-width: 22px;
+  border-image: url('./ui-art/panel.png') 64 fill / 22px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+  color: #eef1fa;
+}
+.sheet-head {
+  margin: -6px 0 0;
+  padding: 0 0 8px 4px;
+  border-bottom: 1px solid rgba(230, 190, 100, 0.45);
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+  text-shadow: 0 1px 1px #000;
+}
+/* ［閉じる］・一覧の横いっぱいのボタン・［いいえ］：④の暗い紺のタブの板 */
+.sheet-head button,
+#sheet-body .sheet-wide,
+.dialog-buttons button {
+  border-style: solid;
+  border-width: 8px 10px;
+  border-image: url('./ui-art/tab2-off.png') 24 fill / 8px 10px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+  text-shadow: 0 1px 1px #000;
+}
+.sheet-head button {
+  height: 38px;
+  padding: 0 6px;
+}
+#sheet-body .sheet-wide {
+  height: 48px;
+}
+#sheet-body .sheet-wide:disabled {
+  border-image-source: url('./ui-art/tab2-off.png');
+  color: #8f9bba;
+  filter: grayscale(0.5);
+}
+#sheet-body {
+  padding: 0 4px 6px;
+}
+#sheet-body .sheet-sticky {
+  background: #1a2747;
+}
+#log-history-list {
+  padding: 6px 6px 8px;
+}
+#log-history-list .turn {
+  color: #e8c97a;
+}
+/* 確かめの窓：［はい］は⑤の大きなボタン */
+.dialog-box {
+  padding: 4px 0 0;
+}
+.dialog-box p {
+  color: #fff4d0;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+}
+.dialog-buttons button {
+  height: 50px;
+}
+.dialog-buttons button:first-child {
+  border-width: 12px 26px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 12px 26px stretch;
+  color: #fff;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66;
+}
+/* つよさの札（明るい紙）の中の字は、紺の窓の白い字にしない */
+:is(#base-body.navy, #sheet-body) .status-view {
+  color: #3a2410;
+}
+:is(#base-body.navy, #sheet-body) .status-view .status-table dt {
+  color: #6b5236;
+}
+/* 指示の一覧のように絵のない行は、空の枠を出さない */
+:is(#base-body.navy, #sheet-body) .sheet-row .icon:empty {
+  background: none;
+}
+:is(#base-body.navy, #sheet-body) .sheet-row .icon:empty::after {
+  display: none;
 }
