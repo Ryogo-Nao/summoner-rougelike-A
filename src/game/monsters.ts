@@ -24,12 +24,19 @@ export interface Species {
   twoHits?: boolean;
   /** 2マス先まで、まっすぐ攻撃が届く */
   reach?: number;
+  /** 離れたところから届く攻撃の名前（ログと特技の説明に出す）。省くと「舌」 */
+  reachName?: string;
+  /** 毎ターン、最大HPのこの割合だけHPが戻る（最低1）。毒のあいだは戻らない */
+  regen?: number;
   /** 動きがふらつく（半分の確率で、でたらめな方向に動く。隣にいるときは、半分の確率で行動を失う） */
   erratic?: boolean;
   /** 壁をすり抜ける */
   phasing?: boolean;
-  /** 特技（balance.md 4章）。spore は胞子で混乱、venom は毒、breath は火を吐く */
-  special?: 'spore' | 'venom' | 'breath';
+  /**
+   * 特技（balance.md 3.5、4章）。spore は胞子で混乱、venom は毒、breath は火を吐く、
+   * sleep は鱗粉で眠らせる、pin は糸ではりつけにする、hunger はお腹を減らす（主人公だけ）、drain は与えたダメージの半分を吸い取る
+   */
+  special?: 'spore' | 'venom' | 'breath' | 'sleep' | 'pin' | 'hunger' | 'drain';
   /** 仲間にしたときの成長の型と早さ。プレイヤーには見せない */
   growth: GrowthType;
   pace: GrowthPace;
@@ -48,6 +55,17 @@ export const SPECIES: readonly Species[] = [
   { id: 'moyari', name: 'モヤリ', emoji: '👻', hp: 20, atk: 8, def: 3, exp: 22, capture: 0.08, cost: 9, speed: 'normal', phasing: true, growth: 'attack', pace: 'late' },
   { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', hp: 30, atk: 10, def: 5, exp: 28, capture: 0.07, cost: 10, speed: 'normal', special: 'breath', growth: 'balance', pace: 'normal' },
   { id: 'goromu', name: 'ゴロム', emoji: '🗿', hp: 45, atk: 13, def: 10, exp: 40, capture: 0.05, cost: 12, speed: 'slow', growth: 'hp', pace: 'late' },
+  // 2026-11-07 に足した10種（強さは仮。balance.md 4章）
+  { id: 'nemuriga', name: 'ネムリガ', emoji: '🦋', hp: 14, atk: 4, def: 2, exp: 9, capture: 0.18, cost: 5, speed: 'normal', special: 'sleep', growth: 'balance', pace: 'early' },
+  { id: 'kuimushi', name: 'クイムシ', emoji: '🐛', hp: 16, atk: 5, def: 3, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'hunger', growth: 'hp', pace: 'normal' },
+  { id: 'amigumo', name: 'アミグモ', emoji: '🕷️', hp: 18, atk: 6, def: 3, exp: 12, capture: 0.15, cost: 6, speed: 'normal', special: 'pin', growth: 'attack', pace: 'normal' },
+  { id: 'chisui', name: 'チスイ', emoji: '🦟', hp: 15, atk: 7, def: 2, exp: 13, capture: 0.14, cost: 6, speed: 'normal', special: 'drain', growth: 'attack', pace: 'early' },
+  { id: 'tsubumaru', name: 'ツブマル', emoji: '🐌', hp: 30, atk: 6, def: 9, exp: 14, capture: 0.14, cost: 7, speed: 'slow', growth: 'defense', pace: 'late' },
+  { id: 'fuwakura', name: 'フワクラ', emoji: '🪼', hp: 28, atk: 8, def: 3, exp: 24, capture: 0.09, cost: 8, speed: 'normal', regen: 0.05, growth: 'hp', pace: 'late' },
+  { id: 'nurarika', name: 'ヌラリカ', emoji: '🦑', hp: 28, atk: 10, def: 4, exp: 26, capture: 0.08, cost: 9, speed: 'normal', reach: 2, reachName: '触手', growth: 'attack', pace: 'normal' },
+  { id: 'kirigani', name: 'キリガニ', emoji: '🦀', hp: 32, atk: 9, def: 10, exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'defense', pace: 'normal' },
+  { id: 'dosuino', name: 'ドスイノ', emoji: '🐗', hp: 40, atk: 12, def: 4, exp: 34, capture: 0.06, cost: 10, speed: 'normal', growth: 'attack', pace: 'normal' },
+  { id: 'tsuraragu', name: 'ツララグマ', emoji: '🐻‍❄️', hp: 50, atk: 14, def: 8, exp: 48, capture: 0.04, cost: 13, speed: 'normal', growth: 'hp', pace: 'normal' },
 ];
 
 

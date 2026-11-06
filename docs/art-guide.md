@@ -115,9 +115,19 @@ Subject: [魔物の説明（下の表の英語）]
 | moyari | モヤリ | 小さなおばけ。ふわふわの霧のような体で、少し透けている。薄紫の光 | A small ghost with a fluffy mist-like body, slightly see-through, glowing pale lavender. |
 | hidamari | ヒダマリ | トカゲ。口からほんの少し火の粉。しっぽの先に小さな炎。あたたかい日なたのような色 | A lizard with a few sparks of fire at its mouth and a tiny flame on its tail tip. Warm sunny colors. |
 | goromu | ゴロム | 石のゴーレム。丸い石を積んだ体、苔が少し生えている。どっしりしていて、やさしい目 | A stone golem made of stacked round stones with a little moss. Heavy and sturdy, with kind eyes. |
+| nemuriga | ネムリガ（まだ絵がない） | ふわふわの蛾。大きな羽に眠そうな目の模様。羽から光る鱗粉がこぼれる。薄紫と夜空色 | A fluffy moth with big wings marked with sleepy eye patterns, glowing scale dust drifting from the wings. Pale lavender and night blue. |
+| kuimushi | クイムシ（まだ絵がない） | まるまるとしたイモムシ。大きな口で、いつも何かをもぐもぐしている。黄緑色 | A chubby caterpillar with a big mouth, always munching on something. Yellow green. |
+| amigumo | アミグモ（まだ絵がない） | 小さなクモ。丸いおしりに網の模様。足は短く、かわいい。おしりから細い糸 | A small spider with a round body marked with a web pattern, short cute legs, and a thin silk thread trailing behind. |
+| chisui | チスイ（まだ絵がない） | 小さな蚊。細長い口、透けた羽。赤い目がきらり。こわくない | A small mosquito with a long thin proboscis, see-through wings and glinting red eyes. Not scary. |
+| tsubumaru | ツブマル（まだ絵がない） | カタツムリ。ぶあつい渦巻きの殻、ゆっくり進む。殻に小さな石がついている | A snail with a thick spiral shell dotted with small pebbles, moving slowly. |
+| fuwakura | フワクラ（まだ絵がない） | ふわふわ浮かぶクラゲ。透けたかさに、やわらかく光る触手。水色 | A floating jellyfish with a see-through bell and softly glowing tentacles. Light aqua. |
+| nurarika | ヌラリカ（まだ絵がない） | イカ。長い触手を2本前に伸ばしている。つるっとした体、大きな目。藍色 | A squid reaching forward with two long tentacles, a smooth body and big eyes. Indigo. |
+| kirigani | キリガニ（まだ絵がない） | カニ。大きなはさみを2つ振り上げている。氷のような青い甲羅 | A crab raising two big claws, with an icy blue shell. |
+| dosuino | ドスイノ（まだ絵がない） | 大きなイノシシ。太い牙、鼻息があらい。前のめりで突進しそう | A big boar with thick tusks, snorting and leaning forward as if about to charge. |
+| tsuraragu | ツララグマ（まだ絵がない） | 白いクマ。背中と肩につららが生えている。大きく、どっしり。目はやさしい | A large white bear with icicles growing on its back and shoulders. Big and sturdy, with gentle eyes. |
 
 - 寒色の決まりがあるが、ヒダマリ（火）とポコタケ（キノコ）は暖色を使ってよい。輪郭線と塗り方をそろえれば、絵柄は保てる
-- 絵が入っているもの：主人公、イヅツチと、6の表の魔物すべて（この絵柄で決まり）
+- 絵が入っているもの：主人公、イヅツチと、6の表のチュッピ〜ゴロム（この絵柄で決まり）。ネムリガ〜ツララグマの10体はまだ絵がなく、絵文字で出る。絵ができたら public/art/monster_<ID>.png と face_<ID>.png を置き、src/render/art.ts の ART_IDS と FACE_IDS に足す
 
 ## 7. アイテムとアイコン（Recraft）
 Recraft では、最初に絵柄（スタイル）を1つ作り、すべてのアイコンをその絵柄で作る。

@@ -13,12 +13,17 @@ function traits(species: Species, partner: boolean): string {
   const list: string[] = [];
   if (partner) list.push('いかずち（2マス先に雷）\n召喚中は雷の魔法を使える');
   if (species.twoHits) list.push('1ターンに2回攻撃');
-  if (species.reach) list.push(`舌で${species.reach}マス先まで攻撃`);
+  if (species.reach) list.push(`${species.reachName ?? '舌'}で${species.reach}マス先まで攻撃`);
   if (species.erratic) list.push('ふらふらと飛ぶ');
   if (species.phasing) list.push('壁をすり抜ける');
   if (species.special === 'spore') list.push('胞子で混乱させる');
   if (species.special === 'venom') list.push('攻撃で毒にする');
   if (species.special === 'breath') list.push('火を吐く\n召喚中は大火球を使える');
+  if (species.special === 'sleep') list.push('鱗粉で眠らせる');
+  if (species.special === 'pin') list.push('糸ではりつけにする');
+  if (species.special === 'hunger') list.push('かじってお腹を減らす');
+  if (species.special === 'drain') list.push('与えたダメージの半分を吸い取る');
+  if (species.regen) list.push('毎ターンHPが少し戻る');
   return list.length > 0 ? list.join('\n') : 'なし';
 }
 

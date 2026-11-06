@@ -95,8 +95,14 @@ const POISON_INTERVAL = 3;
 const POISON_RATE = 0.01;
 /** 昏睡の印で眠るターン数 */
 const SLEEP_TURNS: [number, number] = [2, 4];
-/** 攻撃が当たったときに、胞子で混乱させる・毒にする確率 */
+/** 攻撃が当たったときに、胞子で混乱させる・毒にする・眠らせる・はりつけにする・お腹を減らす確率 */
 const AILMENT_CHANCE = 0.3;
+/** アミグモの糸で、主人公と仲間がはりつけになるターン数（魔物は攻撃されるまで） */
+const PIN_TURNS: [number, number] = [3, 5];
+/** クイムシの攻撃で減る満腹度 */
+const HUNGER_BITE = 10;
+/** チスイが吸い取る、与えたダメージの割合 */
+const DRAIN_RATE = 0.5;
 /** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
 const BREATH_CHANCE = 0.3;
 const BREATH_RANGE = 4;
@@ -1488,8 +1494,8 @@ export class GameState {
     });
   }
 
-  /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前 */
-  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string): void {
+  /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前。与えたダメージを返す */
+  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string): number {
     const dmg = fortified(raw, m.ailments);
     m.hp -= dmg;
     this.wake(m.ailments);
@@ -1498,8 +1504,8 @@ export class GameState {
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
     this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}ダメージ`);
-    if (m.hp > 0) return;
-    this.defeatMonster(m, by, true);
+    if (m.hp <= 0) this.defeatMonster(m, by, true);
+    return dmg;
   }
 
   /**
@@ -1953,6 +1959,7 @@ export class GameState {
         this.addLog(`${cardName(a.card)}は毒で瀕死になり召喚が解けた`);
         continue;
       }
+      this.regenBody(a.card.species, a.card, a.ailments);
       this.tickAilments(a.ailments, cardName(a.card));
     }
     // 魔物の状態異常は、治ってもログには出さない
@@ -1962,6 +1969,7 @@ export class GameState {
         this.defeatMonster(m, null, false);
         continue;
       }
+      this.regenBody(m.species, m, m.ailments);
       if (m.ailments.confused > 0) m.ailments.confused--;
       if (m.ailments.poisoned > 0) m.ailments.poisoned--;
       // 魔物のはりつけは、攻撃されるまで解けない
@@ -1992,17 +2000,39 @@ export class GameState {
     return !this.dead && (a.pinned > 0 || a.asleep > 0);
   }
 
-  /** 攻撃が当たったあと、攻撃した側（from）の特技の胞子や毒を受けるか。who はログに出す名前 */
-  private afflict(from: Species, ailments: Ailments, who: string): void {
+  /**
+   * 攻撃が当たったあと、攻撃した側（from）の特技を受けるか。who はログに出す名前、target は受けた側。
+   * お腹を減らすのは主人公だけ。魔物のはりつけは、攻撃されるまで解けない
+   */
+  private afflict(from: Species, ailments: Ailments, who: string, target: 'player' | 'ally' | 'monster'): void {
     const kind = from.special;
-    if ((kind !== 'spore' && kind !== 'venom') || !this.rng.chance(AILMENT_CHANCE)) return;
+    if (kind === undefined || kind === 'breath' || kind === 'drain') return;
+    if (kind === 'hunger' && target !== 'player') return;
+    if (!this.rng.chance(AILMENT_CHANCE)) return;
     if (kind === 'spore') {
       ailments.confused = CONFUSE_TURNS;
       this.addLog(`${from.name}の胞子 → ${who}は混乱した`);
-    } else {
+    } else if (kind === 'venom') {
       ailments.poisoned = POISON_TURNS;
       this.addLog(`${from.name}の毒 → ${who}は毒を受けた`);
+    } else if (kind === 'sleep') {
+      ailments.asleep = this.rng.int(...SLEEP_TURNS);
+      this.addLog(`${from.name}の鱗粉 → ${who}は眠った`);
+    } else if (kind === 'pin') {
+      ailments.pinned = target === 'monster' ? 1 : this.rng.int(...PIN_TURNS);
+      this.addLog(`${from.name}の糸 → ${who}ははりつけになった`);
+    } else if (kind === 'hunger') {
+      const p = this.player;
+      if (p.food <= 0) return;
+      p.food = Math.max(0, p.food - HUNGER_BITE);
+      this.addLog(`${from.name}にかじられた → 満腹度が${HUNGER_BITE}減った`);
     }
+  }
+
+  /** 毎ターン、HPが少しずつ戻る魔物（フワクラ）。毒のあいだは戻らない */
+  private regenBody(species: Species, body: { hp: number; maxHp: number }, ailments: Ailments): void {
+    if (!species.regen || ailments.poisoned > 0 || body.hp <= 0 || body.hp >= body.maxHp) return;
+    body.hp = Math.min(body.maxHp, body.hp + Math.max(1, Math.round(body.maxHp * species.regen)));
   }
 
   /** 主人公だけが自然回復する。仲間は回復しない。満腹度が0なら、回復せずに毎ターンHPが1減る */
@@ -2202,9 +2232,9 @@ export class GameState {
 
   private monsterAttack(m: Monster): void {
     const p = this.player;
-    // 2マス先から届くのは今はベロッグの舌だけ。ログで普通の攻撃と見分けられるようにする
+    // 2マス先から届くのはベロッグの舌と、ヌラリカの触手。ログで普通の攻撃と見分けられるようにする
     const ranged = distance(m.pos, p.pos) > 1;
-    const how = ranged ? '舌の攻撃' : '攻撃';
+    const how = ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃';
     // 離れたところから攻撃してきた魔物には、仲間が近づいて戦う
     if (ranged) this.provoker = m;
     if (!this.rng.chance(HIT_RATE)) {
@@ -2212,12 +2242,13 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower()), how);
-    if (!this.dead) this.afflict(m.species, p.ailments, 'あなた');
+    const dmg = this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower()), how);
+    this.drain(m.species, m, dmg, m.species.name);
+    if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player');
   }
 
-  /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす */
-  private hurtPlayer(m: Monster, raw: number, how: string): void {
+  /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす。与えたダメージを返す */
+  private hurtPlayer(m: Monster, raw: number, how: string): number {
     const p = this.player;
     const dmg = fortified(this.guarded(raw), p.ailments);
     p.hp = Math.max(0, p.hp - dmg);
@@ -2228,6 +2259,16 @@ export class GameState {
       this.dead = true;
       this.addLog('あなたは力つきてしまった…');
     }
+    return dmg;
+  }
+
+  /** チスイの特技。与えたダメージの半分（切り捨て）だけ、攻撃した側（body）のHPが戻る */
+  private drain(species: Species, body: { hp: number; maxHp: number }, dmg: number, name: string): void {
+    if (species.special !== 'drain' || body.hp <= 0) return;
+    const gain = Math.min(body.maxHp - body.hp, Math.floor(dmg * DRAIN_RATE));
+    if (gain <= 0) return;
+    body.hp += gain;
+    this.addLog(`${name}はHPを${gain}吸い取った`);
   }
 
   private monsterAttackAlly(m: Monster, a: Ally): void {
@@ -2242,13 +2283,14 @@ export class GameState {
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
     this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
+    this.drain(m.species, m, dmg, m.species.name);
     if (a.card.hp === 0) {
       this.allies = this.allies.filter((x) => x !== a);
       a.card.status = 'dying';
       this.addLog(`${name}は瀕死になり召喚が解けた`);
       return;
     }
-    this.afflict(m.species, a.ailments, name);
+    this.afflict(m.species, a.ailments, name, 'ally');
   }
 
   // ---- 仲間の行動（ついてくる） ----
@@ -2284,9 +2326,10 @@ export class GameState {
       for (let i = 0; i < hits && this.monsters.includes(target); i++) {
         this.scene(a.pos, target.pos, () => {
           if (this.rng.chance(HIT_RATE)) {
-            this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
-            // 仲間のポコタケ・シュルルは、攻撃が当たった魔物を混乱・毒にすることがある
-            if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name);
+            const dmg = this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
+            this.drain(species, a.card, dmg, cardName(a.card));
+            // 仲間のポコタケ・シュルルなどは、攻撃が当たった魔物を混乱・毒などにすることがある
+            if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name, 'monster');
           } else {
             this.addLog(`${target.species.name}はかわした`);
             this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
