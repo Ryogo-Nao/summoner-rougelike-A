@@ -1965,6 +1965,12 @@ body:has(#base:not([hidden])) {
   font-display: swap;
 }
 @font-face {
+  font-family: 'Hub Antique';
+  src: url('./fonts/hub-antique.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Hub UI';
   src: url('./fonts/hub-ui.woff2') format('woff2');
   font-weight: 900;
@@ -1999,11 +2005,11 @@ body:has(#base:not([hidden])) {
   filter: drop-shadow(1.5px 0 0 #143a66) drop-shadow(-1.5px 0 0 #143a66) drop-shadow(0 1.5px 0 #143a66)
     drop-shadow(0 -1.5px 0 #143a66) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
 }
-/* ［商店］［記録］［配合］：明るい黄色から金のグラデーションに、濃い茶の縁取り */
+/* ［商店］［記録］［配合］：羊皮紙に合うアンティークの明朝。明るい黄色から金のグラデーションに、濃い茶の縁取り */
 .hub-title.gold-text {
-  font-family: 'Hub Display', 'Hiragino Sans', sans-serif;
+  font-family: 'Hub Antique', 'Hiragino Mincho ProN', serif;
   font-weight: 400;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   background: linear-gradient(180deg, #fffbe0 0%, #ffe27a 42%, #f5b33a 78%, #d98a1e 100%);
   -webkit-background-clip: text;
   background-clip: text;

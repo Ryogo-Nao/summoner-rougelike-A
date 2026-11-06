@@ -18,8 +18,10 @@ DIGITS = '0123456789'
 FONTS = {
     # 看板の「冒険の準備」：重厚な明朝
     'hub-fantasy': ('Shippori Mincho B1', 800, '冒険の準備'),
-    # ［GO!］・［商店］［記録］［配合］：太くて四角い、ゲームのロゴ風の字体
-    'hub-display': ('Dela Gothic One', 400, 'GO!商店記録配合'),
+    # ［GO!］：太くて四角い、ゲームのロゴ風の字体
+    'hub-display': ('Dela Gothic One', 400, 'GO!'),
+    # ［商店］［記録］［配合］：羊皮紙に合うアンティークの明朝
+    'hub-antique': ('Zen Antique', 400, '商店記録配合'),
     # 見出し・名札・ルーン・Lv・下のタブ：丸くない太いゴシック
     'hub-ui': (
         'Zen Kaku Gothic New',

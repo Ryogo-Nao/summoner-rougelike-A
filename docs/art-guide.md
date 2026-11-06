@@ -201,12 +201,13 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 - 一覧の行の丸い台に出す道具の絵は、四角い絵の角が丸からはみ出さないよう、台より小さく出す
 
 ### 8.1 拠点のトップの字体
-日本語の字体は丸ごと入れると重いので、拠点のトップに出る文字だけを Google Fonts から切り出して src/fonts/ に置く（3つで約11KB）。どれも SIL Open Font License。
+日本語の字体は丸ごと入れると重いので、拠点のトップに出る文字だけを Google Fonts から切り出して src/fonts/ に置く（4つで約13KB）。どれも SIL Open Font License。
 
 | ファイル | 字体 | 使うところ |
 |---|---|---|
 | hub-fantasy.woff2 | しっぽり明朝 B1（ExtraBold） | 看板の「冒険の準備」 |
-| hub-display.woff2 | Dela Gothic One | ［GO!］・［商店］［記録］［配合］ |
+| hub-display.woff2 | Dela Gothic One | ［GO!］ |
+| hub-antique.woff2 | Zen Antique | ［商店］［記録］［配合］（色は明るい黄色から金） |
 | hub-ui.woff2 | Zen Kaku Gothic New（Black） | 見出しの名前とルーン・名札・Lv・下のタブ・知らせの「！」 |
 
 - 丸ゴシックは安っぽく見えるので使わない。札の字は暗くせず、明るい黄色から金にする
