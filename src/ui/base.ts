@@ -45,6 +45,9 @@ const VIEW_TITLE: Record<Exclude<View, 'hub'>, string> = {
   other: 'その他',
 };
 
+/** 紺と金の共通の部品（docs/art-guide.md 8.2）で出す画面。ほかの画面も、そろえたら足していく */
+const NAVY_VIEWS: View[] = ['prep'];
+
 /** 下のタブ。icon は public/art/<icon>.png */
 const NAV: { view: View; label: string; icon: string }[] = [
   { view: 'hub', label: '拠点', icon: 'ui_tab_home' },
@@ -244,6 +247,7 @@ export class BaseScreen {
     this.depart.hidden = !prep && this.view !== 'shop' && !(this.view === 'allies' && inside);
     this.root.classList.toggle('on-hub', this.view === 'hub');
     this.body.classList.toggle('hub', this.view === 'hub');
+    this.body.classList.toggle('navy', NAVY_VIEWS.includes(this.view));
     this.body.classList.toggle('shop', this.view === 'shop');
     const children: HTMLElement[] = [];
     if (this.view === 'hub') {
@@ -414,7 +418,7 @@ export class BaseScreen {
         button: { label: '出発', disabled: !open, onClick: () => this.onDepart(d.id) },
       };
     });
-    return [note('挑むダンジョンを選ぶ'), ...rows.map(renderRow)];
+    return [note('挑むダンジョン', 'base-section'), ...rows.map(renderRow)];
   }
 
   /**

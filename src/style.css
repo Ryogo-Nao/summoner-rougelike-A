@@ -2052,3 +2052,231 @@ body:has(#base:not([hidden])) {
 #base-nav button.on {
   color: #ffe08a;
 }
+
+/*
+ * ==== 紺と金の共通の部品（docs/art-guide.md 8.2）====
+ * #base-body に navy を付けた画面に当てる（今は冒険の準備）。ほかの画面も、そろえたら base.ts の NAVY_VIEWS に足す。
+ * ① 画面の枠 ② 行の札 ③ 見出しの帯 ④ タブ ⑤ 大きなボタン ⑥ 小さなボタン ⑦ 選ぶ印。顔の枠は拠点のトップと同じ金の枠
+ */
+/* ① 画面の枠：紺の地に、四隅に金の唐草 */
+#base-body.navy {
+  padding: 0 6px;
+  border-width: 22px;
+  border-image: url('./ui-art/panel.png') 64 fill / 22px stretch;
+}
+#base-body.navy .base-sort {
+  background: #1a2747;
+  border-bottom: 1px solid rgba(230, 190, 100, 0.35);
+}
+#base-body.navy .sheet-note {
+  color: #d9e0f2;
+}
+/* ③ 見出しの帯：紺のリボン */
+#base-body.navy .base-section {
+  margin: 12px auto 4px;
+  padding: 1px 6px;
+  border-style: solid;
+  border-width: 8px 34px;
+  border-image: url('./ui-art/ribbon-head.png') 20 80 fill / 8px 34px stretch;
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-shadow: 1px 0 0 #0d1530, -1px 0 0 #0d1530, 0 1px 0 #0d1530, 0 -1px 0 #0d1530;
+}
+/* ④ タブ：選んでいる方は明るい紺に光る金の縁、ほかは暗い紺 */
+#base-tabs button,
+#base-body.navy .sort-keys .sheet-wide,
+#base-body.navy .place-tabs button,
+#base-body.navy .sort-select {
+  border-style: solid;
+  border-width: 8px 10px;
+  border-image: url('./ui-art/tab2-off.png') 24 fill / 8px 10px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #aeb8d4;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+  text-shadow: 0 1px 1px #000;
+}
+#base-tabs button.active,
+#base-body.navy .sort-keys .sheet-wide.on,
+#base-body.navy .place-tabs button.on {
+  border-image-source: url('./ui-art/tab2-on.png');
+  color: #ffe596;
+}
+#base-body.navy .place-tabs {
+  border: none;
+  box-shadow: none;
+}
+#base-body.navy .sort-select {
+  height: 38px;
+  padding: 0 24px 0 6px;
+  font-size: 14px;
+}
+#base-body.navy .sort-select::after {
+  right: 4px;
+  color: #ffe596;
+}
+/* ② 行の札：拠点のトップの札と同じ、木の縁に金具の明るい紙。選んでいる行は金の光で縁取る */
+#base-body.navy .sheet-row {
+  grid-template-columns: 48px 1fr auto;
+  margin: 8px 0;
+  padding: 2px 4px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+#base-body.navy .sheet-row.taking,
+#base-body.navy .sheet-row.chosen {
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 0 4px rgba(255, 214, 110, 0.95));
+}
+#base-body.navy .sheet-row .name {
+  color: #3a2410;
+}
+#base-body.navy .sheet-row .sub {
+  color: #6b5236;
+}
+/* 顔と道具の絵：拠点のトップと同じ金の四角い枠 */
+#base-body.navy .sheet-row .icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  background: rgba(30, 40, 70, 0.88);
+  box-shadow: none;
+  overflow: visible;
+}
+#base-body.navy .sheet-row .icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+#base-body.navy .sheet-row .icon .art {
+  width: 40px;
+  height: 40px;
+}
+#base-body.navy .sheet-row .icon .item-art {
+  width: 34px;
+  height: 34px;
+}
+/* ⑦ 選ぶ印：金の丸に緑のチェック、空の金の丸 */
+#base-body.navy .sheet-row button.check {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: url('./ui-art/check-off.png') center / contain no-repeat;
+  box-shadow: none;
+}
+#base-body.navy .sheet-row button.check.on {
+  background-image: url('./ui-art/check-on.png');
+}
+#base-body.navy .sheet-row button.check.on::after {
+  display: none;
+}
+/* ⑥ 小さなボタン：紺の板に金の縁（行の［出発］［倉庫へ送る］、［－］［＋］） */
+#base-body.navy .sheet-row > button:not(.check),
+#base-body.navy .sheet-row .stepper button:not(.stepper-num) {
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #ffe596;
+  text-shadow: 0 1px 1px #000;
+}
+#base-body.navy .sheet-row > button:not(.check):disabled,
+#base-body.navy .sheet-row .stepper button:not(.stepper-num):disabled {
+  border-image-source: url('./ui-art/btn-small.png');
+  color: #b9bfd0;
+  filter: grayscale(0.7) brightness(0.8);
+}
+/* 連れていく仲間の帯：拠点のトップと同じ紺の台と、金の枠の顔 */
+#base-body.navy .party-band {
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(240, 200, 110, 0.75);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(36, 52, 92, 0.95), rgba(22, 30, 56, 0.98));
+  box-shadow: inset 0 0 0 2px rgba(20, 28, 52, 0.6);
+}
+#base-body.navy .party-label {
+  color: #ffe596;
+}
+#base-body.navy .party-count {
+  color: #fff4d0;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-weight: 900;
+}
+#base-body.navy .party-faces {
+  gap: 3px;
+}
+#base-body.navy .party-faces .face {
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(40, 28, 16, 0.55);
+  box-shadow: none;
+}
+#base-body.navy .party-faces .face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('./ui-art/slot.png') center / 100% 100% no-repeat;
+}
+#base-body.navy .party-faces .face img {
+  border-radius: 0;
+}
+#base-body.navy .party-faces .face.empty {
+  color: #fff3c4;
+}
+/* つよさの画面は、明るい紙の札に乗せる */
+#base-body.navy .status-view {
+  margin: 8px 0;
+  padding: 4px 6px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+}
+/* ⑤ 大きなボタン：金の縁に空色の宝石の面（［ダンジョンに向かう］［購入する］など）。［戻る］は暗い紺のタブの板 */
+#base-depart {
+  height: 56px;
+  border-style: solid;
+  border-width: 14px 30px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 14px 30px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #fff;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66, 0 2px 3px rgba(0, 0, 0, 0.45);
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+#base-depart:disabled {
+  border-image-source: url('./ui-art/btn-main.png');
+  color: #e4e8f0;
+  filter: grayscale(0.75) brightness(0.85);
+}
+#base-depart.back {
+  height: 48px;
+  border-width: 8px 10px;
+  border-image: url('./ui-art/tab2-off.png') 24 fill / 8px 10px stretch;
+  color: #ffe596;
+  text-shadow: 0 1px 1px #000;
+}
