@@ -156,7 +156,7 @@ export const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '�
 /** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
 export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const p = state.player;
-  const rows: SheetRow[] = state.bag.map((item) => ({
+  const rows: SheetRow[] = state.sorted(state.bag).map((item) => ({
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
@@ -290,7 +290,7 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
   const contents = pouch.contents ?? [];
   const space = BAG_LIMIT - state.bag.length;
   const reopen = () => openPouchSheet(state, sheet, pouch, after, chosen);
-  const rows = choiceRows(contents, chosen, space, itemName, reopen);
+  const rows = choiceRows(state.sorted(contents), chosen, space, itemName, reopen);
   const room = contents.length < (pouch.capacity ?? 0);
   const footer = document.createElement('div');
   footer.append(
@@ -326,7 +326,7 @@ function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: A
   const space = (pouch.capacity ?? 0) - (pouch.contents?.length ?? 0);
   const reopen = () => openPouchPutSheet(state, sheet, pouch, after, chosen);
   const name = (item: Item) => (state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item));
-  const rows = choiceRows(state.pouchable(pouch), chosen, space, name, reopen);
+  const rows = choiceRows(state.sorted(state.pouchable(pouch)), chosen, space, name, reopen);
   const footer = document.createElement('div');
   footer.append(
     mainButton(
@@ -409,7 +409,7 @@ function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: 
 function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAction, back: () => void, base?: Item): void {
   const label = (i: Item) => (state.isEquipped(i) ? `${itemName(i)}（装備中）` : itemName(i));
   if (!base) {
-    const rows: SheetRow[] = state.potBases().map((item) => ({
+    const rows: SheetRow[] = state.sorted(state.potBases()).map((item) => ({
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: label(item),
@@ -449,7 +449,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
 function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const floor = state.itemUnderfoot();
   if (!floor) return;
-  const rows: SheetRow[] = state.bag.map((item) => ({
+  const rows: SheetRow[] = state.sorted(state.bag).map((item) => ({
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),

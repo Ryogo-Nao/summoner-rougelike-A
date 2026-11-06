@@ -1310,9 +1310,18 @@ export class GameState {
     this.endTurn();
   }
 
+  /** バッグの並べ方。はじめは種類順。あとから拾った道具も、この並べ方で出す */
+  bagOrder: 'kind' | 'name' = 'kind';
+
   /** バッグを並べ替える。種類順はアイテムの表の順、名前順は五十音順。ターンは使わない */
   sortBag(by: 'kind' | 'name'): void {
+    this.bagOrder = by;
     this.bag = sortItems(this.bag, by);
+  }
+
+  /** 一覧に出すときの並び（バッグ・袋の中など）。選んでいる並べ方にする */
+  sorted(items: Item[]): Item[] {
+    return sortItems(items, this.bagOrder);
   }
 
   /** 足もとに置けない理由。階段や、他のアイテムがあるマスには置けない */

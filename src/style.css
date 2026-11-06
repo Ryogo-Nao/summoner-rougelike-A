@@ -1236,6 +1236,13 @@ button {
   height: 36px;
   box-shadow: 0 0 0 1px #fffaf1;
 }
+.party-faces .face.tap {
+  cursor: pointer;
+}
+.party-faces .face.tap:active {
+  transform: translateY(1px);
+  filter: brightness(0.9);
+}
 .party-faces .face.empty {
   border: none;
   background: rgba(120, 95, 60, 0.18);

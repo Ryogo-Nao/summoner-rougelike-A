@@ -250,8 +250,8 @@ export class BaseScreen {
     const inside = this.viewing !== null || this.pouch !== null || this.choosing;
     this.title.textContent = this.view === 'hub' ? `${generationName(p.generation)} 召喚士` : VIEW_TITLE[this.view];
     this.tabBar.hidden = !prep;
-    // 下のボタン：冒険では［ダンジョンに向かう］［戻る］、商店では［購入する］［売却する］、仲間ではつよさを見ているときの［戻る］
-    this.depart.hidden = !prep && this.view !== 'shop' && !(this.view === 'allies' && inside);
+    // 下のボタン：冒険では［ダンジョンに向かう］［戻る］、商店では［購入する］［売却する］、仲間と配合ではつよさを見ているときの［戻る］
+    this.depart.hidden = !prep && this.view !== 'shop' && !((this.view === 'allies' || this.view === 'fusion') && inside);
     this.root.classList.toggle('on-hub', this.view === 'hub');
     this.body.classList.toggle('hub', this.view === 'hub');
     this.body.classList.toggle('navy', NAVY_VIEWS.includes(this.view));
@@ -263,18 +263,18 @@ export class BaseScreen {
       children.push(...this.shopRows(p));
     } else if (this.view === 'other') {
       children.push(...this.otherRows(p));
-    } else if (this.view === 'fusion') {
-      children.push(...this.fusionRows(p));
-    } else if (this.choosing) {
-      children.push(...this.dungeonRows(p));
     } else if (this.viewing) {
-      // 仲間のつよさ。ニックネームを付けられる。下の［戻る］で仲間の一覧へ
+      // 仲間のつよさ。ニックネームを付けられる。下の［戻る］で元の一覧（仲間・冒険の準備・配合）へ
       const card = this.viewing;
       children.push(
         statusView(card, {
           onRename: (name) => this.change(() => (card.nickname = name || undefined)),
         }),
       );
+    } else if (this.view === 'fusion') {
+      children.push(...this.fusionRows(p));
+    } else if (this.choosing) {
+      children.push(...this.dungeonRows(p));
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
     } else if (this.view === 'allies') {
@@ -504,7 +504,7 @@ export class BaseScreen {
 
   /**
    * 仲間のタブ。上に並べ替えのボタンと、連れていく仲間の顔（5つの枠）を固定して出す。
-   * 行の右の丸い印を押すと、連れていく・残すを切り替える。行の大きさは変えない
+   * 行の右の丸い印を押すと、連れていく・残すを切り替える。行の大きさは変えない。上の顔を押しても残せる
    */
   private cardRows(p: Profile): HTMLElement[] {
     const hand = this.handCards();
@@ -528,8 +528,13 @@ export class BaseScreen {
       const face = document.createElement('span');
       face.className = card ? 'face' : 'face empty';
       if (i >= SUMMON_LIMIT) face.classList.add('reserve');
-      if (card) face.append(faceElement(card.species.id, cardIcon(card)));
-      else face.textContent = '＋';
+      if (card) {
+        face.append(faceElement(card.species.id, cardIcon(card)));
+        face.classList.add('tap');
+        face.setAttribute('role', 'button');
+        face.setAttribute('aria-label', `${cardName(card)}を残す`);
+        face.addEventListener('click', () => this.change(() => (p.hand = p.hand.filter((id) => id !== card.id))));
+      } else face.textContent = '＋';
       faces.append(face);
     }
     party.append(text, faces);
@@ -627,6 +632,7 @@ export class BaseScreen {
           name: cardName(partner),
           sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回\n攻撃${partner.atk}　防御${partner.def}　${PERSONALITIES[partner.personality].name}`,
           className: 'ally taking',
+          onSelect: () => this.enter(() => (this.viewing = partner)),
         }),
       );
     }
@@ -645,6 +651,7 @@ export class BaseScreen {
             this.fusionNote = '';
             this.render(true);
           },
+          onSelect: () => this.enter(() => (this.viewing = card)),
         }),
       );
     }
@@ -796,14 +803,14 @@ export class BaseScreen {
     const holy = ITEMS[pouch.kind].pouch?.holy ? '\n力つきても中の道具は失わない' : '';
     return [
       note(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}${holy}`, 'base-section'),
-      ...contents.map((item) =>
+      ...sortItems(contents, 'kind').map((item) =>
         this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => {
           pouch.contents = contents.filter((i) => i !== item);
           p.bag.push(item);
         }),
       ),
       note('バッグからしまう', 'base-section'),
-      ...p.bag
+      ...sortItems(p.bag, 'kind')
         .filter((i) => i !== pouch && !ITEMS[i.kind].pouch)
         .map((item) => this.itemRow(item, 'しまう', !room, () => move(item, p.bag, contents))),
     ];
@@ -866,7 +873,9 @@ export class BaseScreen {
   private buyRows(p: Profile, head: HTMLElement): HTMLElement[] {
     const to = this.buyTo === 'bag' ? p.bag : p.warehouse;
     const room = (this.buyTo === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT) - to.length;
-    const kinds = [...ALWAYS_SOLD, ...new Set(p.shopStock)];
+    // 種類順（道具の表の順）に並べる
+    const order = Object.keys(ITEMS);
+    const kinds = [...new Set([...ALWAYS_SOLD, ...p.shopStock])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
     const picked = kinds.filter((k) => (this.buyCount.get(k) ?? 0) > 0);
     const count = picked.reduce((n, k) => n + this.buyCount.get(k)!, 0);
     const total = picked.reduce((n, k) => n + buyPrice(k) * this.buyCount.get(k)!, 0);
@@ -922,7 +931,7 @@ export class BaseScreen {
   /** 売る道具の一覧。バッグと倉庫を切り替え、同じ道具はまとめる */
   private sellRows(p: Profile, head: HTMLElement): HTMLElement[] {
     const from = this.sellFrom === 'bag' ? p.bag : p.warehouse;
-    const groups = groupItems(from, true);
+    const groups = groupItems(sortItems(from, 'kind'), true);
     const picked = groups.flatMap((g) => g.items.slice(0, this.sellCount.get(g.key) ?? 0));
     const total = picked.reduce((n, i) => n + sellPrice(i), 0);
     const places = placeTabs(
