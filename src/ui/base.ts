@@ -185,6 +185,7 @@ export class BaseScreen {
   open(profile: Profile): void {
     this.profile = profile;
     this.root.hidden = false;
+    setBarColor(BAR_BASE);
     this.go('hub');
   }
 
@@ -204,6 +205,7 @@ export class BaseScreen {
 
   close(): void {
     this.root.hidden = true;
+    setBarColor(BAR_DUNGEON);
   }
 
   isOpen(): boolean {
@@ -1067,6 +1069,14 @@ function allyRow(
   check.addEventListener('click', opts.onToggle);
   row.append(check);
   return row;
+}
+
+/** Safari の上のバーの色。拠点は村の絵の空の色、ダンジョンは上の帯の紺 */
+const BAR_BASE = '#a3defb';
+const BAR_DUNGEON = '#1a2747';
+
+function setBarColor(color: string): void {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
 }
 
 /** 知らせの印。'new' は角に掛けた「NEW」のリボン（絵）、'dot' は赤い丸の「！」 */

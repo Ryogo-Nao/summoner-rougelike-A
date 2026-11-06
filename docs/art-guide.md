@@ -166,15 +166,10 @@ Transparent background, no text, no shadow, no border.
 
 ## 8. UIの素材（枠・ボタンの板・紙の地）と道具のアイコン
 Gemini で作った素材を使っている（2026-11-05）。CSS だけでは木目・革・金属の質感が出ないため、絵の素材にする。
+最初に作った木と革の部品（紙の地・木と革の枠・木の板・明るい紙のタブ・彫った木のボタン・四角い板）は、8.2 の紺と金の部品に替えて消した（2026-11-06）。
 
 | 素材 | ファイル | 使い方 |
 |---|---|---|
-| 紙の地 | src/ui-art/paper.jpg（512） | 拠点の背景に並べる |
-| 枠（木と革に真ちゅうの金具） | src/ui-art/frame.jpg（512） | 拠点の一覧の枠。border-image で四隅を残し辺を伸ばす（slice 125、表示は 24px） |
-| 選んでいるタブ（明るい紙に金の縁） | src/ui-art/tab-on.png | slice 30 |
-| 木の板 | src/ui-art/plank.png | 選んでいないタブ、一覧の行のボタン。slice 30 |
-| 決めるボタン（彫った木に金の縁と鋲） | src/ui-art/action.png | ［ダンジョンに向かう］［購入］など。slice 34 44 |
-| 小さい四角の板 | src/ui-art/square.png | ［－］［＋］。slice 20 |
 | 拠点トップ：魔法陣の台 | src/ui-art/stage.png | 額縁の中、主人公の後ろ（黒い地から丸く切り抜いた） |
 | 拠点トップ：主人公の額縁 | src/ui-art/medallion.png | 金の唐草に空色の宝石。中の緑も抜いた（-Inner） |
 | 拠点トップ：羽の付いた名札 | src/ui-art/wingplate.png | slice 40 95（左右は羽ごと） |

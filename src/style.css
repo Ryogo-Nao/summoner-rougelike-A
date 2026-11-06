@@ -1,7 +1,7 @@
 /*
  * 色の決まり（docs/art-guide.md の色の見本と合わせる）。
  * 下地は、温かみのある生成りの紙。文字と線は焦げ茶。
- * 操作部とボタンは、金の縁取りをした茶色の石にして、ダンジョンらしさを出す
+ * 拠点とダンジョンの見た目は、下の「紺と金の共通の部品」と「ダンジョンの中：紺と金」で上書きする
  */
 :root {
   --paper: #f7f0e3;
@@ -29,9 +29,6 @@
   /* 石の板（決めるボタン） */
   --stone: linear-gradient(180deg, #6e5a44, #4a3a2b);
   --btn-main: var(--grain), var(--stone);
-  /* 操作部の帯 */
-  --bar: var(--grain), linear-gradient(180deg, #4a3c2e, #2e241b);
-  --bronze: #a8803f;
   --icon-bg: radial-gradient(circle at 40% 35%, #fffaf1, #eadbc0);
   --shadow: 0 6px 20px rgba(61, 47, 34, 0.18);
   --font: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', -apple-system, sans-serif;
@@ -560,7 +557,7 @@ button {
   border-color: #9a6f25;
 }
 
-/* 操作部。茶色の石の帯の上に、金の縁の石のボタンを並べる。画面の幅に合わせて大きくする */
+/* 操作部。画面の幅に合わせて大きくする（見た目は下の「ダンジョンの中：紺と金」） */
 #controls {
   --pad-cell: clamp(52px, 15.5vw, 70px);
   display: flex;
@@ -569,13 +566,9 @@ button {
   gap: 10px;
   margin-top: 8px;
   padding: 12px 12px 6px;
-  background: var(--bar);
-  border-top: 2px solid var(--bronze);
-  box-shadow: inset 0 2px 0 rgba(255, 220, 150, 0.18), 0 -4px 16px rgba(61, 47, 34, 0.25);
   /* 帯は画面の下の端まで塗る */
   margin-bottom: calc(-1 * env(safe-area-inset-bottom));
   padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
-  color: #f3dfae;
 }
 /* 設定でパッドを右にしたとき */
 #controls.pad-right {
@@ -587,42 +580,10 @@ button {
   grid-template-rows: repeat(3, var(--pad-cell));
   gap: 5px;
 }
-/* 石のボタン。外側に金の縁、内側に暗い溝、上の端に光。四隅に金の鋲を打つ */
-#pad button,
-#buttons button {
-  border: 2px solid var(--bronze);
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 7px 7px, #e8c47a 1.6px, transparent 2.6px),
-    radial-gradient(circle at calc(100% - 7px) 7px, #e8c47a 1.6px, transparent 2.6px),
-    radial-gradient(circle at 7px calc(100% - 7px), #e8c47a 1.6px, transparent 2.6px),
-    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #e8c47a 1.6px, transparent 2.6px),
-    radial-gradient(120% 90% at 30% 20%, rgba(255, 235, 190, 0.14), transparent 60%),
-    var(--grain),
-    linear-gradient(180deg, #5e4c3a, #3a2e23);
-  box-shadow:
-    inset 0 0 0 2px #241b13,
-    inset 0 3px 0 2px rgba(255, 225, 170, 0.12),
-    0 3px 0 #1b140e,
-    0 4px 8px rgba(0, 0, 0, 0.35);
-  color: #f6e3b0;
-  text-shadow: 0 1px 0 #1b140e, 0 0 6px rgba(255, 200, 110, 0.25);
-}
 #pad button {
   font-size: 22px;
 }
-/* ななめと足踏みは丸い石にして、上下左右と見分けやすくする。丸い石に鋲は打たない */
-#pad button[data-dir='7'],
-#pad button[data-dir='1'],
-#pad button[data-dir='5'],
-#pad button[data-dir='3'],
-#pad button.center {
-  border-radius: 50%;
-  background:
-    radial-gradient(120% 90% at 30% 20%, rgba(255, 235, 190, 0.14), transparent 60%),
-    var(--grain),
-    linear-gradient(180deg, #5e4c3a, #3a2e23);
-}
+/* ななめは字を少し小さくして、上下左右と見分けやすくする */
 #pad button[data-dir='7'],
 #pad button[data-dir='1'],
 #pad button[data-dir='5'],
@@ -631,15 +592,6 @@ button {
 }
 #pad button.center {
   font-size: 13px;
-}
-#pad button.pressed,
-#buttons button.pressed {
-  transform: translateY(2px);
-  box-shadow:
-    inset 0 0 0 2px #241b13,
-    inset 0 2px 6px rgba(0, 0, 0, 0.5),
-    0 1px 0 #1b140e;
-  filter: brightness(1.15);
 }
 /* パッドと同じ高さに3段で並べる */
 #buttons {
@@ -660,21 +612,6 @@ button {
 #buttons .wide {
   grid-column: span 2;
 }
-/* ［攻撃］は金の二重の縁で囲み、ほのかに光らせる */
-#buttons #btn-attack {
-  border-color: #e0b04a;
-  box-shadow:
-    inset 0 0 0 3px #241b13,
-    inset 0 0 0 4px rgba(240, 207, 126, 0.7),
-    inset 0 0 18px rgba(255, 190, 80, 0.25),
-    0 3px 0 #1b140e,
-    0 0 12px rgba(255, 190, 80, 0.35);
-  color: #ffd98a;
-  font-size: 20px;
-  letter-spacing: 0.3em;
-  text-shadow: 0 1px 0 #1b140e, 0 0 10px rgba(255, 200, 100, 0.6);
-}
-
 /* ［攻撃］の長押しで出す、登録した道具の扇 */
 #quick-fan {
   position: fixed;
@@ -769,11 +706,6 @@ button {
   display: flex;
   flex-direction: column;
   padding: calc(env(safe-area-inset-top) + 40px) 8px calc(env(safe-area-inset-bottom) + 12px);
-  /* 古い紙の地（src/ui-art/paper.jpg）を並べる */
-  background:
-    radial-gradient(60% 30% at 10% 5%, rgba(240, 190, 110, 0.18), transparent 70%),
-    url('./ui-art/paper.jpg') 0 0 / 512px repeat,
-    var(--paper);
 }
 #base[hidden] {
   display: none;
@@ -1352,52 +1284,10 @@ button {
 /*
  * ==== 絵の素材（src/ui-art、docs/art-guide.md 8）====
  * 枠とボタンの板は border-image で、四隅をそのままに辺と中だけを伸ばす。
- * 数字（slice）は素材の絵の px。角の丸みとふちが、その中に収まるようにしてある
+ * 数字（slice）は素材の絵の px。角の丸みとふちが、その中に収まるようにしてある。
+ * 見た目は下の「紺と金の共通の部品」で決め、ここには大きさと並べ方だけを置く
  */
 
-/* 拠点の一覧の枠：木と革に真ちゅうの金具（トップは枠なし） */
-#base-body:not(.hub) {
-  padding: 0 4px;
-  border-style: solid;
-  border-width: 24px;
-  border-image: url('./ui-art/frame.jpg') 125 fill / 24px stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: 0 4px 12px rgba(61, 47, 34, 0.28);
-}
-/* 枠の中で上に固定する並べ替えやタブは、枠の中の紙と同じ色にする */
-#base-body:not(.hub) .base-sort {
-  background: #f5efe1;
-}
-
-/* 木の板：一覧の行のボタン、選んでいないタブ */
-.sheet-row > button:not(.check),
-.sort-keys.shop-modes .sheet-wide,
-.place-tabs button {
-  border-style: solid;
-  border-width: 9px 12px;
-  border-image: url('./ui-art/plank.png') 30 fill / 9px 12px stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #f6e7c6;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
-}
-.sheet-row > button:not(.check):disabled {
-  border-image: url('./ui-art/plank.png') 30 fill / 9px 12px stretch;
-  background: none;
-  color: #c9b896;
-  filter: grayscale(0.4) brightness(0.85);
-}
-/* 選んでいるタブ：明るい紙に金の縁 */
-.sort-keys.shop-modes .sheet-wide.on,
-.place-tabs button.on {
-  border-image: url('./ui-art/tab-on.png') 30 fill / 9px 12px stretch;
-  background: none;
-  box-shadow: none;
-  color: var(--text);
-  text-shadow: none;
-}
 /* ［バッグ］［倉庫］のタブは、つなげずに2枚の板を並べる */
 .place-tabs {
   gap: 6px;
@@ -1410,51 +1300,6 @@ button {
   border-left-width: 12px;
 }
 
-/* ［－］［＋］：小さい四角の木の板 */
-.sheet-row .stepper button:not(.stepper-num) {
-  border-style: solid;
-  border-width: 8px;
-  border-image: url('./ui-art/square.png') 20 fill / 8px stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #f6e7c6;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
-}
-.sheet-row .stepper button:not(.stepper-num):disabled {
-  border-image: url('./ui-art/square.png') 20 fill / 8px stretch;
-  background: none;
-  opacity: 0.6;
-}
-
-/* 決めるボタン：彫った木に金の縁と鋲 */
-#base-depart,
-.sheet-wide.main {
-  border-style: solid;
-  border-width: 14px 20px;
-  border-image: url('./ui-art/action.png') 34 44 fill / 14px 20px stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: 0 3px 8px rgba(61, 47, 34, 0.35);
-  color: #ffe6a6;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.5);
-}
-#base-depart:disabled,
-.sheet-wide.main:disabled {
-  border-image: url('./ui-art/action.png') 34 44 fill / 14px 20px stretch;
-  background: none;
-  box-shadow: none;
-  color: #d9c9a5;
-  filter: grayscale(0.7) brightness(0.8);
-}
-/* つよさなどを見ているときの［戻る］は、明るい紙の板 */
-#base-depart.back {
-  border-width: 12px 16px;
-  border-image: url('./ui-art/tab-on.png') 30 fill / 12px 16px stretch;
-  background: none;
-  color: var(--text);
-  text-shadow: none;
-}
 /* 板のタブの字は1行に収める */
 .place-tabs button {
   border-width: 9px 8px;
@@ -1489,22 +1334,9 @@ button {
 #base-body.shop .sheet-row .name {
   font-size: 15px;
 }
-/* 冒険の準備の［仲間］［持ち物］も、ほかのタブと同じ板にする（選んでいる方が明るい紙） */
+/* 冒険の準備の［仲間］［持ち物］の高さ（見た目は紺と金の共通の部品の④） */
 #base-tabs button {
   height: 42px;
-  border-style: solid;
-  border-width: 9px 12px;
-  border-image: url('./ui-art/plank.png') 30 fill / 9px 12px stretch;
-  border-radius: 0;
-  background: none;
-  color: #f6e7c6;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
-}
-#base-tabs button.active {
-  border-image: url('./ui-art/tab-on.png') 30 fill / 9px 12px stretch;
-  background: none;
-  color: var(--text);
-  text-shadow: none;
 }
 /* 一覧の行のボタンは、板のふちの分だけ中の余白を減らす */
 .sheet-row > button:not(.check) {
@@ -2063,8 +1895,12 @@ body:has(#base:not([hidden])) {
 /* ① 画面の枠：紺の地に、四隅に金の唐草 */
 #base-body.navy {
   padding: 0 6px;
+  border-style: solid;
   border-width: 22px;
   border-image: url('./ui-art/panel.png') 64 fill / 22px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 #base-body.navy .base-sort {
   background: #1a2747;
