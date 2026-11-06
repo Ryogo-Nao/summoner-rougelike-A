@@ -1573,6 +1573,10 @@ body:has(#base:not([hidden])) {
 }
 .base-head .runes {
   margin-left: auto;
+  padding: 0 22px;
+  border: none;
+  border-image: none;
+  background: url('./ui-art/runeplate.png') center / 100% 100% no-repeat;
   font-size: 14px;
   letter-spacing: 0.02em;
 }
@@ -1694,14 +1698,19 @@ body:has(#base:not([hidden])) {
 }
 
 /* ---- トップ：村の広場に主人公と仲間、下に看板とメニュー ---- */
-/* トップはスクロールさせない。額縁・看板・札は、トップの高さ（cqh）に合わせて縮める */
+/*
+ * トップはスクロールさせない。額縁・看板・札は、トップの高さ（cqh）に合わせて縮める。
+ * 主人公と仲間・看板・札を1つのかたまりにし（仲間の枠から鎖で看板を吊るし、札は看板のすぐ下）、上下のまん中に置く。
+ * 余った高さは、鎖を少し伸ばして受ける
+ */
 #base-body.hub {
+  --sign-w: min(100cqw - 12px, 64cqh);
   container-type: size;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 4px;
+  justify-content: center;
+  gap: 0;
   margin: 0;
   padding: 0 6px 6px;
   border: none;
@@ -1710,13 +1719,15 @@ body:has(#base:not([hidden])) {
   box-shadow: none;
 }
 .hub-hero {
+  position: relative;
+  z-index: 2;
   text-align: center;
 }
 /* 金の唐草の額縁（上に空色の宝石）。中に魔法陣の台を敷き、主人公を立たせる。台はほのかに光る */
 .hub-stage {
   position: relative;
-  width: min(140px, 21cqh);
-  height: min(144px, 21.6cqh);
+  width: min(166px, 23cqh);
+  height: min(171px, 23.7cqh);
   margin: 0 auto;
   background:
     url('./ui-art/medallion.png') center / 100% 100% no-repeat,
@@ -1725,10 +1736,10 @@ body:has(#base:not([hidden])) {
 }
 .hub-art {
   display: block;
-  width: min(104px, 15.6cqh);
-  height: min(104px, 15.6cqh);
+  width: min(124px, 17.2cqh);
+  height: min(124px, 17.2cqh);
   margin: 0 auto;
-  padding-top: min(22px, 3.3cqh);
+  padding-top: min(26px, 3.6cqh);
   box-sizing: content-box;
 }
 @keyframes hub-glow {
@@ -1745,18 +1756,24 @@ body:has(#base:not([hidden])) {
   border-image: url('./ui-art/wingplate.png') 40 95 fill / 14px 34px stretch;
   color: #ffe6a6;
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: bold;
   line-height: 18px;
   letter-spacing: 0.15em;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
 }
-/* 連れていく仲間：金の枠に顔、下に Lv。空き枠は［＋］がゆっくり光る */
+/* 連れていく仲間：金の枠に顔、下に Lv。空き枠は［＋］がゆっくり光る。うすい紺の台にまとめる */
 .hub-party {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 6px;
+  width: fit-content;
+  margin: 4px auto 0;
+  padding: 6px 10px 3px;
+  border: 1px solid rgba(240, 200, 110, 0.75);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(30, 44, 80, 0.72), rgba(20, 28, 52, 0.8));
+  box-shadow: inset 0 0 0 2px rgba(20, 28, 52, 0.6), 0 3px 8px rgba(20, 20, 40, 0.35);
 }
 .hub-slot {
   display: flex;
@@ -1771,8 +1788,8 @@ body:has(#base:not([hidden])) {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(50px, 7.6cqh);
-  height: min(50px, 7.6cqh);
+  width: min(50px, 7.4cqh);
+  height: min(50px, 7.4cqh);
   padding: 6px;
   background: rgba(40, 28, 16, 0.55);
   border-radius: 4px;
@@ -1817,26 +1834,30 @@ body:has(#base:not([hidden])) {
   line-height: 14px;
   text-shadow: 1px 0 0 #3b2208, -1px 0 0 #3b2208, 0 1px 0 #3b2208, 0 -1px 0 #3b2208;
 }
-/* 鎖で吊るした［冒険の準備］の看板。絵の縦横の比のまま出す。上の 35% が鎖 */
+/*
+ * 鎖で吊るした［冒険の準備］の看板。絵（幅 704・板 302・鎖ごと 487）を下の端にそろえて出す。
+ * 見える鎖の長さは、余った高さに合わせて伸び縮みする（上は仲間の台の裏に差し込む）
+ */
 .hub-sign {
   position: relative;
-  flex: none;
-  width: min(100%, 56cqh);
-  aspect-ratio: 738 / 424;
-  margin: 0 auto;
-  background: url('./ui-art/signboard.png') center / 100% 100% no-repeat;
+  z-index: 1;
+  flex: 1 1 0;
+  width: var(--sign-w);
+  min-height: calc(var(--sign-w) * 0.43 + 18px);
+  max-height: calc(var(--sign-w) * 0.43 + 64px);
+  margin: -6px auto 0;
+  background: url('./ui-art/signboard.png') center bottom / 100% auto no-repeat;
 }
-/* 押せる板（鎖の下から下の端まで）。文字と［GO!］を、板の中で上下のまん中にそろえる */
+/* 押せる板。左のランタンをよけ、文字と［GO!］を板の木目のまん中にそろえる */
 .hub-sign-plate {
   position: absolute;
-  left: 2%;
-  right: 2%;
-  top: 35%;
-  bottom: 1%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--sign-w) * 0.43);
   display: flex;
   align-items: center;
-  gap: 2%;
-  padding: 0 6% 0 6%;
+  padding: 3.6% 1% 0 16%;
   border: none;
   background: none;
 }
@@ -1846,22 +1867,24 @@ body:has(#base:not([hidden])) {
 }
 .hub-sign-title {
   flex: 1;
-  font-size: min(28px, 4.3cqh);
+  font-size: min(29px, calc(var(--sign-w) * 0.072));
   text-align: center;
 }
+/* 羽の付いた［GO!］。玉のまわりが水色に脈打つ */
 .hub-sign-go {
   flex: none;
   display: grid;
   place-items: center;
-  width: 25%;
-  aspect-ratio: 1;
+  width: 33%;
+  aspect-ratio: 230 / 205;
+  padding-top: 2%;
   background: url('./ui-art/go.png') center / contain no-repeat;
   animation: go-pulse 2.4s ease-in-out infinite;
 }
 .go-text {
   color: #fff;
   font-family: 'Hiragino Sans', sans-serif;
-  font-size: min(22px, 3.4cqh);
+  font-size: min(24px, calc(var(--sign-w) * 0.058));
   font-weight: 900;
   font-style: italic;
   letter-spacing: 0.02em;
@@ -1871,18 +1894,20 @@ body:has(#base:not([hidden])) {
   0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(150, 220, 255, 0.5)); }
   50% { transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(150, 220, 255, 0.95)); }
 }
-/* ［商店］は幅いっぱい、［記録］［配合］は2つ並べる。木の縁に真ちゅうの金具の札 */
+/* ［商店］は幅いっぱい、［記録］［配合］は2つ並べる。木の縁に真ちゅうの金具の札。看板のすぐ下に置く */
 .hub-menus {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
+  gap: min(8px, 1.2cqh) 8px;
+  width: var(--sign-w);
+  margin: min(10px, 1.5cqh) auto 0;
 }
 .hub-item {
   position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  height: min(58px, 9.4cqh);
+  height: min(62px, 9.6cqh);
   padding: 0 8px;
   border-style: solid;
   border-width: 8px;
@@ -1914,8 +1939,8 @@ body:has(#base:not([hidden])) {
 }
 .hub-go img {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-stage,
