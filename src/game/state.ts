@@ -99,8 +99,8 @@ const SLEEP_TURNS: [number, number] = [2, 4];
 const AILMENT_CHANCE = 0.3;
 /** アミグモの糸で、主人公と仲間がはりつけになるターン数（魔物は攻撃されるまで） */
 const PIN_TURNS: [number, number] = [3, 5];
-/** クイムシの攻撃で減る満腹度 */
-const HUNGER_BITE = 10;
+/** クイムシの攻撃で減るMP（最大MPの割合。最低1） */
+const MANA_BITE = 0.01;
 /** チスイが吸い取る、与えたダメージの割合 */
 const DRAIN_RATE = 0.5;
 /** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
@@ -659,18 +659,8 @@ export class GameState {
    */
   tryMove(dir: Dir): 'moved' | 'none' {
     const p = this.player;
-    // 混乱しているときは、でたらめな方向へ進む。その先に魔物がいれば攻撃する
-    if (p.ailments.confused > 0) {
-      dir = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
-      const v = DIR_VECTORS[dir];
-      p.facing = dir;
-      if (this.monsterAt(p.pos.x + v.x, p.pos.y + v.y) || !this.map.canStep(p.pos, dir)) {
-        this.beginAction();
-        this.strike();
-        this.endTurn();
-        return 'none';
-      }
-    } else if (this.turnFirst && p.facing !== dir) {
+    // 混乱していても、移動は押した方向へ進む（でたらめになるのは攻撃の向きだけ）
+    if (this.turnFirst && p.facing !== dir) {
       p.facing = dir;
       return 'none';
     }
@@ -697,7 +687,6 @@ export class GameState {
    */
   dashDirection(dir: Dir): Dir | null {
     const p = this.player.pos;
-    if (this.player.ailments.confused > 0) return null;
     if (this.monsters.some((m) => this.isVisible(m.pos.x, m.pos.y))) return null;
     const open = (d: Dir) => {
       const v = DIR_VECTORS[d];
@@ -2011,12 +2000,12 @@ export class GameState {
 
   /**
    * 攻撃が当たったあと、攻撃した側（from）の特技を受けるか。who はログに出す名前、target は受けた側。
-   * お腹を減らすのは主人公だけ。魔物のはりつけは、攻撃されるまで解けない
+   * MPを減らすのは主人公だけ。魔物のはりつけは、攻撃されるまで解けない
    */
   private afflict(from: Species, ailments: Ailments, who: string, target: 'player' | 'ally' | 'monster'): void {
     const kind = from.special;
     if (kind === undefined || kind === 'breath' || kind === 'drain') return;
-    if (kind === 'hunger' && target !== 'player') return;
+    if (kind === 'manaBite' && target !== 'player') return;
     if (!this.rng.chance(AILMENT_CHANCE)) return;
     if (kind === 'spore') {
       ailments.confused = CONFUSE_TURNS;
@@ -2030,11 +2019,12 @@ export class GameState {
     } else if (kind === 'pin') {
       ailments.pinned = target === 'monster' ? 1 : this.rng.int(...PIN_TURNS);
       this.addLog(`${from.name}の糸 → ${who}ははりつけになった`);
-    } else if (kind === 'hunger') {
+    } else if (kind === 'manaBite') {
       const p = this.player;
-      if (p.food <= 0) return;
-      p.food = Math.max(0, p.food - HUNGER_BITE);
-      this.addLog(`${from.name}にかじられた → 満腹度が${HUNGER_BITE}減った`);
+      if (p.mp <= 0) return;
+      const loss = Math.min(p.mp, Math.max(1, Math.round(p.maxMp * MANA_BITE)));
+      p.mp -= loss;
+      this.addLog(`${from.name}にかじられた → MPが${loss}減った`);
     }
   }
 
@@ -2139,15 +2129,12 @@ export class GameState {
     if (this.isVisible(m.pos.x, m.pos.y)) m.lastSeen = { ...p };
     // はりつけ・昏睡の魔物と、モンスターハウスで眠っている魔物は動けない
     if (m.ailments.pinned > 0 || m.ailments.asleep > 0 || m.dormant) return;
-    // 混乱している魔物は、でたらめな方向へ1歩動くだけ
-    if (m.ailments.confused > 0) {
-      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(m.species, m.pos, d));
-      if (dirs.length > 0) this.moveMonster(m, this.rng.pick(dirs));
-      return;
-    }
+    // 混乱している魔物は、ふつうに動くが、攻撃の向きがでたらめになる。火・舌などの離れた攻撃はしない
+    const confused = m.ailments.confused > 0;
 
     // 火を吐く魔物は、まっすぐ4マス以内に主人公がいれば、ときどき火を吐く
     if (
+      !confused &&
       m.species.special === 'breath' &&
       m.lastSeen !== null &&
       distance(m.pos, p) >= 2 &&
@@ -2162,8 +2149,22 @@ export class GameState {
     }
 
     // 主人公に届けば主人公を、届かなくても隣に仲間がいれば仲間を攻撃する
-    const attackPlayer = m.lastSeen !== null && this.canAttackPlayer(m);
-    const allyTarget = attackPlayer ? undefined : this.allies.find((a) => this.canHitAdjacent(m.species, m.pos, a.pos));
+    let attackPlayer =
+      m.lastSeen !== null && (confused ? this.canHitAdjacent(m.species, m.pos, p) : this.canAttackPlayer(m));
+    let allyTarget = attackPlayer ? undefined : this.allies.find((a) => this.canHitAdjacent(m.species, m.pos, a.pos));
+    if ((attackPlayer || allyTarget) && confused) {
+      // 混乱：まわり8方向からでたらめに選んで攻撃する。そこに主人公か仲間がいれば当たり、いなければ空振り
+      const dir = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
+      const at = this.ahead(m.pos, dir);
+      const reach = (to: Pos) => to.x === at.x && to.y === at.y && this.canHitAdjacent(m.species, m.pos, to);
+      attackPlayer = reach(p);
+      allyTarget = attackPlayer ? undefined : this.allies.find((a) => reach(a.pos));
+      if (!attackPlayer && !allyTarget) {
+        m.facing = dir;
+        this.scene(m.pos, at, () => this.logIfNear(m.pos, `${m.species.name}は混乱して空振りした`));
+        return;
+      }
+    }
     if (attackPlayer || allyTarget) {
       const target = allyTarget?.pos ?? p;
       m.facing = dirFromDelta(target.x - m.pos.x, target.y - m.pos.y) ?? m.facing;
@@ -2315,12 +2316,8 @@ export class GameState {
     const species = a.card.species;
     // はりつけ・昏睡の仲間は動けない
     if (a.ailments.pinned > 0 || a.ailments.asleep > 0) return;
-    // 混乱している仲間は、でたらめな方向へ1歩動くだけ
-    if (a.ailments.confused > 0) {
-      const dirs = ([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]).filter((d) => this.canMoveTo(species, a.pos, d));
-      if (dirs.length > 0) this.moveAlly(a, this.rng.pick(dirs));
-      return;
-    }
+    // 混乱している仲間は、ふつうに動くが、攻撃の向きがでたらめになる。いかずち・火は使わない
+    const confused = a.ailments.confused > 0;
     // 逃げる：近くに魔物がいれば、まず離れる。逃げ場がなければ、その場で戦う
     if (a.order === 'flee' && this.fleeStep(a)) return;
     const adjacent = this.monsters
@@ -2328,7 +2325,19 @@ export class GameState {
       .sort((x, y) => x.hp - y.hp);
     if (adjacent.length > 0) {
       if (species.erratic && this.rng.chance(0.5)) return;
-      const target = adjacent[0];
+      let target = adjacent[0];
+      if (confused) {
+        // まわり8方向からでたらめに選ぶ。そこに魔物がいれば当たり、いなければ空振り
+        const dir = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
+        const at = this.ahead(a.pos, dir);
+        const hit = adjacent.find((m) => m.pos.x === at.x && m.pos.y === at.y);
+        if (!hit) {
+          a.facing = dir;
+          this.scene(a.pos, at, () => this.addLog(`${cardName(a.card)}は混乱して空振りした`));
+          return;
+        }
+        target = hit;
+      }
       a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
       // ガルフ・パタリは、続けてもう1回攻撃する（相手をたおしたら、そこでやめる）
       const hits = species.twoHits ? 2 : 1;
@@ -2348,7 +2357,7 @@ export class GameState {
       return;
     }
 
-    if (isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
+    if (!confused && isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
       const target = this.monsters.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
@@ -2360,7 +2369,7 @@ export class GameState {
     }
 
     // 火を吐く仲間は、まっすぐ4マス以内に見えている魔物に、ときどき火を吐く（必ず当たる）
-    if (species.special === 'breath' && this.rng.chance(BREATH_CHANCE)) {
+    if (!confused && species.special === 'breath' && this.rng.chance(BREATH_CHANCE)) {
       const target = this.monsters.find(
         (m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) >= 2 && this.isClearLine(a.pos, m.pos, BREATH_RANGE),
       );

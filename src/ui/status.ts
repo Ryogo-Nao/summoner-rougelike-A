@@ -21,7 +21,7 @@ function traits(species: Species, partner: boolean): string {
   if (species.special === 'breath') list.push('火を吐く\n召喚中は大火球を使える');
   if (species.special === 'sleep') list.push('鱗粉で眠らせる');
   if (species.special === 'pin') list.push('糸ではりつけにする');
-  if (species.special === 'hunger') list.push('かじってお腹を減らす');
+  if (species.special === 'manaBite') list.push('かじってMPを減らす');
   if (species.special === 'drain') list.push('与えたダメージの半分を吸い取る');
   if (species.regen) list.push('毎ターンHPが少し戻る');
   return list.length > 0 ? list.join('\n') : 'なし';
