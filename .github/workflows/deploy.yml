@@ -26,6 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # ゲームの決まりと性能のテスト（docs/test-plan.md）。落ちたら公開しない
+      - run: npm test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
