@@ -240,7 +240,9 @@ function playScenes(done: () => void): void {
   let start = performance.now();
   const frame = (now: number) => {
     const scene = scenes[index];
-    const duration = phase === 'lunge' ? LUNGE_MS : scene.popups.length > 0 ? HIT_MS : HIT_EMPTY_MS;
+    // 踏み込む者がいない場面（道具を使ったときなど）は、すぐに文字を出す
+    const lunge = scene.attacker < 0 ? 1 : LUNGE_MS;
+    const duration = phase === 'lunge' ? lunge : scene.popups.length > 0 ? HIT_MS : HIT_EMPTY_MS;
     const t = Math.min(1, (now - start) / duration);
     renderer.draw(state, { scene, phase, t });
     updateHud(

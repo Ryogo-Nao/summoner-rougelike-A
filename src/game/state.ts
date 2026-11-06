@@ -163,6 +163,7 @@ export interface DashSnapshot {
  */
 export interface Scene {
   actors: ActorView[];
+  /** 攻撃する者の actors の番号。-1 なら誰も踏み込まない（主人公が道具を使った場面など） */
   attacker: number;
   toward: Pos;
   popups: Popup[];
@@ -360,6 +361,9 @@ export class GameState {
   private followField: Int16Array = new Int16Array(0);
   /** この行動で起きた攻撃の場面。画面が再生する */
   private scenes: Scene[] = [];
+  /** この行動の前のログの番号と、主人公のHP。主人公の行動で出た文字を見せる場面に使う */
+  private actionLog = 0;
+  private actionHp = 0;
   /** 一度でも見たマス（ミニマップと、暗く表示する範囲） */
   explored!: Uint8Array;
   /** 今見えているマス */
@@ -1817,6 +1821,27 @@ export class GameState {
     this.turn++;
     this.popups = [];
     this.scenes = [];
+    this.actionLog = this.logSerial;
+    this.actionHp = this.player.hp;
+  }
+
+  /**
+   * 主人公の行動で出た文字（薬草の回復、魔力の水など）を、仲間と魔物が動く前の場面にする。
+   * こうしないと、回復の数字やログが、魔物の攻撃を見せ終わったあとに出てしまう
+   */
+  private showOwnAction(): void {
+    if (this.popups.length === 0) return;
+    const last = this.scenes[this.scenes.length - 1];
+    this.scenes.push({
+      actors: this.actorViews(),
+      attacker: -1,
+      toward: { ...this.player.pos },
+      popups: this.popups.splice(0),
+      logBefore: last ? last.logAfter : this.actionLog,
+      logAfter: this.logSerial,
+      hpBefore: last ? last.hpAfter : this.actionHp,
+      hpAfter: this.player.hp,
+    });
   }
 
   /** この行動で起きた攻撃の場面を取り出す。取り出すと空になる */
@@ -1894,6 +1919,7 @@ export class GameState {
   private endTurn(): void {
     // 転送の印で脱出した・踏破したときは、その場でダンジョンを出る。仲間も魔物も動かない
     if (this.escaped || this.cleared) return;
+    this.showOwnAction();
     // 主人公が動いた後の視界で、魔物が主人公に気づくかを決める
     this.updateVisibility();
     this.checkMonsterHouse();
