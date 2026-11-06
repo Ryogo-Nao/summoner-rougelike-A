@@ -122,6 +122,22 @@ Subject: [魔物の説明（下の表の英語）]
 ## 7. アイテムとアイコン（Recraft）
 Recraft では、最初に絵柄（スタイル）を1つ作り、すべてのアイコンをその絵柄で作る。
 
+**道具は種類ごとに代表の絵を1枚だけ使う**（2026-11-06 から）。道具を足すたびに絵を作らなくてよいようにする。装備（武器・盾）は見た目のかっこよさが大事なので、1つずつ絵を作る。
+どの絵を使うかは src/render/art.ts の artKind が、道具の決まり（items.ts）から決める。
+
+| 種類 | 使う絵 | その種類の道具 |
+|---|---|---|
+| 草（回復・治す） | item_herb（薬草） | 薬草・上薬草・毒消し草・キツケソウ |
+| 食べ物 | item_bread（パン） | パン・大きなパン |
+| 矢 | item_arrow（ふつうの矢） | ふつうの矢・鉄の矢 |
+| 印 | item_sealSummon（召喚の印） | 9種類の印 |
+| 星 | まだない（⭐の絵文字） | 9種類の星。絵を作ったら item_star.png にして ITEM_ART に足す |
+| 魔導書 | item_tomeGuard（守りの魔導書） | 力の魔導書・守りの魔導書 |
+| 袋 | item_holyPouch（聖なる袋） | ふつうの袋・高級な袋・聖なる袋 |
+| 1つずつ | それぞれの絵 | 武器・盾、魔力の水・白紙カード・ルーン・錬金釜・配合の書・転生の書 |
+
+下の表の bigBread・bigHerb・antidote・kitsuke・ironArrow・tomePower・pouch・finePouch と、召喚の印のほかの印の絵は、使わなくなったので消した（指示文は残す）。
+
 **共通の指示文（英語）**
 ```
 Cute fantasy game item icon, original design. Single object, centered, slightly tilted 3/4 view.
@@ -142,7 +158,8 @@ Transparent background, no text, no shadow, no border.
 | blank | 白紙カード | a blank magic card with a gold frame |
 | arrow | ふつうの矢 | a bundle of three wooden arrows with white feathers |
 | ironArrow | 鉄の矢 | a bundle of three arrows with iron tips |
-| seal | ○○の印 | a rolled magic scroll with a ribbon（印ごとにリボンと紋章の色を変える） |
+| seal | ○○の印 | a rolled magic scroll with a ribbon（今は召喚の印の絵を、すべての印で使う） |
+| star | ○○の星 | a small glowing golden star candy（まだない。星9種類で1枚） |
 | tomePower | 力の魔導書 | a thick red magic book with a fist emblem |
 | tomeGuard | 守りの魔導書 | a thick blue magic book with a shield emblem |
 | pot | 錬金釜 | a small round alchemy cauldron with bubbling liquid |
@@ -182,13 +199,13 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | 見出し：名前の札 | src/ui-art/topplate.png | 紺の板に金の縁。slice 26 |
 | 見出し：ルーンの札 | src/ui-art/runeplate.png | 左右がひし形の金の飾り。札の大きさに合わせて伸ばす |
 | メニュー・タブのアイコン・矢印（金の2つ重ねの山形）・ルーンの宝石 | public/art/ui_hub_*.png・ui_tab_*.png・ui_chevron.png・ui_rune.png | 冒険・配合・商店のタブは、トップのメニューのアイコンを使い回す |
-| 道具のアイコン | public/art/item_<種類>.png（160） | 一覧の行と、マップに落ちている道具。src/render/art.ts の ITEM_ART に種類を足す |
+| 道具のアイコン | public/art/item_<名前>.png（160） | 一覧の行と、マップに落ちている道具。種類ごとに代表の1枚（7章）。src/render/art.ts の ITEM_ART に名前を足す |
 
 - 板は、届いた絵から角を丸く切り抜いて作る（まわりの地を透明にする）。素材の絵の半分の大きさにして軽くしている
 - 道具のアイコンは 3×3 の9個を1枚で作ってもらい、1つずつ切り出して scripts/key-art.ps1 -Icon で背景を抜く
   - -Icon は、絵の中の緑（薬草の葉など）を消さないための指定。それでも葉が消えるとき（薬草・上薬草・毒消し草）は、背景の色に近い所だけを外側から抜く
   - 名前の文字が絵に入っていたら、文字の行を外して切り出す。右下の透かしは、背景の色で塗ってから抜く
-- 今ある道具は、ルーンも含めてすべて絵がある（34種）。道具を足したら、同じ頼み方で絵を作り、ITEM_ART に足す
+- 道具の絵は種類ごとに1枚（7章）。今ある種類で絵がないのは星だけ。新しい種類の道具や装備を足したら、同じ頼み方で絵を作り、ITEM_ART に足す
 - 届いた絵に区切りの罫線があるときは、罫線も外して切り出す
 - つるの葉など、絵の中に緑があるときは、地の色との近さで抜く（緑みの強さで抜くと葉も薄くなる）。抜いた所のそばは、緑のにじみを弱める
 - 鎖の輪や歯車の穴のように、絵に囲まれた緑は外側からの塗りつぶしでは抜けない。囲まれたはっきりした緑も抜く（uikey の -Inner、key-art の -Inner）

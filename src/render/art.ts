@@ -3,17 +3,37 @@
  * 絵がまだないものは、今までどおり絵文字で出す
  */
 
-/** 絵のファイルがあるもの。player は主人公、ほかは魔物の id（ファイル名は monster_<id>.png） */
-/** 道具の絵があるもの（ファイル名は item_<種類>.png）。ない道具は絵文字のまま出す */
+import { ITEMS, type ItemKind } from '../game/items';
+
+/**
+ * 道具の絵（docs/art-guide.md 7章）。道具は種類ごとに代表の絵を1枚使い、装備（武器・盾）だけは1つずつ絵を持つ。
+ * 種類は道具の決まり（items.ts）から決めるので、同じ種類の道具を足しても、絵を足さなくてよい
+ */
+function artKind(kind: ItemKind): string {
+  const d = ITEMS[kind];
+  if (d.slot) return kind;
+  if (d.seal) return 'sealSummon';
+  if (d.star) return 'star';
+  if (d.pouch) return 'holyPouch';
+  if (d.spell) return 'tomeGuard';
+  if (d.heal || d.cure) return 'herb';
+  if (d.arrow) return 'arrow';
+  if (d.food) return 'bread';
+  return kind;
+}
+
+/** 絵のファイルがあるもの（ファイル名は item_<名前>.png）。星はまだ絵がないので、絵文字で出す */
 const ITEM_ART = new Set([
-  'bread', 'bigBread', 'herb', 'bigHerb', 'antidote', 'kitsuke', 'water', 'blank', 'rune',
-  'arrow', 'ironArrow', 'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield', 'pot',
-  'sealReveal', 'sealEscape', 'sealPoison', 'sealConfuse', 'sealPin', 'sealSleep', 'sealSummon', 'sealRevive', 'sealDoom',
-  'tomePower', 'tomeGuard', 'fusionBook', 'rebirthBook', 'pouch', 'finePouch', 'holyPouch',
+  'herb', 'bread', 'arrow', 'sealSummon', 'tomeGuard', 'holyPouch',
+  'water', 'blank', 'rune', 'pot', 'fusionBook', 'rebirthBook',
+  'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield',
 ]);
 
 /** 道具の絵の id（artElement・artImage に渡す）。絵がなければ undefined */
-export const itemArt = (kind: string) => (ITEM_ART.has(kind) ? `item_${kind}` : undefined);
+export function itemArt(kind: string): string | undefined {
+  const art = kind in ITEMS ? artKind(kind as ItemKind) : kind;
+  return ITEM_ART.has(art) ? `item_${art}` : undefined;
+}
 
 const ART_IDS = new Set([
   'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
