@@ -18,7 +18,7 @@ import {
   type EffectPhase,
   type Pose,
 } from './effects';
-import { SpellFx } from './spells';
+import { SpellFx, isSeal } from './spells';
 import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
@@ -115,6 +115,7 @@ const POPUP_COLORS: Record<Popup['kind'], string> = {
   hurt: '#ff7a8a',
   miss: '#b8b2cc',
   info: '#ffd84a',
+  status: '#d9b8ff',
 };
 
 /** ミニマップの1マスの大きさ（px） */
@@ -349,20 +350,22 @@ export class Renderer {
       let alpha = 1;
       if (play?.phase === 'windup' && i === play.scene.attacker && !NO_LUNGE.has(play.scene.action)) {
         const { x: ux, y: uy } = unitToward(actor.pos, play.scene.toward);
-        if (play.scene.action === 'attack' || CAST_ACTIONS.has(play.scene.action) || play.scene.action === 'burst') {
-          // 隣への攻撃は種族ごとの動き方（キャラクターの台帳）で、魔法は唱える姿で、炸裂の星はぴょんと跳ねて動く
+        const act = play.scene.action;
+        if (act === 'attack' || CAST_ACTIONS.has(act) || act === 'burst' || act === 'breath' || act === 'lightning') {
+          // 隣への攻撃は種族ごとの動き方（キャラクターの台帳）で、魔法・火を吐く・いかずちは唱える姿（のけぞってためる）で、
+          // 炸裂の星はぴょんと跳ねて動く
           pose =
-            play.scene.action === 'attack'
+            act === 'attack'
               ? motionPose(actor.isPlayer ? PLAYER_MOTION : characterInfo(actor.art).motion, play.t)
-              : play.scene.action === 'burst'
+              : act === 'burst'
                 ? hopPose(play.t)
                 : castPose(play.t);
           sx += ux * pose.forward * ts;
           sy += uy * pose.forward * ts - pose.lift * ts;
         } else {
-          // 舌・火を吐く・いかずち・投げるなどは、相手の方へ踏み込んで、元の位置に戻る
-          const tossing = play.scene.action === 'throw' || play.scene.action === 'shoot';
-          const depth = Math.sin(play.t * Math.PI) * (tossing ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
+          // 舌・触手と、投げる・撃つは、相手の方へ軽く踏み込んで、元の位置に戻る
+          const light = act === 'throw' || act === 'shoot' || act === 'reach';
+          const depth = Math.sin(play.t * Math.PI) * (light ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
           sx += ux * depth;
           sy += uy * depth;
         }
@@ -382,11 +385,17 @@ export class Renderer {
         }
       }
       if (impact && play!.scene.defeated.includes(actor.key) && play!.t >= FADE_FROM) {
-        // たおれた者は、沈みながら小さく薄くなって消える
         const f = (play!.t - FADE_FROM) / (1 - FADE_FROM);
         alpha = 1 - f;
-        sy += f * ts * 0.18;
-        pose = { forward: 0, lift: 0, lean: 0, wobble: f * 0.3, sx: 1 - f * 0.4, sy: 1 - f * 0.55 };
+        if (isSeal(play!.scene)) {
+          // 封印された魔物は、回りながら浮かび、光の中へ小さく吸いこまれる
+          sy -= f * ts * 0.3;
+          pose = { forward: 0, lift: 0, lean: 0, wobble: f * Math.PI * 3, sx: 1 - f * 0.85, sy: 1 - f * 0.85 };
+        } else {
+          // たおれた者は、沈みながら小さく薄くなって消える
+          sy += f * ts * 0.18;
+          pose = { forward: 0, lift: 0, lean: 0, wobble: f * 0.3, sx: 1 - f * 0.4, sy: 1 - f * 0.55 };
+        }
       }
       if (alpha <= 0) return;
       this.drawActor(actor, sx, sy, now, pose, alpha, play && i === play.scene.attacker ? play.scene.toward : undefined);
@@ -434,8 +443,8 @@ export class Renderer {
       });
       if (p.kind === 'hurt' && me && p.pos.x === me.x && p.pos.y === me.y) this.shake.kick(HURT_SHAKE, HURT_SHAKE_MS, now);
     }
-    // たおれた者からは、消えていくときに煙が立ちのぼる
-    for (const key of scene.defeated) {
+    // たおれた者からは、消えていくときに煙が立ちのぼる（封印は光の柱だけにする）
+    for (const key of isSeal(scene) ? [] : scene.defeated) {
       const a = scene.actors.find((x) => x.key === key);
       if (!a) continue;
       this.particles.burst({

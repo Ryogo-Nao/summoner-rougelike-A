@@ -23,6 +23,33 @@ const SPARK = ['#ffffff', '#fff3a0', '#ffe14a'];
 const POWER = ['#ffd84a', '#ff9a5a', '#ff6a5a'];
 const GUARD = ['#ffffff', '#bfe4ff', '#7cc4ff'];
 
+const HEAL = ['#ffffff', '#b8ffd8', '#5fe8a0'];
+const GOLD = ['#ffffff', '#fff3b0', '#ffd84a'];
+
+/**
+ * 状態異常・状態の変化（Popup の kind が status）の文字ごとの、粒の色と動き。
+ * rise は上へ昇る（泡・光）、fall は下へ落ちる、burst はまわりへ散る
+ */
+const STATUS_FX: Record<string, { color: string[]; move: 'rise' | 'fall' | 'burst'; ring?: string }> = {
+  混乱: { color: ['#fff6a0', '#ffd84a', '#ffffff'], move: 'burst', ring: 'rgba(255, 230, 120, 1)' },
+  毒: { color: ['#d6a0ff', '#a060e0', '#7a3fc0'], move: 'rise' },
+  眠り: { color: ['#d8ecff', '#a8d0ff', '#ffffff'], move: 'rise' },
+  はりつけ: { color: ['#ffffff', '#e8e8f0', '#c8c8d8'], move: 'burst', ring: 'rgba(240, 240, 255, 1)' },
+  激昂: { color: ['#ffb070', '#ff6a4a', '#ffd84a'], move: 'rise', ring: 'rgba(255, 120, 80, 1)' },
+  要塞: { color: ['#d8e8ff', '#9ab8e0', '#ffffff'], move: 'burst', ring: 'rgba(170, 200, 240, 1)' },
+  治った: { color: HEAL, move: 'rise' },
+};
+/** MP が減ったとき（クイムシ）。青い粒が下へこぼれる */
+const MP_LOSS = { color: ['#a8c8ff', '#6f9dff', '#ffffff'], move: 'fall' as const };
+
+/** 舌・触手の色。触手はヌラリカ、ほかは舌 */
+const TENTACLE = new Set(['nurarika']);
+
+/** 白紙カードで封印した場面か */
+export function isSeal(scene: Scene): boolean {
+  return scene.item === 'blank' && scene.popups.some((p) => p.text === '封印');
+}
+
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 /** 決まった種からの 0〜1 の数（毎フレーム同じ形の稲妻を描くため） */
 const hash = (n: number) => {
@@ -143,6 +170,58 @@ export class SpellFx {
       }
       ctx.restore();
     }
+    if (scene.action === 'reach' && caster && (phase === 'travel' || (phase === 'impact' && t < 0.4))) {
+      // 舌・触手が相手まで伸び、当たったら縮んで戻る
+      const reach = phase === 'travel' ? t : 1 - t / 0.4;
+      const target = scene.cells[scene.cells.length - 1] ?? scene.toward;
+      // 体のまん中ではなく、相手側に少し寄った口もとから出す
+      const a = center(caster.pos);
+      const b = center(target);
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const mouth = { x: a.x + ((b.x - a.x) / len) * ts * 0.3, y: a.y + ((b.y - a.y) / len) * ts * 0.3 + ts * 0.08 };
+      this.tongue(ctx, mouth, b, reach, ts, TENTACLE.has(caster.art), now);
+    }
+    if (scene.action === 'breath' && caster && (phase === 'travel' || (phase === 'impact' && t < 0.35))) {
+      // 口もとから相手へ、火が吹きつける
+      const a = center(caster.pos);
+      const target = scene.cells[scene.cells.length - 1] ?? scene.toward;
+      const b = center(target);
+      const reachK = phase === 'travel' ? t : 1;
+      const fade = phase === 'impact' ? 1 - t / 0.35 : 1;
+      const steps = 6;
+      for (let i = 1; i <= steps; i++) {
+        const k = (i / steps) * reachK;
+        const x = a.x + (b.x - a.x) * k;
+        const y = a.y + (b.y - a.y) * k;
+        this.flame(ctx, x, y + ts * 0.1, ts * (0.14 + 0.16 * (i / steps)), fade * (0.6 + 0.4 * (i / steps)), now + i * 90);
+      }
+      if (phase === 'travel') {
+        const len = Math.hypot(target.x - caster.pos.x, target.y - caster.pos.y) || 1;
+        const vx = ((target.x - caster.pos.x) / len) * 5;
+        const vy = ((target.y - caster.pos.y) / len) * 5;
+        this.particles.burst({ x: caster.pos.x + 0.5 + vx * 0.04, y: caster.pos.y + 0.5 + vy * 0.04, count: 2, color: FIRE, speed: [0.2, 0.6], size: [0.03, 0.06], life: [160, 260], glow: true });
+      }
+    }
+    if (scene.action === 'lightning' && caster && (phase === 'travel' || (phase === 'impact' && t < 0.3))) {
+      // 相棒から相手へ、稲妻が横に走る
+      const target = scene.cells[scene.cells.length - 1] ?? scene.toward;
+      const a = center(caster.pos);
+      const b = center(target);
+      const k = phase === 'travel' ? t : 1;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = phase === 'impact' ? 1 - t / 0.3 : 1;
+      this.boltBetween(ctx, a.x, a.y, a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, ts, Math.floor(now / 50) * 7 + 3);
+      ctx.restore();
+    }
+    if (phase === 'impact' && t < 0.85) {
+      // 封印とレベルアップは、そのマスに光の柱が立つ
+      for (const p of scene.popups) {
+        if (p.text !== '封印' && p.text !== 'Lv UP') continue;
+        const c = center(p.pos);
+        this.pillar(ctx, c.x, c.y, ts, t / 0.85, p.text === '封印');
+      }
+    }
     if (scene.action === 'guard' && phase === 'impact') {
       for (const c of scene.cells) {
         const p = center(c);
@@ -187,16 +266,25 @@ export class SpellFx {
     ctx.restore();
   }
 
-  /** 空から落ちる稲妻。ぎざぎざの線を、太い光と細い白の芯で描く */
+  /** 空から落ちる稲妻 */
   private bolt(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, seed: number): void {
-    const top = y - ts * 4;
-    const points: [number, number][] = [[x + (hash(seed) - 0.5) * ts, top]];
-    const steps = 7;
+    this.boltBetween(ctx, x + (hash(seed) - 0.5) * ts, y - ts * 4, x, y, ts, seed);
+  }
+
+  /** (x0, y0) から (x1, y1) へ走る稲妻。ぎざぎざの線を、太い光と細い白の芯で描く */
+  private boltBetween(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, ts: number, seed: number): void {
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    // 進む向きに直角な向きへ、ぎざぎざにずらす
+    const nx = -(y1 - y0) / len;
+    const ny = (x1 - x0) / len;
+    const points: [number, number][] = [[x0, y0]];
+    const steps = Math.max(3, Math.round(len / (ts * 0.5)));
     for (let i = 1; i < steps; i++) {
       const k = i / steps;
-      points.push([x + (hash(seed + i) - 0.5) * ts * 0.7 * (1 - k * 0.6), top + (y - top) * k]);
+      const off = (hash(seed + i) - 0.5) * ts * 0.6;
+      points.push([x0 + (x1 - x0) * k + nx * off, y0 + (y1 - y0) * k + ny * off]);
     }
-    points.push([x, y]);
+    points.push([x1, y1]);
     const line = (width: number, color: string) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
@@ -208,6 +296,80 @@ export class SpellFx {
     line(Math.max(4, ts * 0.22), 'rgba(255, 230, 100, 0.35)');
     line(Math.max(2, ts * 0.09), 'rgba(255, 245, 170, 0.9)');
     line(Math.max(1, ts * 0.035), 'rgba(255, 255, 255, 1)');
+  }
+
+  /**
+   * 舌・触手。from（口もと）から to へ、reach（0〜1）の長さまで伸ばす。
+   * 舌は桃色の太い線に丸い先、触手は紫の太い線を波打たせ、吸盤の点を付ける
+   */
+  private tongue(
+    ctx: CanvasRenderingContext2D,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    reach: number,
+    ts: number,
+    tentacle: boolean,
+    now: number,
+  ): void {
+    if (reach <= 0) return;
+    const ex = from.x + (to.x - from.x) * reach;
+    const ey = from.y + (to.y - from.y) * reach;
+    const len = Math.hypot(ex - from.x, ey - from.y) || 1;
+    const nx = -(ey - from.y) / len;
+    const ny = (ex - from.x) / len;
+    const steps = 10;
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps;
+      const wave = tentacle ? Math.sin(k * Math.PI * 2.5 - now / 60) * ts * 0.08 * Math.sin(k * Math.PI) : 0;
+      pts.push([from.x + (ex - from.x) * k + nx * wave, from.y + (ey - from.y) * k + ny * wave]);
+    }
+    const stroke = (width: number, color: string) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      ctx.stroke();
+    };
+    ctx.save();
+    stroke(Math.max(4, ts * 0.17), '#2b3a67');
+    stroke(Math.max(2.5, ts * 0.12), tentacle ? '#5a4fa8' : '#ff8fa8');
+    if (tentacle) {
+      ctx.fillStyle = '#c8b8ff';
+      for (let i = 2; i < steps; i += 2) {
+        ctx.beginPath();
+        ctx.arc(pts[i][0], pts[i][1], Math.max(1, ts * 0.025), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = '#ff6f8f';
+      ctx.beginPath();
+      ctx.arc(ex, ey, Math.max(2.5, ts * 0.09), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** 封印・レベルアップの光の柱。封印は白金、レベルアップは金。下から伸びて、細くなって消える */
+  private pillar(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, t: number, seal: boolean): void {
+    const grow = clamp01(t * 3);
+    const alpha = t < 0.6 ? 1 : (1 - t) / 0.4;
+    const w = ts * (seal ? 0.5 : 0.42) * (1 - t * 0.5);
+    const h = ts * 2.2 * grow;
+    const base = y + ts * 0.4;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(x, base, x, base - h);
+    const rgb = seal ? '235, 240, 255' : '255, 220, 110';
+    g.addColorStop(0, `rgba(${rgb}, ${0.7 * alpha})`);
+    g.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x - w / 2, base - h, w, h);
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.6 * alpha})`;
+    ctx.fillRect(x - w * 0.12, base - h, w * 0.24, h);
+    ctx.restore();
   }
 
   /** 守りの魔法の盾。光の泡が包み、六角の線が締まって消える */
@@ -260,7 +422,18 @@ export class SpellFx {
   impact(scene: Scene, now: number): void {
     const hits = scene.popups.filter((p) => p.kind === 'damage').map((p) => p.pos);
     const last = scene.cells[scene.cells.length - 1];
+    this.popupEffects(scene, now);
     switch (scene.action) {
+      case 'breath':
+        // 火が当たったところで、小さく燃え上がる
+        for (const p of scene.popups) {
+          if (p.kind === 'damage' || p.kind === 'hurt') this.particles.burst({ x: p.pos.x + 0.5, y: p.pos.y + 0.55, count: 12, color: FIRE, speed: [0.8, 2.2], size: [0.04, 0.08], life: [220, 380], gravity: -1.5, glow: true });
+        }
+        break;
+      case 'lightning':
+        for (const h of hits) this.particles.burst({ x: h.x + 0.5, y: h.y + 0.5, count: 14, color: SPARK, speed: [1.5, 3.4], size: [0.03, 0.06], life: [160, 300], glow: true });
+        if (hits.length > 0) this.flash.kick('255, 250, 210', 0.18, 120, now);
+        break;
       case 'fire':
         if (hits.length > 0) for (const h of hits) this.explode(h, 0.8, now);
         else if (last) this.particles.burst({ x: last.x + 0.5, y: last.y + 0.5, count: 8, color: FIRE, speed: [0.5, 1.4], size: [0.03, 0.06], life: [160, 280], glow: true });
@@ -304,6 +477,31 @@ export class SpellFx {
           this.shake.kick(0.12, 260, now);
         }
         break;
+    }
+  }
+
+  /**
+   * 文字（Popup）ごとの小さな演出。回復は緑の光が昇り、状態異常は色ごとの粒と輪、
+   * 封印・レベルアップは光の粒が散る（柱は top で描く）
+   */
+  private popupEffects(scene: Scene, now: number): void {
+    for (const p of scene.popups) {
+      const x = p.pos.x + 0.5;
+      const y = p.pos.y + 0.5;
+      if (p.kind === 'info' && p.text.startsWith('+')) {
+        this.particles.burst({ x, y: y + 0.2, count: 12, color: HEAL, speed: [0.1, 0.5], size: [0.03, 0.06], life: [420, 640], gravity: -1.8, glow: true });
+        this.rings.add({ x, y: y + 0.3, duration: 420, radius: 0.6, color: 'rgba(120, 240, 170, 1)', flat: true }, now);
+      } else if (p.text === '封印' || p.text === 'Lv UP') {
+        this.particles.burst({ x, y, count: 18, color: p.text === '封印' ? ['#ffffff', '#e8f0ff', '#ffe596'] : GOLD, speed: [0.6, 2], size: [0.03, 0.06], life: [400, 700], gravity: -1, glow: true, delay: 80 });
+        this.rings.add({ x, y: y + 0.3, duration: 480, radius: 0.9, color: 'rgba(255, 230, 140, 1)', flat: true }, now);
+      } else if (p.kind === 'status') {
+        const fx = STATUS_FX[p.text] ?? MP_LOSS;
+        const gravity = fx.move === 'rise' ? -1.6 : fx.move === 'fall' ? 2.4 : 0;
+        const speed: [number, number] = fx.move === 'burst' ? [1, 2.2] : [0.15, 0.6];
+        this.particles.burst({ x, y, count: 12, color: fx.color, speed, size: [0.03, 0.065], life: [380, 620], gravity, glow: true, delay: 60 });
+        const ring = 'ring' in fx ? fx.ring : undefined;
+        if (ring) this.rings.add({ x, y: y + 0.2, duration: 420, radius: 0.65, color: ring, flat: true }, now);
+      }
     }
   }
 

@@ -57,6 +57,18 @@ const SPELL_TIMING: Partial<Record<SceneAction, { cast: number; travel: number; 
   guard: { cast: 240, travel: 0, impact: 460 },
   burst: { cast: 150, travel: 0, impact: 400 },
 };
+
+/**
+ * 舌・触手、火を吐く、いかずちの段の長さ（ミリ秒）。windup は構える、travel は舌が伸びる・火が届く・稲妻が走る。
+ * 舌は当たる段の初めに縮んで戻る
+ */
+const RANGED_TIMING: Partial<Record<SceneAction, EffectTiming>> = {
+  reach: { windup: 120, travel: 150, impact: 300 },
+  breath: { windup: 170, travel: 280, impact: 300 },
+  lightning: { windup: 170, travel: 130, impact: 320 },
+};
+/** 封印した・レベルが上がった場面は、光の柱を見せきるまで当たる段を短くしない */
+const GLORY_IMPACT_MS = 560;
 /** 火の魔法が1マス進む長さと、いちばん短い飛ぶ長さ */
 const FIRE_PER_TILE_MS = 45;
 const FIRE_TRAVEL_MIN_MS = 120;
@@ -66,6 +78,10 @@ const BLAST_IMPACT_MS = 400;
 /** 速さ「ふつう」のときの、場面の段の長さ */
 export function timingOf(scene: Scene): EffectTiming {
   const impact = scene.defeated.length > 0 ? IMPACT_DEFEAT_MS : scene.popups.length > 0 ? IMPACT_MS : IMPACT_EMPTY_MS;
+  // 封印とレベルアップは、光の柱を見せる
+  const glory = scene.popups.some((p) => p.text === '封印' || p.text === 'Lv UP');
+  const ranged = RANGED_TIMING[scene.action];
+  if (ranged) return { ...ranged, impact: Math.max(impact, ranged.impact, glory ? GLORY_IMPACT_MS : 0) };
   const spell = SPELL_TIMING[scene.action];
   if (spell) {
     const travel =
@@ -78,13 +94,17 @@ export function timingOf(scene: Scene): EffectTiming {
       const travel = Math.max(TRAVEL_MIN_MS, scene.cells.length * TRAVEL_PER_TILE_MS);
       // 投げた炸裂の星が当たったときは、爆発を見せる
       const blast = scene.item === 'starBurst' && scene.popups.some((p) => p.kind === 'damage');
-      return { windup: TOSS_MS, travel, impact: blast ? Math.max(impact, BLAST_IMPACT_MS) : impact };
+      return {
+        windup: TOSS_MS,
+        travel,
+        impact: Math.max(impact, blast ? BLAST_IMPACT_MS : 0, glory ? GLORY_IMPACT_MS : 0),
+      };
     }
     case 'item':
       // 誰も踏み込まない。すぐに文字を出す
       return { windup: 0, travel: 0, impact };
     default:
-      return { windup: scene.attacker < 0 ? 0 : WINDUP_MS, travel: 0, impact };
+      return { windup: scene.attacker < 0 ? 0 : WINDUP_MS, travel: 0, impact: Math.max(impact, glory ? GLORY_IMPACT_MS : 0) };
   }
 }
 

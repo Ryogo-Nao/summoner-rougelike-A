@@ -1,10 +1,11 @@
-// 1.8 演出（docs/test-plan.md F-74・F-77・F-78）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
+// 1.8 演出（docs/test-plan.md F-74・F-77・F-78・F-81）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
 // 段の長さ（src/render/effects.ts）も確かめる。見た目は手とブラウザで確かめる
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS, MOTION_LABEL, type Motion } from '../../src/game/characters';
 import { createItem } from '../../src/game/items';
-import type { Scene } from '../../src/game/state';
+import { STATUS_TEXT, type Scene } from '../../src/game/state';
 import { isRepeat, motionPose, phaseAt, scaledTiming, timingOf, totalOf } from '../../src/render/effects';
+import { isSeal } from '../../src/render/spells';
 import { emptyState, placeMonster, sturdy } from '../helpers';
 
 const same = (a: { x: number; y: number }, b: { x: number; y: number }) => a.x === b.x && a.y === b.y;
@@ -228,5 +229,47 @@ describe('F-78 魔法と星の演出', () => {
     const s = g.takeScenes()[0];
     expect(s.action).toBe('throw');
     expect(timingOf(s).impact).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe('F-81 舌・火を吐く・封印・レベルアップ・状態異常の演出', () => {
+  it('舌・火を吐く・いかずちは、伸びる・届く「飛ぶ段」がある', () => {
+    for (const action of ['reach', 'breath', 'lightning'] as const) {
+      const s = { attacker: 0, action, cells: [], popups: [], defeated: [] } as unknown as Scene;
+      expect(timingOf(s).travel, action).toBeGreaterThan(0);
+    }
+  });
+
+  it('封印した場面・レベルが上がった場面は、光の柱を見せるぶん当たる段が長い', () => {
+    const base = { attacker: 0, cells: [], defeated: [] };
+    const seal = { ...base, action: 'throw', item: 'blank', popups: [{ pos: { x: 0, y: 0 }, text: '封印', kind: 'info' }] } as unknown as Scene;
+    const lv = { ...base, action: 'attack', popups: [{ pos: { x: 0, y: 0 }, text: 'Lv UP', kind: 'info' }] } as unknown as Scene;
+    expect(isSeal(seal)).toBe(true);
+    expect(timingOf(seal).impact).toBeGreaterThanOrEqual(560);
+    expect(timingOf(lv).impact).toBeGreaterThanOrEqual(560);
+  });
+
+  it('魔物の胞子で混乱すると、主人公のマスに「混乱」の文字（status）が出る', () => {
+    let found = false;
+    for (let seed = 50; seed < 90 && !found; seed++) {
+      const g = emptyState(seed);
+      sturdy(g);
+      placeMonster(g, 'pokotake');
+      for (let i = 0; i < 6 && !found; i++) {
+        g.wait();
+        const s = g.takeScenes().flatMap((x) => x.popups);
+        found = s.some((p) => p.kind === 'status' && p.text === STATUS_TEXT.confuse && p.pos.x === g.player.pos.x && p.pos.y === g.player.pos.y);
+      }
+    }
+    expect(found).toBe(true);
+  });
+
+  it('混乱の星を食べると、自分のマスに「混乱」の文字が出る', () => {
+    const g = emptyState(51);
+    const star = createItem('starConfuse');
+    g.bag.push(star);
+    g.useItem(star);
+    const popups = g.takeScenes().flatMap((x) => x.popups);
+    expect(popups.some((p) => p.kind === 'status' && p.text === STATUS_TEXT.confuse)).toBe(true);
   });
 });

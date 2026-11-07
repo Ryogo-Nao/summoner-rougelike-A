@@ -99,6 +99,16 @@ const SLEEP_TURNS: [number, number] = [2, 4];
 const AILMENT_CHANCE = 0.3;
 /** アミグモの糸で、主人公と仲間がはりつけになるターン数（魔物は攻撃されるまで） */
 const PIN_TURNS: [number, number] = [3, 5];
+/** 状態異常・状態の変化のとき、マスの上に出す文字（演出の色と形もこれで決まる。render/spells.ts） */
+export const STATUS_TEXT = {
+  confuse: '混乱',
+  poison: '毒',
+  sleep: '眠り',
+  pin: 'はりつけ',
+  rage: '激昂',
+  fort: '要塞',
+  cure: '治った',
+} as const;
 /** クイムシの攻撃で減るMP（最大MPの割合。最低1） */
 const MANA_BITE = 0.01;
 /** チスイが吸い取る、与えたダメージの割合 */
@@ -240,10 +250,14 @@ export interface Player {
 }
 
 /** マップの上に一時的に出す文字（ダメージなど）。次の行動で消える */
+/**
+ * マスの上に出す文字。damage は与えたダメージ、hurt は受けたダメージ、miss は外れ、info は回復・Lv UP など、
+ * status は状態異常・状態の変化（混乱・毒・眠り・はりつけ・MP減・激昂・要塞・治った）
+ */
 export interface Popup {
   pos: Pos;
   text: string;
-  kind: 'damage' | 'hurt' | 'miss' | 'info';
+  kind: 'damage' | 'hurt' | 'miss' | 'info' | 'status';
 }
 
 /** ダンジョンに持っていくもの。拠点で選ぶ */
@@ -1149,7 +1163,7 @@ export class GameState {
       else this.addLog('何も起きなかった');
       return;
     }
-    this.starEffect(kind, p.ailments, 'あなた');
+    this.starEffect(kind, p.ailments, 'あなた', p.pos);
     // 食べたターンの終わりにも1減るので、そのぶん足して、次のターンから10ターン効くようにする
     if (kind === 'rage') p.ailments.raged++;
     if (kind === 'fort') p.ailments.fortified++;
@@ -1178,26 +1192,32 @@ export class GameState {
       if (monster && this.provoker === monster) this.provoker = null;
       return;
     }
-    this.starEffect(kind, ally ? ally.ailments : monster!.ailments, hitName);
+    this.starEffect(kind, ally ? ally.ailments : monster!.ailments, hitName, (ally ?? monster!).pos);
   }
 
   /** 状態を変える星（睡眠・混乱・毒・激昂・要塞・癒し）の効き目。who はログに出す名前 */
-  private starEffect(kind: StarKind, a: Ailments, who: string): void {
+  private starEffect(kind: StarKind, a: Ailments, who: string, at: Pos): void {
+    const mark = (text: string) => this.popups.push({ pos: { ...at }, text, kind: 'status' });
     if (kind === 'sleep') {
       a.asleep = this.rng.int(...SLEEP_TURNS);
       this.addLog(`${who}は眠ってしまった`);
+      mark(STATUS_TEXT.sleep);
     } else if (kind === 'confuse') {
       a.confused = CONFUSE_TURNS;
       this.addLog(`${who}は混乱した`);
+      mark(STATUS_TEXT.confuse);
     } else if (kind === 'poison') {
       a.poisoned = POISON_TURNS;
       this.addLog(`${who}は毒を受けた`);
+      mark(STATUS_TEXT.poison);
     } else if (kind === 'rage') {
       a.raged = STAR_TURNS;
       this.addLog(`${who}は激昂した（攻撃2倍）`);
+      mark(STATUS_TEXT.rage);
     } else if (kind === 'fort') {
       a.fortified = STAR_TURNS;
       this.addLog(`${who}の守りが固くなった（受けるダメージ60％減）`);
+      mark(STATUS_TEXT.fort);
     } else if (kind === 'heal') {
       if (a.confused + a.poisoned + a.pinned + a.asleep === 0) {
         this.addLog(`${who}は状態異常になっていない`);
@@ -1208,6 +1228,7 @@ export class GameState {
       a.pinned = 0;
       a.asleep = 0;
       this.addLog(`${who}の状態異常がすべて治った`);
+      mark(STATUS_TEXT.cure);
     }
   }
 
@@ -2127,29 +2148,35 @@ export class GameState {
    * 攻撃が当たったあと、攻撃した側（from）の特技を受けるか。who はログに出す名前、target は受けた側。
    * MPを減らすのは主人公だけ。魔物のはりつけは、攻撃されるまで解けない
    */
-  private afflict(from: Species, ailments: Ailments, who: string, target: 'player' | 'ally' | 'monster'): void {
+  private afflict(from: Species, ailments: Ailments, who: string, target: 'player' | 'ally' | 'monster', at: Pos): void {
     const kind = from.special;
     if (kind === undefined || kind === 'breath' || kind === 'drain') return;
     if (kind === 'manaBite' && target !== 'player') return;
     if (!this.rng.chance(AILMENT_CHANCE)) return;
+    const mark = (text: string) => this.popups.push({ pos: { ...at }, text, kind: 'status' });
     if (kind === 'spore') {
       ailments.confused = CONFUSE_TURNS;
       this.addLog(`${from.name}の胞子 → ${who}は混乱した`);
+      mark(STATUS_TEXT.confuse);
     } else if (kind === 'venom') {
       ailments.poisoned = POISON_TURNS;
       this.addLog(`${from.name}の毒 → ${who}は毒を受けた`);
+      mark(STATUS_TEXT.poison);
     } else if (kind === 'sleep') {
       ailments.asleep = this.rng.int(...SLEEP_TURNS);
       this.addLog(`${from.name}の鱗粉 → ${who}は眠った`);
+      mark(STATUS_TEXT.sleep);
     } else if (kind === 'pin') {
       ailments.pinned = target === 'monster' ? 1 : this.rng.int(...PIN_TURNS);
       this.addLog(`${from.name}の糸 → ${who}ははりつけになった`);
+      mark(STATUS_TEXT.pin);
     } else if (kind === 'manaBite') {
       const p = this.player;
       if (p.mp <= 0) return;
       const loss = Math.min(p.mp, Math.max(1, Math.round(p.maxMp * MANA_BITE)));
       p.mp -= loss;
       this.addLog(`${from.name}にかじられた → MPが${loss}減った`);
+      mark(`MP-${loss}`);
     }
   }
 
@@ -2385,7 +2412,7 @@ export class GameState {
     }
     const dmg = this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower()), how);
     this.drain(m.species, m, dmg, m.species.name);
-    if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player');
+    if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player', p.pos);
   }
 
   /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす。与えたダメージを返す */
@@ -2431,7 +2458,7 @@ export class GameState {
       this.addLog(`${name}は瀕死になり召喚が解けた`);
       return;
     }
-    this.afflict(m.species, a.ailments, name, 'ally');
+    this.afflict(m.species, a.ailments, name, 'ally', a.pos);
   }
 
   // ---- 仲間の行動（ついてくる） ----
@@ -2478,7 +2505,8 @@ export class GameState {
             const dmg = this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
             this.drain(species, a.card, dmg, cardName(a.card));
             // 仲間のポコタケ・シュルルなどは、攻撃が当たった魔物を混乱・毒などにすることがある
-            if (this.monsters.includes(target)) this.afflict(species, target.ailments, target.species.name, 'monster');
+            if (this.monsters.includes(target))
+              this.afflict(species, target.ailments, target.species.name, 'monster', target.pos);
           } else {
             this.addLog(`${target.species.name}はかわした`);
             this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
