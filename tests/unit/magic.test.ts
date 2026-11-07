@@ -6,7 +6,7 @@ import { SPECIES } from '../../src/game/monsters';
 import { GameState, PLAYER_BASE, cardFromData, cardToData, type RunData } from '../../src/game/state';
 import { emptyState, logsSince, placeMonster, sturdy } from '../helpers';
 
-/** 火の魔法を1回撃って、正面の魔物に与えたダメージ */
+/** ヒボシを1回撃って、目の前の魔物に与えたダメージ */
 function fireDamage(seed: number, mdef: number): number | null {
   const g = emptyState(seed);
   g.allies = [];
@@ -35,7 +35,7 @@ describe('F-84 魔攻・魔防', () => {
     }
   });
 
-  it('火の魔法の威力は 魔攻×2。魔防が高い魔物ほど、受けるダメージが減る', () => {
+  it('ヒボシの威力は 魔攻×2。魔防が高い魔物ほど、受けるダメージが減る', () => {
     const g = emptyState(1);
     expect(g.spellPower('fire')).toBe(12);
     expect(g.spellPower('bigFire')).toBe(22);
@@ -52,7 +52,7 @@ describe('F-84 魔攻・魔防', () => {
     }
   });
 
-  it('魔攻の魔法で魔法の威力が上がる。力の魔法では上がらない', () => {
+  it('マリョクボシで魔法の威力が上がる。チカラボシでは上がらない', () => {
     const g = emptyState(1);
     g.allies = [];
     g.player.mp = g.player.maxMp = 99;
@@ -66,7 +66,7 @@ describe('F-84 魔攻・魔防', () => {
     expect(g.spellPower('fire')).toBe(18);
   });
 
-  it('火を吐く火は、守りの魔法では減らず、魔防の魔法で減る', () => {
+  it('火を吐く火は、マモリホシでは減らず、マヨケボシで減る', () => {
     /** 2マス先のヒダマリが火を吐いたときのダメージ。吐かなければ null */
     const breath = (seed: number, spell: 'guard' | 'ward' | null): number | null => {
       const g = emptyState(seed);
@@ -105,11 +105,11 @@ describe('F-84 魔攻・魔防', () => {
         seen.guard++;
         expect(guard).toBeGreaterThanOrEqual(88);
       }
-      // 魔防の魔法で ×0.6 ＝ 53〜67
+      // マヨケボシで ÷1.5 ＝ 59〜75
       const ward = breath(seed, 'ward');
       if (ward !== null) {
         seen.ward++;
-        expect(ward).toBeLessThanOrEqual(67);
+        expect(ward).toBeLessThanOrEqual(75);
       }
     }
     expect(seen.none).toBeGreaterThan(0);

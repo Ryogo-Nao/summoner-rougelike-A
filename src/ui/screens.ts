@@ -2,7 +2,7 @@ import { elementText } from '../game/elements';
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
-import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
+import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow, type SheetTitle } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
@@ -128,26 +128,41 @@ export function openStatusSheet(state: GameState, sheet: Sheet, card: Card, back
   sheet.open('つよさ', [], { footer });
 }
 
-/** 魔法の一覧。選ぶと、向いている方向（雷はまわり）に使う */
+/**
+ * 魔法の MP・範囲（1行目）と効き目（2行目）。balance.md 2.1。
+ * power は攻撃の魔法の威力（ダンジョンの中で、魔攻から決まる）。省くと（拠点）、威力の代わりに魔攻の倍率を出す
+ */
+export function spellEffect(id: SpellId, rank: number, power?: number): string {
+  const p = power !== undefined ? `威力${power}` : `威力 魔攻×${spellRate(id, rank)}`;
+  const r = rankRate(rank);
+  const buff = '20ターン味方全体の';
+  const text: Record<SpellId, [string, string]> = {
+    fire: ['目の前の敵に', p],
+    ice: ['まっすぐ3マスの敵に', p],
+    wind: ['目の前の横3マスの敵に', p],
+    thunder: ['周りの敵に', p],
+    earth: ['部屋の敵すべてに', p],
+    bigFire: ['前方3マス幅の敵に', p],
+    power: [buff, `攻撃力×${r}`],
+    guard: [buff, `受ける攻撃のダメージ÷${r}`],
+    magic: [buff, `魔攻×${r}`],
+    ward: [buff, `受ける魔法のダメージ÷${r}`],
+  };
+  const [area, effect] = text[id];
+  return `MP${SPELLS[id].mp}　${area}\n${effect}`;
+}
+
+/** 魔法の一覧。選ぶと、向いている方向（ホシナリはまわり、ホシヨビは部屋）に使う */
 export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const p = state.player;
   const rows: SheetRow[] = state.availableSpells().map((id) => {
     const spell = SPELLS[id];
     const enough = p.mp >= spell.mp;
-    const effect: Record<SpellId, string> = {
-      // 威力は魔攻から決まる。当たる魔物の魔防で減る
-      fire: `正面の敵に威力${state.spellPower('fire')}`,
-      thunder: `周りの敵に威力${state.spellPower('thunder')}`,
-      power: `20ターン味方全体の攻撃力×${powerRate(state.rankOf('power'))}`,
-      guard: `20ターン味方全体の受ける攻撃のダメージ×${guardRate(state.rankOf('guard'))}`,
-      magic: `20ターン味方全体の魔攻×${powerRate(state.rankOf('magic'))}`,
-      ward: `20ターン味方全体の受ける魔法のダメージ×${guardRate(state.rankOf('ward'))}`,
-      bigFire: `前方3マス幅の敵に威力${state.spellPower('bigFire')}`,
-    };
+    // 威力は魔攻から決まる。当たる魔物の魔防で減る
     return {
       icon: SPELL_ICONS[id],
-      name: state.rankOf(id) > 0 ? `${spell.label}+${state.rankOf(id)}` : spell.label,
-      sub: `MP${spell.mp}　${effect[id]}`,
+      name: rankedName(spell.name, state.rankOf(id)),
+      sub: spellEffect(id, state.rankOf(id), state.spellPower(id)),
       dim: !enough,
       button: {
         label: '使う',
@@ -165,7 +180,10 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
 
 export const SPELL_ICONS: Record<SpellId, string> = {
   fire: '🔥',
+  ice: '❄️',
+  wind: '🌀',
   thunder: '⚡',
+  earth: '🌠',
   power: '💪',
   guard: '🧱',
   magic: '✨',

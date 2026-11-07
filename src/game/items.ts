@@ -46,6 +46,11 @@ export type ItemKind =
   | 'starHoly'
   | 'starHeal'
   | 'starMana'
+  | 'tomeFire'
+  | 'tomeIce'
+  | 'tomeWind'
+  | 'tomeThunder'
+  | 'tomeEarth'
   | 'tomePower'
   | 'tomeGuard'
   | 'tomeMagic'
@@ -100,7 +105,7 @@ export interface ItemDef {
   /** 属性（balance.md 3.7）。武器と矢はこの属性で攻撃し、盾を持つと主人公はこの属性で受ける。省くと無 */
   element?: Element;
   /** 使うと覚える魔法 */
-  spell?: 'power' | 'guard' | 'magic' | 'ward';
+  spell?: 'fire' | 'ice' | 'wind' | 'thunder' | 'earth' | 'power' | 'guard' | 'magic' | 'ward';
   /** 拠点の［配合］で使う書（requirements.md 9.2・9.3）。ダンジョンでは使えない */
   book?: 'fusion' | 'rebirth';
   /** 矢。通常攻撃のダメージに対する倍率 */
@@ -150,10 +155,16 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   starHoly: { kana: 'せいなるほし', name: '聖なる星', emoji: '⭐', desc: '階段の部屋へ移る\n食べる・投げるで効く', food: 5, star: 'holy', value: 120 },
   starHeal: { kana: 'いやしのほし', name: '癒しの星', emoji: '⭐', desc: '状態異常がすべて治る\n食べる・投げるで効く', food: 5, star: 'heal', value: 80 },
   starMana: { kana: 'まりょくのほし', name: '魔力の星', emoji: '⭐', desc: '10ターンMPが回復\n食べると効く', food: 5, star: 'mana', value: 80 },
-  tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
-  tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
-  tomeMagic: { kana: 'まこうのまどうしょ', name: '魔攻の魔導書', emoji: '📒', desc: '魔攻の魔法を覚える', spell: 'magic', value: 800 },
-  tomeWard: { kana: 'まぼうのまどうしょ', name: '魔防の魔導書', emoji: '📓', desc: '魔防の魔法を覚える', spell: 'ward', value: 800 },
+  // 魔導書を読むと魔法を覚える（ずっと使える）。覚えている魔法なら、このダンジョンの間だけ＋値が上がる
+  tomeFire: { kana: 'ひのまどうしょ', name: '火の魔導書', emoji: '📙', desc: 'ヒボシを強くする', spell: 'fire', value: 800 },
+  tomeIce: { kana: 'こおりのまどうしょ', name: '氷の魔導書', emoji: '📔', desc: 'イテホシを覚える・強くする', spell: 'ice', value: 800 },
+  tomeWind: { kana: 'かぜのまどうしょ', name: '風の魔導書', emoji: '📗', desc: 'ホシキリを覚える・強くする', spell: 'wind', value: 800 },
+  tomeThunder: { kana: 'かみなりのまどうしょ', name: '雷の魔導書', emoji: '📖', desc: 'ホシナリを覚える・強くする', spell: 'thunder', value: 800 },
+  tomeEarth: { kana: 'つちのまどうしょ', name: '土の魔導書', emoji: '📚', desc: 'ホシヨビを覚える・強くする', spell: 'earth', value: 800 },
+  tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: 'チカラボシを覚える・強くする', spell: 'power', value: 800 },
+  tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: 'マモリホシを覚える・強くする', spell: 'guard', value: 800 },
+  tomeMagic: { kana: 'まこうのまどうしょ', name: '魔攻の魔導書', emoji: '📒', desc: 'マリョクボシを覚える・強くする', spell: 'magic', value: 800 },
+  tomeWard: { kana: 'まぼうのまどうしょ', name: '魔防の魔導書', emoji: '📓', desc: 'マヨケボシを覚える・強くする', spell: 'ward', value: 800 },
   fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', book: 'fusion', value: 3000 },
   rebirthBook: { kana: 'てんせいのしょ', name: '転生の書', emoji: '📙', desc: '拠点の［配合］で\nイヅツチを転生させる', book: 'rebirth', value: 3000 },
   pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる', pouch: { capacity: [2, 4] }, value: 100 },

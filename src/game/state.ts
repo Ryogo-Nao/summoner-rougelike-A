@@ -60,22 +60,40 @@ const SPAWN_INTERVAL = 40;
 /** HPが全回復するまでのターン数（balance.md 1.4） */
 const REGEN_TURNS = 150;
 
-/** 魔法（balance.md 2.1）。name はログに、label は魔法の一覧に出す */
+/**
+ * 魔法（balance.md 2.1）。name はログと魔法の一覧に出す。
+ * ヒボシ（火）は最初から使える。ほかは魔導書を読むと覚え、一度覚えればずっと使える。大火球は火を吐く仲間の召喚中だけ
+ */
 export const SPELLS = {
-  fire: { name: '火の魔法', label: '火', mp: 4 },
-  thunder: { name: '雷の魔法', label: '雷', mp: 5 },
-  power: { name: '力の魔法', label: '力', mp: 6 },
-  guard: { name: '守りの魔法', label: '守り', mp: 6 },
-  magic: { name: '魔攻の魔法', label: '魔攻', mp: 6 },
-  ward: { name: '魔防の魔法', label: '魔防', mp: 6 },
-  bigFire: { name: '大火球', label: '大火球', mp: 10 },
+  fire: { name: 'ヒボシ', mp: 4 },
+  ice: { name: 'イテホシ', mp: 5 },
+  wind: { name: 'ホシキリ', mp: 5 },
+  thunder: { name: 'ホシナリ', mp: 6 },
+  earth: { name: 'ホシヨビ', mp: 8 },
+  power: { name: 'チカラボシ', mp: 6 },
+  guard: { name: 'マモリホシ', mp: 6 },
+  magic: { name: 'マリョクボシ', mp: 6 },
+  ward: { name: 'マヨケボシ', mp: 6 },
+  bigFire: { name: '大火球', mp: 10 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
+/** 魔導書で覚える、敵にダメージを与える魔法（一覧に出す順） */
+export const ATTACK_SPELLS = ['ice', 'wind', 'thunder', 'earth'] as const;
 /** 覚えると使える、味方全体にかける魔法（魔導書で覚える） */
 export const BUFF_SPELLS = ['power', 'guard', 'magic', 'ward'] as const;
 export type BuffSpell = (typeof BUFF_SPELLS)[number];
-/** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
+/** 魔導書で覚える・強くする魔法。大火球は魔導書がない */
+export type TomeSpell = Exclude<SpellId, 'bigFire'>;
+/** 投げた白紙カードが飛ぶ最大のマス数 */
 const LINE_RANGE = 10;
+/** ヒボシが届くマス数（目の前）と、イテホシが飛ぶマス数（まっすぐ） */
+const FIRE_RANGE = 1;
+const ICE_RANGE = 3;
+/**
+ * 攻撃の魔法の、＋値が無印のときの倍率（威力 ＝ 魔攻 × 倍率）。
+ * ヒボシ ＞ イテホシ ＝ ホシキリ ＞ ホシナリ ＞ ホシヨビ。＋値で、無印の 7/6 倍（+1）・4/3 倍（+2）になる
+ */
+const SPELL_RATE: Partial<Record<SpellId, number>> = { fire: 2, ice: 1.5, wind: 1.5, thunder: 1, earth: 0.75 };
 /** 満腹度が1減るまでのターン数と、知らせる満腹度（balance.md 1.5） */
 const FOOD_INTERVAL = 10;
 const HUNGER_WARNINGS: Record<number, string> = {
@@ -85,13 +103,20 @@ const HUNGER_WARNINGS: Record<number, string> = {
 };
 /** 力・守り・魔攻・魔防の魔法が続くターン数（balance.md 2.1） */
 const BUFF_TURNS = 20;
-/** 魔法のランクの上限。同じ魔導書を読むたびに1つ上がる（balance.md 2.2） */
-export const SPELL_MAX_RANK = 5;
-/** 力の魔法の攻撃力の倍率（魔攻の魔法の魔攻の倍率も同じ）。無印で1.5、+5で2倍 */
-export const powerRate = (rank: number) => Math.round((1.5 + 0.1 * rank) * 100) / 100;
-/** 守りの魔法で受ける攻撃のダメージの倍率（魔防の魔法で受ける魔法のダメージの倍率も同じ）。無印で0.6、+5で0.4 */
-export const guardRate = (rank: number) => Math.round((0.6 - 0.04 * rank) * 100) / 100;
-/** 魔法の名前にランクを付ける。無印は付けない */
+/**
+ * ＋値の上限（balance.md 2.2）。覚えている魔法の魔導書を読むたびに1つ上がる。
+ * ＋値はそのダンジョンの間だけで、拠点に戻ると無印に戻る
+ */
+export const SPELL_MAX_RANK = 2;
+/**
+ * ＋値の倍率。無印で1.5、+1で1.75、+2で2。
+ * チカラボシは攻撃力、マリョクボシは魔攻にかけ、マモリホシ・マヨケボシは受けるダメージをこれで割る
+ */
+export const rankRate = (rank: number) => 1.5 + 0.25 * Math.min(rank, SPELL_MAX_RANK);
+/** 攻撃の魔法の倍率（威力 ＝ 魔攻 × 倍率）。＋値で rankRate と同じ割合で上がる。小数第2位まで */
+export const spellRate = (spell: SpellId, rank: number) =>
+  Math.round((SPELL_RATE[spell] ?? 0) * (rankRate(rank) / rankRate(0)) * 100) / 100;
+/** 魔法の名前に＋値を付ける。無印は付けない */
 export const rankedName = (name: string, rank: number) => (rank > 0 ? `${name}+${rank}` : name);
 /** 大火球が届くマス数（前方3マス幅） */
 const BIG_FIRE_RANGE = 5;
@@ -181,7 +206,8 @@ export interface DashSnapshot {
 /**
  * 場面の種類（演出の種類。docs/effects.md）。
  * attack は隣への攻撃（空振りも）、reach は舌・触手で2マス先へ、breath は火を吐く、lightning はいかずち、
- * throw は投げる、shoot は矢、fire・bigFire・thunder・power・guard は魔法、burst は炸裂の星を食べた爆発、
+ * throw は投げる、shoot は矢、fire・ice・wind・thunder・earth・bigFire・power・guard・magic・ward は魔法、
+ * burst は炸裂の星を食べた爆発、
  * item は道具を使った（薬草の回復など。誰も動かない）
  */
 export type SceneAction =
@@ -192,8 +218,11 @@ export type SceneAction =
   | 'throw'
   | 'shoot'
   | 'fire'
-  | 'bigFire'
+  | 'ice'
+  | 'wind'
   | 'thunder'
+  | 'earth'
+  | 'bigFire'
   | 'power'
   | 'guard'
   | 'magic'
@@ -281,7 +310,14 @@ export interface Popup {
 }
 
 /** 属性のある攻撃の魔法（balance.md 3.7） */
-const SPELL_ELEMENT: Partial<Record<SpellId, Element>> = { fire: 'fire', bigFire: 'fire', thunder: 'thunder' };
+const SPELL_ELEMENT: Partial<Record<SpellId, Element>> = {
+  fire: 'fire',
+  ice: 'water',
+  wind: 'wind',
+  thunder: 'thunder',
+  earth: 'earth',
+  bigFire: 'fire',
+};
 
 /** ダメージの数字に付ける、属性の効き目 */
 const withEffect = (rate: number): Pick<Popup, 'effect'> => {
@@ -300,11 +336,10 @@ export interface Loadout {
   cards: Card[];
   bag: Item[];
   learned: SpellId[];
-  ranks: SpellRanks;
   shortcuts: Shortcuts;
 }
 
-/** 覚えた魔法のランク。0（無印）のものは省いてよい */
+/** このダンジョンで上げた魔法の＋値。0（無印）のものは省いてよい */
 export type SpellRanks = Partial<Record<SpellId, number>>;
 
 /** 保存するときのカード。魔物の種類は id で持つ */
@@ -501,7 +536,6 @@ export class GameState {
       this.cards = loadout.cards;
       this.bag = loadout.bag;
       this.learned = new Set(loadout.learned);
-      this.ranks = { ...loadout.ranks };
       this.shortcuts = [...loadout.shortcuts];
     }
     const b = PLAYER_BASE;
@@ -624,7 +658,10 @@ export class GameState {
     });
     s.floorItems = data.floorItems;
     s.learned = new Set(data.learned);
-    s.ranks = data.ranks ?? {};
+    // ＋値の上限が5だったころの保存データは、+2までにする
+    s.ranks = Object.fromEntries(
+      Object.entries(data.ranks ?? {}).map(([k, v]) => [k, Math.min(v ?? 0, SPELL_MAX_RANK)]),
+    ) as SpellRanks;
     s.shortcuts = data.shortcuts ?? noShortcuts();
     s.log = data.log;
     s.logSerial = data.logSerial;
@@ -950,29 +987,29 @@ export class GameState {
   /** 仲間の攻撃力。力の魔法がかかっていれば上がる（味方全体にかかる） */
   private allyAttack(a: Ally): number {
     const atk = raged(a.card.atk, a.ailments);
-    return this.player.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
+    return this.player.powerTurns > 0 ? Math.round(atk * rankRate(this.rankOf('power'))) : atk;
   }
 
   /** 仲間の魔攻。魔攻の魔法がかかっていれば上がる（味方全体にかかる）。力の魔法・激昂では上がらない */
   private allyMagic(a: Ally): number {
-    return this.player.magicTurns > 0 ? Math.round(a.card.matk * powerRate(this.rankOf('magic'))) : a.card.matk;
+    return this.player.magicTurns > 0 ? Math.round(a.card.matk * rankRate(this.rankOf('magic'))) : a.card.matk;
   }
 
   /** 主人公と仲間が受ける攻撃のダメージ。守りの魔法がかかっていれば減る（味方全体にかかる） */
   private guarded(raw: number): number {
-    return this.player.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
+    return this.player.guardTurns > 0 ? Math.max(1, Math.round(raw / rankRate(this.rankOf('guard')))) : raw;
   }
 
   /** 主人公と仲間が受ける魔法のダメージ（火を吐くなど）。魔防の魔法がかかっていれば減る（味方全体にかかる） */
   private warded(raw: number): number {
-    return this.player.wardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('ward')))) : raw;
+    return this.player.wardTurns > 0 ? Math.max(1, Math.round(raw / rankRate(this.rankOf('ward')))) : raw;
   }
 
   /** 攻撃力と防御力。装備と、力の魔法の分を含む */
   attackPower(): number {
     const p = this.player;
     const atk = raged(p.atk + (p.weapon ? equipBonus(p.weapon) : 0), p.ailments);
-    return p.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
+    return p.powerTurns > 0 ? Math.round(atk * rankRate(this.rankOf('power'))) : atk;
   }
 
   defensePower(): number {
@@ -983,7 +1020,7 @@ export class GameState {
   /** 魔攻と魔防（balance.md 3.6）。魔攻の魔法の分を含む。魔防の魔法は、魔防ではなく受けるダメージを減らす */
   magicPower(): number {
     const p = this.player;
-    return p.magicTurns > 0 ? Math.round(p.matk * powerRate(this.rankOf('magic'))) : p.matk;
+    return p.magicTurns > 0 ? Math.round(p.matk * rankRate(this.rankOf('magic'))) : p.matk;
   }
 
   magicDefense(): number {
@@ -1001,13 +1038,11 @@ export class GameState {
     return (s && ITEMS[s.kind].element) || 'none';
   }
 
-  /** 攻撃の魔法の威力（balance.md 2.1）。当たる魔物の魔防で減る。力・守りなどの魔法は 0 */
+  /** 攻撃の魔法の威力（balance.md 2.1）。魔攻 × 倍率（＋値で上がる）。当たる魔物の魔防で減る。チカラボシなどは 0 */
   spellPower(spell: SpellId): number {
     const m = this.magicPower();
-    if (spell === 'fire') return m * 2;
     if (spell === 'bigFire') return m * 2 + 10;
-    if (spell === 'thunder') return m;
-    return 0;
+    return Math.round(m * spellRate(spell, this.rankOf(spell)));
   }
 
   // ---- バッグ ----
@@ -1046,8 +1081,8 @@ export class GameState {
   /** 使えない理由。使えるなら null。足もとの装備はバッグに入れてから装備する */
   useProblem(item: Item): string | null {
     const def = ITEMS[item.kind];
-    if (def.spell && this.learned.has(def.spell) && this.rankOf(def.spell) >= SPELL_MAX_RANK) {
-      return `${this.spellName(def.spell)}は最大ランク`;
+    if (def.spell && this.knows(def.spell) && this.rankOf(def.spell) >= SPELL_MAX_RANK) {
+      return `${this.spellName(def.spell)}はこれ以上強くならない`;
     }
     if (def.slot && !this.bag.includes(item) && this.bag.length >= BAG_LIMIT) return 'バッグがいっぱいで装備できない';
     if (def.seal === 'revive' && this.reviveTargets().length === 0) return '瀕死の仲間がいない';
@@ -1207,8 +1242,8 @@ export class GameState {
     } else if (def.food) {
       p.food = Math.min(p.maxFood, p.food + def.food);
       this.addLog(`${def.name}を食べた`);
-    } else if (def.spell && this.learned.has(def.spell)) {
-      // 覚えている魔法の魔導書を読むと、ランクが1つ上がる
+    } else if (def.spell && this.knows(def.spell)) {
+      // 覚えている魔法の魔導書を読むと、＋値が1つ上がる（このダンジョンの間だけ）
       this.ranks[def.spell] = this.rankOf(def.spell) + 1;
       this.addLog(`${SPELLS[def.spell].name}が+${this.rankOf(def.spell)}になった！`);
     } else if (def.spell) {
@@ -1859,11 +1894,11 @@ export class GameState {
    * 主人公の向いている方向にまっすぐ進み、最初に当たる魔物と、そこまでに通るマス。仲間はすり抜け、壁で止まる。
    * 何にも当たらなければ、通るマスは壁の手前まで
    */
-  private traceLine(): { monster?: Monster; cells: Pos[] } {
+  private traceLine(range = LINE_RANGE): { monster?: Monster; cells: Pos[] } {
     let at = this.player.pos;
     const dir = this.player.facing;
     const cells: Pos[] = [];
-    for (let i = 0; i < LINE_RANGE; i++) {
+    for (let i = 0; i < range; i++) {
       // 火は壁の角を越えて飛ぶ
       if (!this.map.canFly(at, dir)) break;
       const v = DIR_VECTORS[dir];
@@ -1877,26 +1912,34 @@ export class GameState {
 
   // ---- 魔法 ----
 
-  /** いま使える魔法。雷の魔法はイヅツチを召喚している間だけ */
+  /** いま使える魔法。ヒボシと覚えた魔法。大火球は火を吐く仲間を召喚している間だけ */
   availableSpells(): SpellId[] {
     const spells: SpellId[] = ['fire'];
-    if (this.allies.some((a) => isPartner(a.card))) spells.push('thunder');
+    for (const id of ATTACK_SPELLS) if (this.learned.has(id)) spells.push(id);
     if (this.allies.some((a) => a.card.species.special === 'breath')) spells.push('bigFire');
     for (const id of BUFF_SPELLS) if (this.learned.has(id)) spells.push(id);
     return spells;
   }
 
-  /** 魔法のランク。覚えていない・無印なら0 */
-  rankOf(spell: SpellId): number {
-    return this.ranks[spell] ?? 0;
+  /** 覚えている魔法か。ヒボシは最初から覚えている */
+  knows(spell: SpellId): boolean {
+    return spell === 'fire' || this.learned.has(spell);
   }
 
-  /** ランクを付けた魔法の名前（例：力の魔法+2） */
+  /** 魔法の＋値。覚えていない・無印なら0 */
+  rankOf(spell: SpellId): number {
+    return Math.min(this.ranks[spell] ?? 0, SPELL_MAX_RANK);
+  }
+
+  /** ＋値を付けた魔法の名前（例：チカラボシ+2） */
   spellName(spell: SpellId): string {
     return rankedName(SPELLS[spell].name, this.rankOf(spell));
   }
 
-  /** 魔法は必ず当たる。火は向いている方向の最初の魔物、雷はまわり8マスの魔物すべて */
+  /**
+   * 魔法は必ず当たる。ヒボシは目の前の魔物、イテホシはまっすぐ3マスの魔物すべて、ホシキリは目の前の横3マス、
+   * ホシナリはまわり8マス、ホシヨビは見えている魔物すべて（部屋の中なら部屋の魔物）
+   */
   cast(spell: SpellId): void {
     const p = this.player;
     const { mp } = SPELLS[spell];
@@ -1925,19 +1968,7 @@ export class GameState {
       this.endTurn();
       return;
     }
-    // 雷はまわり8マス、大火球は前の3マス幅、火は最初の魔物まで
-    const line = spell === 'fire' ? this.traceLine() : undefined;
-    const targets = line
-      ? [line.monster].filter((m) => m !== undefined)
-      : spell === 'bigFire'
-        ? this.bigFireTargets()
-        : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
-    // 演出をかけるマス。範囲の魔法は、壁のマスには出さない
-    const cells = line
-      ? line.cells
-      : (spell === 'bigFire' ? this.bigFireTiles() : DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }))).filter(
-          (c) => this.map.isWalkable(c.x, c.y),
-        );
+    const { targets, cells } = this.spellArea(spell);
     // 威力は魔攻から決まり、当たる魔物の魔防で減る（balance.md 3.6）
     const power = this.spellPower(spell);
     this.scene(
@@ -1953,6 +1984,58 @@ export class GameState {
       { action: spell, cells },
     );
     this.endTurn();
+  }
+
+  /** 攻撃の魔法が当たる魔物と、演出をかけるマス。範囲の魔法は、壁のマスには演出を出さない */
+  private spellArea(spell: SpellId): { targets: Monster[]; cells: Pos[] } {
+    const p = this.player;
+    const walkable = (cells: Pos[]) => cells.filter((c) => this.map.isWalkable(c.x, c.y));
+    const on = (cells: Pos[]) => this.monsters.filter((m) => cells.some((c) => c.x === m.pos.x && c.y === m.pos.y));
+    switch (spell) {
+      case 'fire': {
+        // 目の前へ火を飛ばす（飛ぶ攻撃なので、壁の角は越える）
+        const line = this.traceLine(FIRE_RANGE);
+        return { targets: line.monster ? [line.monster] : [], cells: line.cells };
+      }
+      case 'ice': {
+        // まっすぐ3マス。魔物を突き抜けて、壁の手前まで
+        const cells = this.flyCells(ICE_RANGE);
+        return { targets: on(cells), cells };
+      }
+      case 'wind': {
+        // 目の前と、その左右（向いている方向の左斜め・右斜め）
+        const cells = walkable([7, 0, 1].map((k) => this.ahead(p.pos, ((p.facing + k) % 8) as Dir)));
+        return { targets: on(cells), cells };
+      }
+      case 'earth': {
+        // 見えている魔物すべてに星が降る。誰もいなければ主人公のまわりに降る
+        const targets = this.monsters.filter((m) => this.isVisible(m.pos.x, m.pos.y));
+        const cells = targets.length > 0 ? targets.map((m) => ({ ...m.pos })) : walkable(DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y })));
+        return { targets, cells };
+      }
+      case 'bigFire':
+        return { targets: this.bigFireTargets(), cells: walkable(this.bigFireTiles()) };
+      default:
+        // ホシナリ：まわり8マス
+        return {
+          targets: this.monsters.filter((m) => distance(m.pos, p.pos) === 1),
+          cells: walkable(DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }))),
+        };
+    }
+  }
+
+  /** 主人公の向いている方向に、range マスまで飛ぶ道すじ。魔物は突き抜け、壁で止まる（壁の角は越える） */
+  private flyCells(range: number): Pos[] {
+    let at = this.player.pos;
+    const dir = this.player.facing;
+    const cells: Pos[] = [];
+    for (let i = 0; i < range; i++) {
+      if (!this.map.canFly(at, dir)) break;
+      const v = DIR_VECTORS[dir];
+      at = { x: at.x + v.x, y: at.y + v.y };
+      cells.push(at);
+    }
+    return cells;
   }
 
   /**
@@ -2189,10 +2272,10 @@ export class GameState {
 
   private tickBuffs(): void {
     const p = this.player;
-    if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
-    if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
-    if (p.magicTurns > 0 && --p.magicTurns === 0) this.addLog('魔攻の魔法が切れた');
-    if (p.wardTurns > 0 && --p.wardTurns === 0) this.addLog('魔防の魔法が切れた');
+    if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog(`${SPELLS.power.name}が切れた`);
+    if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog(`${SPELLS.guard.name}が切れた`);
+    if (p.magicTurns > 0 && --p.magicTurns === 0) this.addLog(`${SPELLS.magic.name}が切れた`);
+    if (p.wardTurns > 0 && --p.wardTurns === 0) this.addLog(`${SPELLS.ward.name}が切れた`);
     if (this.dead) return;
     // 魔力の星：最大MPの2％ずつ。端数は、効いているあいだの合計で切り捨てる
     if (p.manaTurns > 0) {

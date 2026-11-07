@@ -13,7 +13,7 @@ const STATUS_LABEL: Record<Card['status'], string> = { ready: '待機', summoned
 /** 魔物の特技と、動きの特徴 */
 function traits(species: Species, partner: boolean): string {
   const list: string[] = [];
-  if (partner) list.push('いかずち（2マス先に雷）\n召喚中は雷の魔法を使える');
+  if (partner) list.push('いかずち（2マス先に雷）');
   if (species.twoHits) list.push('1ターンに2回攻撃');
   if (species.reach) list.push(`${species.reachName ?? '舌'}で${species.reach}マス先まで攻撃`);
   if (species.erratic) list.push('ふらふらと飛ぶ');

@@ -43,7 +43,18 @@ const MIN_IMPACT_MS = 160;
 export const TURN_CAP_MS = 2600;
 
 /** 主人公が魔法陣を出して唱える魔法 */
-export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set(['fire', 'bigFire', 'thunder', 'power', 'guard', 'magic', 'ward']);
+export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set([
+  'fire',
+  'ice',
+  'wind',
+  'thunder',
+  'earth',
+  'bigFire',
+  'power',
+  'guard',
+  'magic',
+  'ward',
+]);
 
 /**
  * 魔法と星の段の長さ（ミリ秒）。cast は唱える（魔法陣）、travel は火が飛ぶ・炎が広がる、
@@ -51,6 +62,9 @@ export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set(['fire', 'bigFire'
  */
 const SPELL_TIMING: Partial<Record<SceneAction, { cast: number; travel: number; impact: number }>> = {
   fire: { cast: 220, travel: 0, impact: 300 },
+  ice: { cast: 220, travel: 0, impact: 320 },
+  wind: { cast: 200, travel: 0, impact: 360 },
+  earth: { cast: 300, travel: 360, impact: 420 },
   bigFire: { cast: 280, travel: 380, impact: 380 },
   thunder: { cast: 300, travel: 0, impact: 400 },
   power: { cast: 240, travel: 0, impact: 460 },
@@ -71,7 +85,7 @@ const RANGED_TIMING: Partial<Record<SceneAction, EffectTiming>> = {
 };
 /** 封印した・レベルが上がった場面は、光の柱を見せきるまで当たる段を短くしない */
 const GLORY_IMPACT_MS = 560;
-/** 火の魔法が1マス進む長さと、いちばん短い飛ぶ長さ */
+/** ヒボシ・イテホシが1マス進む長さと、いちばん短い飛ぶ長さ */
 const FIRE_PER_TILE_MS = 45;
 const FIRE_TRAVEL_MIN_MS = 120;
 /** 投げた炸裂の星が当たって爆発するときの、当たる段の長さ */
@@ -87,7 +101,9 @@ export function timingOf(scene: Scene): EffectTiming {
   const spell = SPELL_TIMING[scene.action];
   if (spell) {
     const travel =
-      scene.action === 'fire' ? Math.max(FIRE_TRAVEL_MIN_MS, scene.cells.length * FIRE_PER_TILE_MS) : spell.travel;
+      scene.action === 'fire' || scene.action === 'ice'
+        ? Math.max(FIRE_TRAVEL_MIN_MS, scene.cells.length * FIRE_PER_TILE_MS)
+        : spell.travel;
     return { windup: spell.cast, travel, impact: Math.max(impact, spell.impact) };
   }
   switch (scene.action) {

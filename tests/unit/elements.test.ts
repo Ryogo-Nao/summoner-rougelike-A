@@ -39,7 +39,7 @@ describe('F-85 属性', () => {
     expect(IZUTSUCHI.element).toBe('thunder');
   });
 
-  it('火の魔法は、風の魔物によく効き、水の魔物には効きにくい。数字にもログにも出す', () => {
+  it('ヒボシ（火）は、風の魔物によく効き、水の魔物には効きにくい。数字にもログにも出す', () => {
     const cases = [
       { id: 'patari', min: 16, max: 20, note: '（よく効いた）', effect: 'strong' },
       { id: 'nurarika', min: 7, max: 9, note: '（効きにくい）', effect: 'weak' },
@@ -56,12 +56,12 @@ describe('F-85 属性', () => {
         placed.m.mdef = 0;
         g.player.facing = placed.dir;
         g.player.mp = g.player.maxMp = 99;
-        const line = logsSince(g, () => g.cast('fire')).find((t) => t.startsWith('あなたの火の魔法'))!;
+        const line = logsSince(g, () => g.cast('fire')).find((t) => t.startsWith('あなたのヒボシ'))!;
         const dmg = 9999 - placed.m.hp;
         // 威力12 × 倍率 × 乱数(0.88〜1.12)
         expect(dmg, c.id).toBeGreaterThanOrEqual(c.min);
         expect(dmg, c.id).toBeLessThanOrEqual(c.max);
-        expect(line).toBe(`あなたの火の魔法 → ${placed.m.species.name}に${dmg}ダメージ${c.note}`);
+        expect(line).toBe(`あなたのヒボシ → ${placed.m.species.name}に${dmg}ダメージ${c.note}`);
         const popup = g.takeScenes().flatMap((s) => s.popups).find((p) => p.kind === 'damage')!;
         expect(popup.effect).toBe(c.effect);
         checked++;

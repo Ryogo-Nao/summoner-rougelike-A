@@ -8,7 +8,6 @@ import {
   type GameState,
   type Loadout,
   type SpellId,
-  type SpellRanks,
 } from './state';
 
 /** 倉庫に入るアイテムの数（requirements.md 10.4） */
@@ -24,9 +23,8 @@ export interface Profile {
   hand: number[];
   bag: Item[];
   warehouse: Item[];
+  /** 覚えた魔法。一度覚えればずっと使える（＋値はダンジョンの間だけなので、ここには残らない） */
   learned: SpellId[];
-  /** 魔法のランク（無印は0） */
-  ranks: SpellRanks;
   /** 踏破したダンジョンの id。次のダンジョンに挑めるかなどに使う */
   cleared: string[];
   /** ［攻撃］の長押しで使う、登録した道具の種類 */
@@ -119,7 +117,8 @@ interface ProfileData {
   bag: Item[];
   warehouse: Item[];
   learned: SpellId[];
-  ranks?: SpellRanks;
+  /** ＋値を拠点に持ち帰っていたころの保存データにある。今は読まない */
+  ranks?: unknown;
   cleared?: string[];
   shortcuts?: Shortcuts;
   runes?: number;
@@ -142,7 +141,6 @@ export function newProfile(): Profile {
     bag: START_ITEMS.map(createItem),
     warehouse: [],
     learned: [],
-    ranks: {},
     cleared: [],
     shortcuts: noShortcuts(),
     runes: 0,
@@ -158,11 +156,10 @@ export function loadProfile(): Profile {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return newProfile();
-    const data = JSON.parse(raw) as ProfileData;
+    const { ranks: _ranks, ...data } = JSON.parse(raw) as ProfileData;
     const profile: Profile = {
       ...data,
       cards: data.cards.map(cardFromData),
-      ranks: data.ranks ?? {},
       cleared: data.cleared ?? [],
       shortcuts: data.shortcuts ?? noShortcuts(),
       runes: data.runes ?? 0,
@@ -196,7 +193,7 @@ export function loadoutOf(profile: Profile): Loadout {
     .map((id) => profile.cards.find((c) => c.id === id))
     .filter((c): c is Card => c !== undefined)
     .slice(0, HAND_LIMIT);
-  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], ranks: { ...profile.ranks }, shortcuts: [...profile.shortcuts] };
+  return { cards: cards.map((c) => ({ ...c })), bag: profile.bag.map((i) => ({ ...i })), learned: [...profile.learned], shortcuts: [...profile.shortcuts] };
 }
 
 // ---- ダンジョンの途中の保存 ----
@@ -312,8 +309,8 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.cards = [...placed, ...back, ...kept.filter((c) => !brought.has(c.id))];
   profile.hand = hand.slice(0, HAND_LIMIT);
   profile.bag = bag.slice(0, BAG_LIMIT);
+  // 覚えた魔法は残る。＋値はダンジョンの間だけ
   profile.learned = [...state.learned];
-  profile.ranks = { ...state.ranks };
   profile.shortcuts = [...state.shortcuts];
   profile.runes += losses.runesKept;
   // 戻るたびに、商店の品を入れ替える

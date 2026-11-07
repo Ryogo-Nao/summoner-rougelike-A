@@ -22,8 +22,8 @@ import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemCategory, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
-import { BUFF_SPELLS, PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName } from '../game/state';
-import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, statLines } from './screens';
+import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
+import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect, statLines } from './screens';
 import type { Settings } from './settings';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
@@ -1088,25 +1088,18 @@ export class BaseScreen {
   }
 
   private spellRows(p: Profile): HTMLElement[] {
-    // 覚えている魔法だけを出す。仲間を召喚している間だけ使える魔法と、まだ読んでいない魔導書の魔法は出さない
+    // 覚えている魔法だけを出す。仲間を召喚している間だけ使える魔法と、まだ読んでいない魔導書の魔法は出さない。
+    // ＋値はダンジョンの間だけなので、拠点ではいつも無印
     const rows: SheetRow[] = [
-      { icon: SPELL_ICONS.fire, name: SPELLS.fire.name, sub: `MP${SPELLS.fire.mp}　最初から使える` },
-      ...BUFF_SPELLS.filter((id) => p.learned.includes(id)).map((id) => {
-          const rank = p.ranks[id] ?? 0;
-          const effect = {
-            power: `攻撃力×${powerRate(rank)}`,
-            guard: `受ける攻撃のダメージ×${guardRate(rank)}`,
-            magic: `魔攻×${powerRate(rank)}`,
-            ward: `受ける魔法のダメージ×${guardRate(rank)}`,
-          }[id];
-          return {
-            icon: SPELL_ICONS[id],
-            name: rankedName(SPELLS[id].name, rank),
-            sub: `MP${SPELLS[id].mp}　${effect}\n魔導書を読むとランクが上がる　最大+5`,
-          };
-        }),
+      { icon: SPELL_ICONS.fire, name: SPELLS.fire.name, sub: `${spellEffect('fire', 0)}　最初から使える` },
+      ...[...ATTACK_SPELLS, ...BUFF_SPELLS]
+        .filter((id) => p.learned.includes(id))
+        .map((id) => ({ icon: SPELL_ICONS[id], name: SPELLS[id].name, sub: spellEffect(id, 0) })),
     ];
-    return rows.map(renderRow);
+    return [
+      note(`魔導書を読むと覚え、もう一度読むと+${SPELL_MAX_RANK}まで強くなる。強さはそのダンジョンの間だけ`),
+      ...rows.map(renderRow),
+    ];
   }
 }
 

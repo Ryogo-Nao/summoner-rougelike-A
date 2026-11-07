@@ -12,6 +12,9 @@ type ToScreen = (pos: { x: number; y: number }) => { x: number; y: number };
 /** 魔法ごとの色（r, g, b） */
 const SPELL_RGB: Record<string, string> = {
   fire: '255, 150, 50',
+  ice: '140, 210, 255',
+  wind: '150, 240, 170',
+  earth: '255, 210, 120',
   bigFire: '255, 100, 40',
   thunder: '255, 236, 120',
   power: '255, 110, 80',
@@ -22,6 +25,10 @@ const SPELL_RGB: Record<string, string> = {
 const FIRE = ['#fff6d0', '#ffd84a', '#ff9a3a', '#ff5a2a'];
 const SMOKE = ['#e8e2d6', '#c9c1b4', '#a79f93'];
 const SPARK = ['#ffffff', '#fff3a0', '#ffe14a'];
+const ICE = ['#ffffff', '#d8f2ff', '#9fd8ff', '#6fb8f0'];
+const WIND = ['#ffffff', '#d8ffe0', '#9ff0b4'];
+const STAR = ['#ffffff', '#fff3b0', '#ffd84a', '#ffb347'];
+const DUST = ['#d8c8a8', '#b8a07a', '#8f7a5a'];
 const POWER = ['#ffd84a', '#ff9a5a', '#ff6a5a'];
 const GUARD = ['#ffffff', '#bfe4ff', '#7cc4ff'];
 const MAGIC = ['#ffffff', '#e4c4ff', '#b47cff'];
@@ -152,6 +159,30 @@ export class SpellFx {
       const pos = { x: caster.pos.x + (last.x - caster.pos.x) * t + 0.5, y: caster.pos.y + (last.y - caster.pos.y) * t + 0.5 };
       this.particles.burst({ ...pos, count: 2, color: FIRE, speed: [0.2, 0.7], size: [0.03, 0.06], life: [180, 300], glow: true });
     }
+    if (scene.action === 'ice' && phase === 'travel' && caster) {
+      // 氷のつぶてが、主人公から3マス先（壁の手前）までまっすぐ飛ぶ。魔物は突き抜ける
+      const a = center(caster.pos);
+      const last = scene.cells[scene.cells.length - 1] ?? caster.pos;
+      const b = center(last);
+      this.shard(ctx, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, ts * 0.3, Math.atan2(b.y - a.y, b.x - a.x));
+      const pos = { x: caster.pos.x + (last.x - caster.pos.x) * t + 0.5, y: caster.pos.y + (last.y - caster.pos.y) * t + 0.5 };
+      this.particles.burst({ ...pos, count: 2, color: ICE, speed: [0.1, 0.5], size: [0.025, 0.05], life: [200, 320], glow: true });
+    }
+    if (scene.action === 'wind' && phase === 'impact' && t < 0.5 && caster) {
+      // 目の前の横3マスを、風の刃が弧を描いて切る
+      this.slash(ctx, center(caster.pos), scene.toward, caster.pos, ts, t / 0.5);
+    }
+    if (scene.action === 'earth' && phase === 'travel' && caster) {
+      // 空から星が、魔物のいるマスへ斜めに降ってくる。マスごとに少しずつずらす
+      for (const [i, c] of scene.cells.entries()) {
+        const k = clamp01(t * 1.3 - (i % 4) * 0.1);
+        if (k <= 0) continue;
+        const p = center(c);
+        const sx = p.x + ts * 2.2 * (1 - k);
+        const sy = p.y - ts * 5 * (1 - k);
+        this.star(ctx, sx, sy, ts * 0.22, now + i * 120, { x: ts * 2.2, y: -ts * 5 });
+      }
+    }
     if (scene.action === 'bigFire' && caster && (phase === 'travel' || (phase === 'impact' && t < 0.5))) {
       // 炎の壁が、前へ1列ずつ広がっていく。広がり終えたら、当たる段の前半で消えていく
       const front = phase === 'travel' ? t * 5.5 : 5.5;
@@ -256,6 +287,107 @@ export class SpellFx {
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, r * 1.6 * wob, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** 氷のつぶて。飛ぶ向きに細長いひし形を、白い芯と水色のふちで描く */
+  private shard(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, angle: number): void {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.6);
+    g.addColorStop(0, 'rgba(220, 245, 255, 0.8)');
+    g.addColorStop(1, 'rgba(120, 200, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(190, 235, 255, 0.95)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+    ctx.lineWidth = Math.max(1, r * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(r * 1.3, 0);
+    ctx.lineTo(0, r * 0.45);
+    ctx.lineTo(-r * 0.9, 0);
+    ctx.lineTo(0, -r * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * 風の刃。主人公のまわりに、向いている方向を中心とした弧（左斜め前から右斜め前まで）を、
+   * k（0〜1）に合わせて振り抜き、振り終わりにかけて薄れる
+   */
+  private slash(
+    ctx: CanvasRenderingContext2D,
+    c: { x: number; y: number },
+    toward: { x: number; y: number },
+    from: { x: number; y: number },
+    ts: number,
+    k: number,
+  ): void {
+    const mid = Math.atan2(toward.y - from.y, toward.x - from.x);
+    const span = Math.PI * 0.75;
+    const start = mid - span / 2;
+    const end = start + span * clamp01(k * 1.6);
+    const tail = Math.max(start, end - span * 0.6);
+    const alpha = k < 0.6 ? 1 : (1 - k) / 0.4;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (const [w, color] of [
+      [ts * 0.26, `rgba(140, 240, 170, ${0.3 * alpha})`],
+      [ts * 0.11, `rgba(200, 255, 215, ${0.85 * alpha})`],
+      [ts * 0.04, `rgba(255, 255, 255, ${alpha})`],
+    ] as [number, string][]) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1, w);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, ts * 1.05, tail, end);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** 降ってくる星。光る五芒星と、来た方向へのびる尾 */
+  private star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, now: number, back: { x: number; y: number }): void {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const len = Math.hypot(back.x, back.y) || 1;
+    const tx = x + (back.x / len) * r * 6;
+    const ty = y + (back.y / len) * r * 6;
+    const tailG = ctx.createLinearGradient(x, y, tx, ty);
+    tailG.addColorStop(0, 'rgba(255, 230, 140, 0.8)');
+    tailG.addColorStop(1, 'rgba(255, 200, 90, 0)');
+    ctx.strokeStyle = tailG;
+    ctx.lineWidth = r * 0.9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
+    g.addColorStop(0, 'rgba(255, 250, 220, 0.9)');
+    g.addColorStop(1, 'rgba(255, 200, 80, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.translate(x, y);
+    ctx.rotate(now / 160);
+    ctx.fillStyle = 'rgba(255, 245, 190, 1)';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i * Math.PI) / 5 - Math.PI / 2;
+      const rr = i % 2 === 0 ? r : r * 0.45;
+      if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
@@ -451,6 +583,32 @@ export class SpellFx {
         if (hits.length > 0) for (const h of hits) this.explode(h, 0.8, now);
         else if (last) this.particles.burst({ x: last.x + 0.5, y: last.y + 0.5, count: 8, color: FIRE, speed: [0.5, 1.4], size: [0.03, 0.06], life: [160, 280], glow: true });
         if (hits.length > 0) this.shake.kick(0.05, 160, now);
+        break;
+      case 'ice':
+        // 当たったマスで氷が砕ける
+        for (const h of hits) {
+          this.particles.burst({ x: h.x + 0.5, y: h.y + 0.5, count: 16, color: ICE, speed: [1.2, 3], size: [0.03, 0.07], life: [220, 400], glow: true });
+          this.rings.add({ x: h.x + 0.5, y: h.y + 0.5, duration: 300, radius: 0.7, color: 'rgba(170, 225, 255, 1)', flat: false }, now);
+        }
+        if (hits.length > 0) this.shake.kick(0.05, 160, now);
+        else if (last) this.particles.burst({ x: last.x + 0.5, y: last.y + 0.5, count: 8, color: ICE, speed: [0.4, 1.2], size: [0.03, 0.06], life: [160, 280], glow: true });
+        break;
+      case 'wind':
+        for (const c of scene.cells) {
+          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.5, count: 6, color: WIND, speed: [0.8, 2], size: [0.025, 0.05], life: [200, 340], glow: true, delay: 60 });
+        }
+        for (const h of hits) this.particles.burst({ x: h.x + 0.5, y: h.y + 0.5, count: 12, color: WIND, speed: [1.5, 3.2], size: [0.03, 0.06], life: [200, 340], glow: true, delay: 80 });
+        if (hits.length > 0) this.shake.kick(0.05, 160, now);
+        break;
+      case 'earth':
+        // 星が落ちたマスで、光が弾けて土ぼこりが立つ
+        for (const c of scene.cells) {
+          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.6, count: 14, color: STAR, speed: [1.2, 3], size: [0.03, 0.07], life: [220, 420], glow: true });
+          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.7, count: 8, color: DUST, speed: [0.3, 1], size: [0.06, 0.12], life: [380, 620], gravity: -0.8, delay: 80 });
+          this.rings.add({ x: c.x + 0.5, y: c.y + 0.75, duration: 360, radius: 0.8, color: 'rgba(255, 220, 130, 1)', flat: true }, now);
+        }
+        this.flash.kick('255, 235, 170', 0.25, 200, now);
+        this.shake.kick(0.12, 280, now);
         break;
       case 'bigFire':
         for (const h of hits) this.explode(h, 1, now);

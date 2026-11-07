@@ -22,20 +22,29 @@ describe('F-74 場面の種類とかかるマス', () => {
     expect(s.actors[s.attacker].isPlayer).toBe(true);
   });
 
-  it('火の魔法は fire で、最初の魔物までのまっすぐのマス', () => {
+  it('ヒボシは fire で、目の前の魔物のマス。イテホシは ice で、まっすぐ3マス', () => {
     const g = emptyState(32);
-    const placed = placeMonster(g, 'chuppi', 3)!;
+    const placed = placeMonster(g, 'chuppi', 1)!;
     g.player.facing = placed.dir;
     g.player.mp = g.player.maxMp;
     const at = { ...placed.m.pos };
     g.cast('fire');
     const s = g.takeScenes()[0];
     expect(s.action).toBe('fire');
-    expect(s.cells.length).toBe(3);
-    expect(same(s.cells[2], at)).toBe(true);
+    expect(s.cells.length).toBe(1);
+    expect(same(s.cells[0], at)).toBe(true);
+    const g2 = emptyState(32);
+    const far = placeMonster(g2, 'chuppi', 3)!;
+    g2.player.facing = far.dir;
+    g2.player.mp = g2.player.maxMp;
+    g2.learned.add('ice');
+    g2.cast('ice');
+    const s2 = g2.takeScenes()[0];
+    expect(s2.action).toBe('ice');
+    expect(s2.cells.length).toBe(3);
   });
 
-  it('力・守りの魔法は power・guard で、主人公と仲間のマス。数字はその場面で出る', () => {
+  it('チカラボシ・マモリホシは power・guard で、主人公と仲間のマス。数字はその場面で出る', () => {
     for (const spell of ['power', 'guard'] as const) {
       const g = emptyState(33);
       g.learned.add(spell);
@@ -178,39 +187,40 @@ describe('F-78 魔法と星の演出', () => {
   const caster = (seed: number) => {
     const g = emptyState(seed);
     g.player.mp = g.player.maxMp = 99;
-    g.availableSpells = () => ['fire', 'bigFire', 'thunder', 'power', 'guard'];
+    g.availableSpells = () => ['fire', 'ice', 'wind', 'thunder', 'earth', 'bigFire', 'power', 'guard'];
     return g;
   };
 
-  it('魔法はどれも唱える段があり、雷・守りなどは踏み込まない（飛ぶ段がない）', () => {
-    for (const spell of ['fire', 'bigFire', 'thunder', 'power', 'guard'] as const) {
+  it('魔法はどれも唱える段があり、ホシナリ・ホシキリ・守りなどは踏み込まない（飛ぶ段がない）', () => {
+    for (const spell of ['fire', 'ice', 'wind', 'thunder', 'earth', 'bigFire', 'power', 'guard'] as const) {
       const g = caster(41);
       g.cast(spell);
       const s = g.takeScenes().find((x) => x.action === spell)!;
       const t = timingOf(s);
       expect(t.windup, spell).toBeGreaterThan(0);
       expect(t.impact, spell).toBeGreaterThanOrEqual(300);
-      if (spell === 'thunder' || spell === 'power' || spell === 'guard') expect(t.travel, spell).toBe(0);
+      if (spell === 'thunder' || spell === 'wind' || spell === 'power' || spell === 'guard') expect(t.travel, spell).toBe(0);
+      if (spell === 'ice' || spell === 'earth') expect(t.travel, spell).toBeGreaterThan(0);
     }
   });
 
-  it('火の魔法の飛ぶ長さは、道すじが長いほど長い', () => {
+  it('飛ぶ長さは、道すじが長いほど長い（目の前のヒボシより、3マス飛ぶイテホシが長い）', () => {
     const near = caster(42);
     const a = placeMonster(near, 'chuppi', 1)!;
     near.player.facing = a.dir;
     near.cast('fire');
     const far = caster(42);
-    const b = placeMonster(far, 'chuppi', 4)!;
+    const b = placeMonster(far, 'chuppi', 3)!;
     far.player.facing = b.dir;
-    far.cast('fire');
+    far.cast('ice');
     const t1 = timingOf(near.takeScenes()[0]);
-    const t4 = timingOf(far.takeScenes()[0]);
-    expect(t4.travel).toBeGreaterThan(t1.travel);
+    const t3 = timingOf(far.takeScenes()[0]);
+    expect(t3.travel).toBeGreaterThan(t1.travel);
   });
 
-  it('大火球と雷のかかるマスに、壁のマスは入らない', () => {
+  it('大火球・ホシナリ・ホシキリ・ホシヨビのかかるマスに、壁のマスは入らない', () => {
     for (const seed of [43, 44, 45, 46, 47]) {
-      for (const spell of ['bigFire', 'thunder'] as const) {
+      for (const spell of ['bigFire', 'thunder', 'wind', 'earth'] as const) {
         const g = caster(seed);
         g.cast(spell);
         const s = g.takeScenes().find((x) => x.action === spell)!;

@@ -63,7 +63,7 @@ describe('F-28 壁の角越しの攻撃', () => {
     expect(lastCell(g, 'shoot')).toEqual(at);
   });
 
-  it('火の魔法は角の向こうの魔物に当たる', () => {
+  it('ヒボシは角の向こうの魔物に当たる', () => {
     const { g, m } = corner(1);
     g.player.mp = g.player.maxMp = 99;
     g.cast('fire');
