@@ -4,7 +4,7 @@ import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
 import { DUNGEONS } from './game/dungeons';
 import { Renderer } from './render/renderer';
-import { TURN_CAP_MS, phaseAt, scaledTiming, totalOf } from './render/effects';
+import { TURN_CAP_MS, isRepeat, phaseAt, scaledTiming, totalOf } from './render/effects';
 import { faceElement, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
@@ -235,7 +235,8 @@ onArtLoaded(() => {
  */
 function playScenes(done: () => void): void {
   const scenes = state.takeScenes();
-  const timings = scenes.map((s) => scaledTiming(s, settings.effectSpeed));
+  // 2回攻撃の2回目は、構えを短くして続けざまに見せる
+  const timings = scenes.map((s, i) => scaledTiming(s, settings.effectSpeed, isRepeat(scenes[i - 1], s)));
   const total = timings.reduce((sum, t) => sum + totalOf(t), 0);
   if (scenes.length === 0 || total === 0) {
     done();

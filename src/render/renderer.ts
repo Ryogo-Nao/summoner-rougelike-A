@@ -1,8 +1,9 @@
 import type { ActorView, GameState, Popup, Scene, SceneAction } from '../game/state';
 import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
+import { characterInfo, type Motion } from '../game/characters';
 import { artImage, itemArt } from './art';
-import { Particles, Shake, type EffectPhase } from './effects';
+import { Particles, SLASH_FROM, SLASH_TO, Shake, motionPose, type EffectPhase, type Pose } from './effects';
 import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
@@ -14,9 +15,16 @@ export interface Playback {
   t: number;
 }
 
-/** 踏み込む深さ（マスの何割か）。投げる・撃つときは軽く構えるだけ */
+/** 踏み込む深さ（マスの何割か）。魔法などで使う。投げる・撃つときは軽く構えるだけ */
 const LUNGE_DEPTH = 0.4;
 const TOSS_DEPTH = 0.18;
+/** 主人公の攻撃の動き方（武器を振る） */
+const PLAYER_MOTION: Motion = 'swipe';
+/** 攻撃を受けた側が押される量（マスの何割か） */
+const KNOCKBACK = 0.14;
+/** たおれた者が消えていく動き。当たる段のこの時刻から薄くなり、沈んで小さくなる */
+const FADE_FROM = 0.35;
+const SMOKE = ['#e8e2d6', '#c9c1b4', '#a79f93'];
 /** 構える段で踏み込まない場面 */
 const NO_LUNGE: ReadonlySet<SceneAction> = new Set(['item', 'power', 'guard']);
 /** 当たったときの火花の色。こちらが与えたダメージは白と金、受けたダメージは赤 */
@@ -87,6 +95,14 @@ const POPUP_COLORS: Record<Popup['kind'], string> = {
 const MINI_TILE = 2;
 /** ミニマップをタップしやすいよう、当たり判定を周りに広げる幅（px） */
 const MINI_HIT_MARGIN = 12;
+
+/** from から to への向きの、長さ1のベクトル（8方向。同じマスなら 0） */
+function unitToward(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
+  const dx = Math.sign(to.x - from.x);
+  const dy = Math.sign(to.y - from.y);
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: dx / len, y: dy / len };
+}
 
 interface Rect {
   x: number;
@@ -286,29 +302,55 @@ export class Renderer {
     const hurt = new Set(
       popups.filter((p) => p.kind === 'damage' || p.kind === 'hurt').map((p) => `${p.pos.x},${p.pos.y}`),
     );
+    const attackerPos = play && play.scene.attacker >= 0 ? play.scene.actors[play.scene.attacker].pos : undefined;
     actors.forEach((actor, i) => {
       const at = shown.get(actor.key)!;
       let { x: sx, y: sy } = toScreen(at);
       // 歩いている間は小さく跳ねる
       sy -= Math.sin(at.t * Math.PI) * HOP * ts;
+      let pose: Pose | undefined;
+      let alpha = 1;
       if (play?.phase === 'windup' && i === play.scene.attacker && !NO_LUNGE.has(play.scene.action)) {
-        // 相手の方へ踏み込んで、元の位置に戻る
-        const tossing = play.scene.action === 'throw' || play.scene.action === 'shoot';
-        const depth = Math.sin(play.t * Math.PI) * (tossing ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
-        const dx = Math.sign(play.scene.toward.x - actor.pos.x);
-        const dy = Math.sign(play.scene.toward.y - actor.pos.y);
-        const len = Math.hypot(dx, dy) || 1;
-        sx += (dx / len) * depth;
-        sy += (dy / len) * depth;
+        const { x: ux, y: uy } = unitToward(actor.pos, play.scene.toward);
+        if (play.scene.action === 'attack') {
+          // 隣への攻撃は、種族ごとの動き方（キャラクターの台帳）で動く
+          pose = motionPose(actor.isPlayer ? PLAYER_MOTION : characterInfo(actor.art).motion, play.t);
+          sx += ux * pose.forward * ts;
+          sy += uy * pose.forward * ts - pose.lift * ts;
+        } else {
+          // 魔法・投げるなどは、相手の方へ踏み込んで、元の位置に戻る（演出はステップ3・4で作る）
+          const tossing = play.scene.action === 'throw' || play.scene.action === 'shoot';
+          const depth = Math.sin(play.t * Math.PI) * (tossing ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
+          sx += ux * depth;
+          sy += uy * depth;
+        }
       }
       if (impact && hurt.has(`${actor.pos.x},${actor.pos.y}`)) {
-        // 受けた側は細かく揺れて点滅する
-        if (Math.floor(play!.t * 6) % 2 === 1) return;
-        sx += Math.sin(play!.t * Math.PI * 8) * ts * 0.06;
+        // 受けた側は、攻撃してきた方から押されて戻り、細かく揺れて点滅する
+        const t = play!.t;
+        if (attackerPos) {
+          const { x: kx, y: ky } = unitToward(attackerPos, actor.pos);
+          const push = KNOCKBACK * ts * Math.max(0, 1 - t * 2.5) ** 2;
+          sx += kx * push;
+          sy += ky * push;
+        }
+        if (t < FADE_FROM || !play!.scene.defeated.includes(actor.key)) {
+          if (Math.floor(t * 6) % 2 === 1) return;
+          sx += Math.sin(t * Math.PI * 8) * ts * 0.06;
+        }
       }
-      this.drawActor(actor, sx, sy, now);
+      if (impact && play!.scene.defeated.includes(actor.key) && play!.t >= FADE_FROM) {
+        // たおれた者は、沈みながら小さく薄くなって消える
+        const f = (play!.t - FADE_FROM) / (1 - FADE_FROM);
+        alpha = 1 - f;
+        sy += f * ts * 0.18;
+        pose = { forward: 0, lift: 0, lean: 0, wobble: f * 0.3, sx: 1 - f * 0.4, sy: 1 - f * 0.55 };
+      }
+      if (alpha <= 0) return;
+      this.drawActor(actor, sx, sy, now, pose, alpha, play && i === play.scene.attacker ? play.scene.toward : undefined);
     });
 
+    if (play?.phase === 'windup' && play.scene.action === 'attack') this.drawSlash(play, toScreen);
     if (play?.phase === 'travel') this.drawFlying(play, toScreen);
     this.particles.draw(ctx, (p) => toScreen(p), ts);
     this.drawPopups(popups, toScreen, impact ? play!.t : 1);
@@ -346,6 +388,51 @@ export class Renderer {
       });
       if (p.kind === 'hurt' && me && p.pos.x === me.x && p.pos.y === me.y) this.shake.kick(HURT_SHAKE, HURT_SHAKE_MS, now);
     }
+    // たおれた者からは、消えていくときに煙が立ちのぼる
+    for (const key of scene.defeated) {
+      const a = scene.actors.find((x) => x.key === key);
+      if (!a) continue;
+      this.particles.burst({
+        x: a.pos.x + 0.5,
+        y: a.pos.y + 0.55,
+        count: 14,
+        color: SMOKE,
+        speed: [0.3, 1.1],
+        size: [0.06, 0.12],
+        life: [380, 620],
+        gravity: -1.2,
+        delay: 120,
+      });
+    }
+  }
+
+  /**
+   * 薙ぎ払う動き（主人公と、爪・はさみ・触手の魔物）で、相手のマスに斬った跡の弧を出す
+   */
+  private drawSlash(play: Playback, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }): void {
+    const { scene, t } = play;
+    const actor = scene.actors[scene.attacker];
+    if (!actor || t < SLASH_FROM || t > SLASH_TO) return;
+    const motion = actor.isPlayer ? PLAYER_MOTION : characterInfo(actor.art).motion;
+    if (motion !== 'swipe') return;
+    const { ctx, tileSize: ts } = this;
+    const k = (t - SLASH_FROM) / (SLASH_TO - SLASH_FROM);
+    const { x, y } = toScreen(scene.toward);
+    const { x: ux, y: uy } = unitToward(actor.pos, scene.toward);
+    // 弧は、攻撃してくる向きに直角に、上から下へ振り下ろす
+    const base = Math.atan2(uy, ux);
+    const from = base - Math.PI * 0.55;
+    const sweep = Math.PI * 1.1 * Math.min(1, k * 1.8);
+    ctx.save();
+    ctx.globalAlpha = 1 - k;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255, 250, 220, 0.95)';
+    ctx.lineWidth = Math.max(2, ts * 0.08);
+    ctx.beginPath();
+    ctx.arc(x + ts / 2 - ux * ts * 0.25, y + ts * 0.45 - uy * ts * 0.25, ts * 0.42, from, from + sweep);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**
@@ -400,22 +487,42 @@ export class Renderer {
     return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
   }
 
-  private drawActor(actor: ActorView, sx: number, sy: number, now: number): void {
+  /**
+   * pose は攻撃・たおれるときの動き（傾き・伸び縮み）、alpha は薄さ、toward は攻撃する相手のマス（前へ傾ける向きを決める）
+   */
+  private drawActor(
+    actor: ActorView,
+    sx: number,
+    sy: number,
+    now: number,
+    pose?: Pose,
+    alpha = 1,
+    toward?: { x: number; y: number },
+  ): void {
     const { ctx, tileSize: ts } = this;
     // 絵は左下を向いている。右を向いたら反転する。上下を向いたときは前の向きのまま
     if (actor.facing >= 1 && actor.facing <= 3) this.flipped.set(actor.key, true);
     else if (actor.facing >= 5) this.flipped.set(actor.key, false);
     const flip = this.flipped.get(actor.key) ?? false;
+    // 前へ傾ける向き。相手が右なら時計回り、左なら反時計回り。真上・真下なら絵の向いている側へ
+    const dx = toward ? Math.sign(toward.x - actor.pos.x) : 0;
+    const side = dx !== 0 ? dx : flip ? 1 : -1;
+    const rot = pose ? pose.lean * side + pose.wobble : 0;
+    ctx.globalAlpha = alpha;
     // 立っている間は、息をするように少し伸び縮みする。ひとりずつ少しずらす
     let phase = 0;
     for (const c of actor.key) phase += c.charCodeAt(0);
     const breath = Math.sin((now / BREATH_MS) * Math.PI * 2 + phase) * BREATH;
+    // 飛び上がっている間も、影とHPの棒は地面に残す。影は高く上がるほど小さくする
+    const lift = (pose?.lift ?? 0) * ts;
+    const ground = sy + lift;
+    const shrink = 1 - Math.min(0.5, pose?.lift ?? 0);
     // 足もとの影で、味方と敵を見分けやすくする。アイテムには付けない
     ctx.save();
     ctx.fillStyle = actor.enemy ? COLORS.enemyShadow : COLORS.allyShadow;
     ctx.beginPath();
     // HPの棒（マスの下端）に重ならないよう、棒より上で終わらせる
-    ctx.ellipse(sx + ts / 2, sy + ts * 0.75, ts * 0.42, ts * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + ts / 2, ground + ts * 0.75, ts * 0.42 * shrink, ts * 0.12 * shrink, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = EMOJI_FILL;
@@ -425,7 +532,8 @@ export class Renderer {
     const footY = sy + ts * 0.8;
     ctx.save();
     ctx.translate(footX, footY);
-    ctx.scale((flip ? -1 : 1) * (1 - breath / 2), 1 + breath);
+    ctx.rotate(rot);
+    ctx.scale((flip ? -1 : 1) * (1 - breath / 2) * (pose?.sx ?? 1), (1 + breath) * (pose?.sy ?? 1));
     if (img) {
       // 絵はマスより少し大きく描く
       const size = ts * 1.08;
@@ -443,8 +551,9 @@ export class Renderer {
       ctx.fillText(actor.sick, sx + ts * 0.8, sy + ts * 0.18);
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     }
-    if (actor.hp) this.drawHpBar(sx, sy, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
-    if (actor.isPlayer) this.drawFacing(sx + ts / 2, sy + ts / 2, actor.facing);
+    if (actor.hp) this.drawHpBar(sx, ground, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
+    if (actor.isPlayer) this.drawFacing(sx + ts / 2, ground + ts / 2, actor.facing);
+    ctx.globalAlpha = 1;
   }
 
   /**

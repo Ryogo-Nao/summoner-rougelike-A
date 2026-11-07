@@ -4,6 +4,7 @@
  * 粒（火の粉・破片など）と、画面の揺れもここで持つ。絵は作らず、コードで描く
  */
 
+import type { Motion } from '../game/characters';
 import type { Scene } from '../game/state';
 
 /**
@@ -32,6 +33,10 @@ const IMPACT_EMPTY_MS = 60;
 const TOSS_MS = 110;
 const TRAVEL_PER_TILE_MS = 40;
 const TRAVEL_MIN_MS = 80;
+/** たおれた者がいる場面は、消えていくところまで見せる */
+const IMPACT_DEFEAT_MS = 480;
+/** 同じ者が続けて攻撃する2回目（2回攻撃）は、構えを短くする */
+const REPEAT_WINDUP = 0.6;
 /** 速さ「最小」で数字を見せる長さ */
 const MIN_IMPACT_MS = 160;
 /** 1回の行動で見せる場面の合計の長さの上限。こえるときは全体を速める */
@@ -39,7 +44,7 @@ export const TURN_CAP_MS = 2600;
 
 /** 速さ「ふつう」のときの、場面の段の長さ */
 export function timingOf(scene: Scene): EffectTiming {
-  const impact = scene.popups.length > 0 ? IMPACT_MS : IMPACT_EMPTY_MS;
+  const impact = scene.defeated.length > 0 ? IMPACT_DEFEAT_MS : scene.popups.length > 0 ? IMPACT_MS : IMPACT_EMPTY_MS;
   switch (scene.action) {
     case 'throw':
     case 'shoot':
@@ -54,13 +59,120 @@ export function timingOf(scene: Scene): EffectTiming {
   }
 }
 
-/** 設定の速さに合わせた長さ */
-export function scaledTiming(scene: Scene, speed: EffectSpeed): EffectTiming {
+/** 設定の速さに合わせた長さ。repeat は、前の場面と同じ者が同じ相手へ続けて攻撃する場面 */
+export function scaledTiming(scene: Scene, speed: EffectSpeed, repeat = false): EffectTiming {
   const t = timingOf(scene);
   if (speed === 'min') return { windup: 0, travel: 0, impact: scene.popups.length > 0 ? MIN_IMPACT_MS : 0 };
   const k = speed === 'fast' ? 0.5 : 1;
-  return { windup: t.windup * k, travel: t.travel * k, impact: t.impact * k };
+  return { windup: t.windup * k * (repeat ? REPEAT_WINDUP : 1), travel: t.travel * k, impact: t.impact * k };
 }
+
+/** 場面 b が、場面 a と同じ者による、同じ相手への続けての攻撃か（2回攻撃の2回目） */
+export function isRepeat(a: Scene | undefined, b: Scene): boolean {
+  if (!a || a.action !== 'attack' || b.action !== 'attack' || a.attacker < 0 || b.attacker < 0) return false;
+  return (
+    a.actors[a.attacker].key === b.actors[b.attacker].key && a.toward.x === b.toward.x && a.toward.y === b.toward.y
+  );
+}
+
+/**
+ * 構える段で、攻撃する者の絵をどう動かすか（1枚の絵の動き）。
+ * forward は相手の方へ進む量、lift は上へ浮く量（どちらもマスの何割か）、lean は前へ傾ける角度（ラジアン、前のめりが正）、
+ * wobble は向きによらない揺れの角度、sx・sy は横・縦の伸び縮み
+ */
+export interface Pose {
+  forward: number;
+  lift: number;
+  lean: number;
+  wobble: number;
+  sx: number;
+  sy: number;
+}
+
+const REST: Pose = { forward: 0, lift: 0, lean: 0, wobble: 0, sx: 1, sy: 1 };
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
+
+/**
+ * 区切り（0〜1 の時刻）ごとの形を、なめらかにつないだ動き。
+ * keys は [時刻, 形] を時刻の順に並べたもの。最初と最後は REST（元の姿）
+ */
+function keyed(t: number, keys: [number, Partial<Pose>][]): Pose {
+  const all: [number, Pose][] = [[0, REST], ...keys.map(([k, p]) => [k, { ...REST, ...p }] as [number, Pose]), [1, REST]];
+  for (let i = 1; i < all.length; i++) {
+    const [t1, p1] = all[i];
+    const [t0, p0] = all[i - 1];
+    if (t > t1) continue;
+    const e = easeInOut(clamp01((t - t0) / (t1 - t0 || 1)));
+    const mix = (k: keyof Pose) => p0[k] + (p1[k] - p0[k]) * e;
+    return { forward: mix('forward'), lift: mix('lift'), lean: mix('lean'), wobble: mix('wobble'), sx: mix('sx'), sy: mix('sy') };
+  }
+  return REST;
+}
+
+/** 動き方ごとの形。t は構える段の進み具合（0〜1）。どれも 0.5〜0.6 ごろにいちばん相手に近づき、当たる段の前に元へ戻る */
+export function motionPose(motion: Motion, t: number): Pose {
+  switch (motion) {
+    case 'bite':
+      // 少し引いて、前のめりに噛みつく
+      return keyed(t, [
+        [0.32, { forward: -0.12, lean: -0.1, sx: 0.96, sy: 1.04 }],
+        [0.55, { forward: 0.45, lean: 0.26, sx: 1.12, sy: 0.9 }],
+      ]);
+    case 'charge':
+      // 低く構えてためてから、深く突っ込む
+      return keyed(t, [
+        [0.4, { forward: -0.22, lean: -0.12, sx: 1.12, sy: 0.84 }],
+        [0.6, { forward: 0.62, lean: 0.2, sx: 1.16, sy: 0.88 }],
+        [0.75, { forward: 0.5, lean: 0.08 }],
+      ]);
+    case 'pounce':
+      // かがんで、山なりに飛びかかり、着地でつぶれる
+      return keyed(t, [
+        [0.25, { sx: 1.12, sy: 0.84 }],
+        [0.45, { forward: 0.3, lift: 0.36, lean: 0.12, sx: 0.94, sy: 1.1 }],
+        [0.62, { forward: 0.55, lift: 0.04, lean: 0.18 }],
+        [0.72, { forward: 0.5, sx: 1.14, sy: 0.86 }],
+      ]);
+    case 'swoop':
+      // 舞い上がってから、斜めに急降下する
+      return keyed(t, [
+        [0.38, { forward: -0.08, lift: 0.38, lean: -0.1, sx: 1.06, sy: 0.96 }],
+        [0.6, { forward: 0.52, lift: 0, lean: 0.38 }],
+      ]);
+    case 'slam':
+      // 伸び上がって、前へ倒れこむようにのしかかる
+      return keyed(t, [
+        [0.42, { forward: -0.05, lift: 0.22, lean: -0.12, sx: 0.92, sy: 1.12 }],
+        [0.58, { forward: 0.36, lift: 0, lean: 0.14, sx: 1.22, sy: 0.78 }],
+        [0.72, { forward: 0.3, sx: 1.08, sy: 0.94 }],
+      ]);
+    case 'float':
+      // ふわりと漂って寄り、揺れながら触れる
+      return keyed(t, [
+        [0.3, { forward: 0.1, lift: 0.1, wobble: -0.16 }],
+        [0.58, { forward: 0.38, lift: 0.06, wobble: 0.16, sx: 1.06, sy: 0.96 }],
+        [0.8, { forward: 0.12, lift: 0.04, wobble: -0.06 }],
+      ]);
+    case 'sting':
+      // 引いてためて、すばやく突き刺す
+      return keyed(t, [
+        [0.45, { forward: -0.16, lean: -0.14, sx: 0.94, sy: 1.06 }],
+        [0.56, { forward: 0.56, lean: 0.1, sx: 1.16, sy: 0.9 }],
+        [0.7, { forward: 0.5 }],
+      ]);
+    case 'swipe':
+      // 体を引いて振りかぶり、前へ薙ぎ払う
+      return keyed(t, [
+        [0.38, { forward: -0.06, lean: -0.38, sx: 0.98, sy: 1.04 }],
+        [0.58, { forward: 0.32, lean: 0.4, sx: 1.08, sy: 0.96 }],
+      ]);
+  }
+}
+
+/** 薙ぎ払う動きで、相手のマスに斬った跡を出す時刻（構える段の進み具合） */
+export const SLASH_FROM = 0.46;
+export const SLASH_TO = 0.86;
 
 export const totalOf = (t: EffectTiming) => t.windup + t.travel + t.impact;
 
@@ -79,7 +191,7 @@ interface Particle {
   vy: number;
   /** 下向きの重さ（マス/秒²） */
   gravity: number;
-  /** 大きさ（マスの何割か）、色、生きる長さと今の年（ミリ秒） */
+  /** 大きさ（マスの何割か）、色、生きる長さと今の年（ミリ秒）。年が負の間は、まだ出ていない */
   size: number;
   color: string;
   life: number;
@@ -87,6 +199,7 @@ interface Particle {
   /** true なら重ねるほど明るくなる（光・火） */
   glow: boolean;
 }
+
 
 /** 一度に出せる粒の数。iPhone で重くならないよう上限を決める */
 const MAX_PARTICLES = 240;
@@ -103,6 +216,8 @@ export interface Burst {
   life: [number, number];
   gravity?: number;
   glow?: boolean;
+  /** 出るまで待つ時間（ミリ秒） */
+  delay?: number;
 }
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
@@ -130,7 +245,7 @@ export class Particles {
         size: rand(...b.size),
         color: colors[Math.floor(Math.random() * colors.length)],
         life: rand(...b.life),
-        age: 0,
+        age: -(b.delay ?? 0),
         glow: b.glow ?? false,
       });
     }
@@ -140,6 +255,7 @@ export class Particles {
     const s = dt / 1000;
     for (const p of this.list) {
       p.age += dt;
+      if (p.age < 0) continue;
       p.vy += p.gravity * s;
       p.x += p.vx * s;
       p.y += p.vy * s;
@@ -152,6 +268,7 @@ export class Particles {
     if (this.list.length === 0) return;
     ctx.save();
     for (const p of this.list) {
+      if (p.age < 0) continue;
       const { x, y } = toScreen(p);
       const fade = 1 - p.age / p.life;
       ctx.globalAlpha = Math.max(0, fade);

@@ -1,6 +1,6 @@
 // キャラクターの台帳（src/game/characters.ts）から、docs/characters.md を作る。
 // 一覧の表と、キャラクターごとの「絵を頼む指示文」（方向ごとの共通の文＋見た目＋背景）を並べる
-import { ART_STATUS_LABEL, CHARACTERS, POLE_LABEL, type ArtPole, type CharacterInfo } from '../src/game/characters.ts';
+import { ART_STATUS_LABEL, CHARACTERS, MOTION_LABEL, POLE_LABEL, type ArtPole, type CharacterInfo } from '../src/game/characters.ts';
 
 /** 方向ごとの見本の絵（Gemini などに添える） */
 const REFERENCE: Record<ArtPole, string> = {
@@ -51,17 +51,19 @@ export function renderCharactersDoc(): string {
     '魔物・相棒・これから出すキャラクターの、背景と絵の決まりの一覧。背景はゲームのつよさの画面に出る。',
     '絵の方向（神獣・魔獣）の決まりは docs/art-guide.md 2章。',
     '',
-    '- 直すところ：src/game/characters.ts（名前・方向・背景・見た目・絵の進み具合）',
+    '- 直すところ：src/game/characters.ts（名前・方向・攻撃の動き方・背景・見た目・絵の進み具合）',
     '- 直したら：`npm run characters` でこのファイルを作り直す（作り直し忘れは `npm test` で見つかる）',
     '- 絵を頼むとき：下の指示文をそのまま貼り、方向の見本の絵を添える。できた絵は `monster_<ID>.png` の名前で送る',
     '',
     '## 一覧',
     '',
-    '| ID | 名前 | 方向 | 背景 | 絵 |',
-    '|---|---|---|---|---|',
+    '| ID | 名前 | 方向 | 動き方 | 背景 | 絵 |',
+    '|---|---|---|---|---|---|',
   ];
   for (const c of CHARACTERS) {
-    lines.push(`| ${c.id} | ${c.name}${c.planned ? '（未実装）' : ''} | ${POLE_LABEL[c.pole]} | ${c.lore} | ${ART_STATUS_LABEL[c.art]} |`);
+    lines.push(
+      `| ${c.id} | ${c.name}${c.planned ? '（未実装）' : ''} | ${POLE_LABEL[c.pole]} | ${MOTION_LABEL[c.motion]} | ${c.lore} | ${ART_STATUS_LABEL[c.art]} |`,
+    );
   }
   const counts = (['divine', 'dark'] as ArtPole[]).map((p) => `${POLE_LABEL[p]} ${CHARACTERS.filter((c) => c.pole === p).length}体`);
   lines.push('', `全${CHARACTERS.length}体（${counts.join('、')}）`, '');
@@ -73,6 +75,7 @@ export function renderCharactersDoc(): string {
     lines.push(`- 背景：${c.lore}`);
     lines.push(`- 見た目：${c.look}`);
     lines.push(`- 色：${c.colors}`);
+    lines.push(`- 攻撃の動き方：${MOTION_LABEL[c.motion]}`);
     lines.push(`- 絵：${ART_STATUS_LABEL[c.art]}`);
     lines.push(`- 添える見本：${REFERENCE[c.pole]}`);
     if (c.note) lines.push(`- メモ：${c.note}`);

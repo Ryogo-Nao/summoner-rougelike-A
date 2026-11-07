@@ -204,6 +204,8 @@ export interface Scene {
   cells: Pos[];
   /** 投げた・撃った道具の種類（飛んでいく絵に使う） */
   item?: ItemKind;
+  /** この場面でたおれた・封印された魔物と、瀕死になった仲間（actors の key）。消えていく動きを見せる */
+  defeated: string[];
   popups: Popup[];
   /** 攻撃の前と後で、ログをどこまで出すか（serial）と主人公のHP */
   logBefore: number;
@@ -1913,6 +1915,7 @@ export class GameState {
       toward: { ...this.player.pos },
       action: 'item',
       cells: [{ ...this.player.pos }],
+      defeated: [],
       popups: this.popups.splice(0),
       logBefore: last ? last.logAfter : this.actionLog,
       logAfter: this.logSerial,
@@ -1977,6 +1980,8 @@ export class GameState {
     const logBefore = this.logSerial;
     const hpBefore = this.player.hp;
     act();
+    // 場面の前にいて、後にいなくなった魔物と仲間
+    const alive = new Set([...this.monsters.map((m) => `m${objectKey(m)}`), ...this.allies.map((a) => `a${a.card.id}`)]);
     this.scenes.push({
       actors,
       attacker: index,
@@ -1984,6 +1989,7 @@ export class GameState {
       action: fx.action,
       cells: (fx.cells ?? [toward]).map((c) => ({ ...c })),
       item: fx.item,
+      defeated: actors.filter((a) => !a.isPlayer && !alive.has(a.key)).map((a) => a.key),
       popups: this.popups.splice(start),
       logBefore,
       logAfter: this.logSerial,

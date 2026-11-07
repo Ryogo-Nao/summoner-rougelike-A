@@ -1,9 +1,10 @@
-// 1.8 演出（docs/test-plan.md F-74）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
+// 1.8 演出（docs/test-plan.md F-74・F-77）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
 // 段の長さ（src/render/effects.ts）も確かめる。見た目は手とブラウザで確かめる
 import { describe, expect, it } from 'vitest';
+import { CHARACTERS, MOTION_LABEL, type Motion } from '../../src/game/characters';
 import { createItem } from '../../src/game/items';
 import type { Scene } from '../../src/game/state';
-import { phaseAt, scaledTiming, timingOf, totalOf } from '../../src/render/effects';
+import { isRepeat, motionPose, phaseAt, scaledTiming, timingOf, totalOf } from '../../src/render/effects';
 import { emptyState, placeMonster, sturdy } from '../helpers';
 
 const same = (a: { x: number; y: number }, b: { x: number; y: number }) => a.x === b.x && a.y === b.y;
@@ -124,5 +125,50 @@ describe('F-74 演出の段の長さ', () => {
     const min = scaledTiming(shot, 'min');
     expect(min.windup + min.travel).toBe(0);
     expect(min.impact).toBe(shot.popups.length > 0 ? 160 : 0);
+  });
+});
+
+describe('F-77 攻撃の動き方・たおれる・2回攻撃', () => {
+  it('どの動き方も、始めと終わりは元の姿（構える段のあとに位置がずれない）', () => {
+    for (const motion of Object.keys(MOTION_LABEL) as Motion[]) {
+      for (const t of [0, 1]) {
+        const p = motionPose(motion, t);
+        expect(p, `${motion} t=${t}`).toEqual({ forward: 0, lift: 0, lean: 0, wobble: 0, sx: 1, sy: 1 });
+      }
+      // 途中で相手の方へ進む
+      const peak = Math.max(...[0.4, 0.5, 0.55, 0.6, 0.65].map((t) => motionPose(motion, t).forward));
+      expect(peak, motion).toBeGreaterThan(0.25);
+    }
+  });
+
+  it('台帳のどのキャラクターにも、ある動き方が決まっている', () => {
+    for (const c of CHARACTERS) expect(MOTION_LABEL[c.motion], c.id).toBeDefined();
+  });
+
+  it('魔物をたおした場面には、その魔物が defeated に入り、消えるところまで当たる段が長い', () => {
+    const g = emptyState(39);
+    const placed = placeMonster(g, 'chuppi')!;
+    g.player.facing = placed.dir;
+    placed.m.hp = 1;
+    let s: Scene | undefined;
+    for (let i = 0; i < 10 && !s; i++) {
+      g.attack();
+      s = g.takeScenes().find((x) => x.defeated.length > 0);
+    }
+    expect(s).toBeDefined();
+    expect(s!.defeated).toEqual([s!.actors.find((a) => a.enemy)!.key]);
+    expect(timingOf(s!).impact).toBeGreaterThan(400);
+  });
+
+  it('2回攻撃の2回目は、構えが短い', () => {
+    const g = emptyState(40);
+    sturdy(g);
+    placeMonster(g, 'kirigani');
+    g.wait();
+    const hits = g.takeScenes().filter((x) => x.action === 'attack');
+    expect(hits.length).toBe(2);
+    expect(isRepeat(undefined, hits[0])).toBe(false);
+    expect(isRepeat(hits[0], hits[1])).toBe(true);
+    expect(scaledTiming(hits[1], 'normal', true).windup).toBeLessThan(scaledTiming(hits[0], 'normal').windup);
   });
 });
