@@ -36,7 +36,7 @@ describe('F-10〜F-13 ダメージ・経験値・能力', () => {
   });
 
   it('魔物の Lv1 の能力は、表の値そのまま', () => {
-    for (const s of SPECIES) expect(monsterStats(s, 1)).toEqual({ maxHp: s.hp, atk: s.atk, def: s.def });
+    for (const s of SPECIES) expect(monsterStats(s, 1)).toEqual({ maxHp: s.hp, atk: s.atk, def: s.def, matk: s.matk, mdef: s.mdef });
   });
 });
 

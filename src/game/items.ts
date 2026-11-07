@@ -47,6 +47,8 @@ export type ItemKind =
   | 'starMana'
   | 'tomePower'
   | 'tomeGuard'
+  | 'tomeMagic'
+  | 'tomeWard'
   | 'fusionBook'
   | 'rebirthBook'
   | 'pot'
@@ -95,7 +97,7 @@ export interface ItemDef {
   slot?: Slot;
   bonus?: number;
   /** 使うと覚える魔法 */
-  spell?: 'power' | 'guard';
+  spell?: 'power' | 'guard' | 'magic' | 'ward';
   /** 拠点の［配合］で使う書（requirements.md 9.2・9.3）。ダンジョンでは使えない */
   book?: 'fusion' | 'rebirth';
   /** 矢。通常攻撃のダメージに対する倍率 */
@@ -147,6 +149,8 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   starMana: { kana: 'まりょくのほし', name: '魔力の星', emoji: '⭐', desc: '10ターンMPが回復\n食べると効く', food: 5, star: 'mana', value: 80 },
   tomePower: { kana: 'ちからのまどうしょ', name: '力の魔導書', emoji: '📕', desc: '力の魔法を覚える', spell: 'power', value: 800 },
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: '守りの魔法を覚える', spell: 'guard', value: 800 },
+  tomeMagic: { kana: 'まこうのまどうしょ', name: '魔攻の魔導書', emoji: '📒', desc: '魔攻の魔法を覚える', spell: 'magic', value: 800 },
+  tomeWard: { kana: 'まぼうのまどうしょ', name: '魔防の魔導書', emoji: '📓', desc: '魔防の魔法を覚える', spell: 'ward', value: 800 },
   fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', book: 'fusion', value: 3000 },
   rebirthBook: { kana: 'てんせいのしょ', name: '転生の書', emoji: '📙', desc: '拠点の［配合］で\nイヅツチを転生させる', book: 'rebirth', value: 3000 },
   pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる', pouch: { capacity: [2, 4] }, value: 100 },

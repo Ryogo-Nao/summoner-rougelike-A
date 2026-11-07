@@ -43,7 +43,7 @@ const MIN_IMPACT_MS = 160;
 export const TURN_CAP_MS = 2600;
 
 /** 主人公が魔法陣を出して唱える魔法 */
-export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set(['fire', 'bigFire', 'thunder', 'power', 'guard']);
+export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set(['fire', 'bigFire', 'thunder', 'power', 'guard', 'magic', 'ward']);
 
 /**
  * 魔法と星の段の長さ（ミリ秒）。cast は唱える（魔法陣）、travel は火が飛ぶ・炎が広がる、
@@ -55,6 +55,8 @@ const SPELL_TIMING: Partial<Record<SceneAction, { cast: number; travel: number; 
   thunder: { cast: 300, travel: 0, impact: 400 },
   power: { cast: 240, travel: 0, impact: 460 },
   guard: { cast: 240, travel: 0, impact: 460 },
+  magic: { cast: 240, travel: 0, impact: 460 },
+  ward: { cast: 240, travel: 0, impact: 460 },
   burst: { cast: 150, travel: 0, impact: 400 },
 };
 

@@ -16,6 +16,8 @@ export const IZUTSUCHI: Species = {
   hp: 20,
   atk: 5,
   def: 3,
+  matk: 6,
+  mdef: 4,
   exp: 0,
   capture: 0,
   cost: 3,
@@ -28,9 +30,9 @@ export const IZUTSUCHI: Species = {
 export type CardStatus = 'ready' | 'summoned' | 'dying';
 
 /** レベルと補正から求める能力 */
-export type Stat = 'maxHp' | 'atk' | 'def';
+export type Stat = 'maxHp' | 'atk' | 'def' | 'matk' | 'mdef';
 export type Stats = Record<Stat, number>;
-export const STAT_LABEL: Record<Stat, string> = { maxHp: 'HP', atk: '攻撃', def: '防御' };
+export const STAT_LABEL: Record<Stat, string> = { maxHp: 'HP', atk: '攻撃', def: '防御', matk: '魔攻', mdef: '魔防' };
 
 /** 性格（requirements.md 6.2）。封印したときにカードごとに決まり、能力だけに効く */
 export type PersonalityId = 'ganbari' | 'shincho' | 'takumashii' | 'okubyo' | 'sunao';
@@ -63,7 +65,10 @@ export interface Card {
   maxHp: number;
   atk: number;
   def: number;
-  /** 性格と、あとから足す能力（世代継承や道具など）。maxHp・atk・def はこれらとレベルから求める */
+  /** 魔法攻撃力・魔法防御力。魔法の攻撃（火を吐く・いかずちなど）だけに効く（balance.md 3.6） */
+  matk: number;
+  mdef: number;
+  /** 性格と、あとから足す能力（世代継承や道具など）。能力（maxHp・atk・def・matk・mdef）はこれらとレベルから求める */
   personality: PersonalityId;
   bonus: Stats;
   status: CardStatus;
@@ -141,15 +146,17 @@ const BASE_GAIN: Record<Stat, { flat: number; rate: number }> = {
   maxHp: { flat: 1, rate: 0.08 },
   atk: { flat: 0.5, rate: 0.06 },
   def: { flat: 0.3, rate: 0.06 },
+  matk: { flat: 0.5, rate: 0.06 },
+  mdef: { flat: 0.3, rate: 0.06 },
 };
 
 /** 成長の型ごとの、伸びの倍率（balance.md 4.2） */
 export const GROWTH_TYPES: Record<GrowthType, Stats> = {
-  balance: { maxHp: 1, atk: 1, def: 1 },
-  hp: { maxHp: 1.3, atk: 0.9, def: 0.9 },
-  attack: { maxHp: 0.9, atk: 1.3, def: 0.8 },
-  defense: { maxHp: 1, atk: 0.8, def: 1.4 },
-  partner: { maxHp: 1.2, atk: 1.25, def: 2 },
+  balance: { maxHp: 1, atk: 1, def: 1, matk: 1, mdef: 1 },
+  hp: { maxHp: 1.3, atk: 0.9, def: 0.9, matk: 0.9, mdef: 1 },
+  attack: { maxHp: 0.9, atk: 1.3, def: 0.8, matk: 0.9, mdef: 0.8 },
+  defense: { maxHp: 1, atk: 0.8, def: 1.4, matk: 0.8, mdef: 1.2 },
+  partner: { maxHp: 1.2, atk: 1.25, def: 2, matk: 1.25, mdef: 1.5 },
 };
 
 /** 成長の早さ。until レベルまでは伸び × before、その先は × after */
@@ -186,14 +193,14 @@ function statsAt(species: Species, level: number, startRate: number, personality
   const steps = growthSteps(species.pace, level) * rate;
   const type = GROWTH_TYPES[species.growth];
   const { up, down } = PERSONALITIES[personality];
-  const base: Stats = { maxHp: species.hp, atk: species.atk, def: species.def };
+  const base: Stats = { maxHp: species.hp, atk: species.atk, def: species.def, matk: species.matk, mdef: species.mdef };
   const stat = (s: Stat) => {
     const gain = (BASE_GAIN[s].flat + base[s] * BASE_GAIN[s].rate) * type[s];
     const mood = s === up ? 1 + PERSONALITY_RATE : s === down ? 1 - PERSONALITY_RATE : 1;
     const value = (base[s] * startRate + gain * steps) * mood;
     return Math.max(1, Math.round(value) + (bonus?.[s] ?? 0));
   };
-  return { maxHp: stat('maxHp'), atk: stat('atk'), def: stat('def') };
+  return { maxHp: stat('maxHp'), atk: stat('atk'), def: stat('def'), matk: stat('matk'), mdef: stat('mdef') };
 }
 
 /** レベルや補正が変わったあとに、能力を求め直す。今のHPは最大HPを超えないようにする */
@@ -202,7 +209,7 @@ export function refreshStats(card: Card): void {
   card.hp = Math.min(card.hp, card.maxHp);
 }
 
-export const noBonus = (): Stats => ({ maxHp: 0, atk: 0, def: 0 });
+export const noBonus = (): Stats => ({ maxHp: 0, atk: 0, def: 0, matk: 0, mdef: 0 });
 
 /** level は封印した魔物のレベル。そのレベルになったばかりの経験値で始める */
 export function createCard(species: Species, obtainedHere: boolean, personality: PersonalityId = 'sunao', level = 1): Card {

@@ -14,7 +14,9 @@ import {
   growCard,
   cardName,
   isPartner,
+  monsterStats,
   noAilments,
+  noBonus,
   swapInList,
   type Ailments,
   type Ally,
@@ -63,9 +65,14 @@ export const SPELLS = {
   thunder: { name: '雷の魔法', label: '雷', mp: 5 },
   power: { name: '力の魔法', label: '力', mp: 6 },
   guard: { name: '守りの魔法', label: '守り', mp: 6 },
+  magic: { name: '魔攻の魔法', label: '魔攻', mp: 6 },
+  ward: { name: '魔防の魔法', label: '魔防', mp: 6 },
   bigFire: { name: '大火球', label: '大火球', mp: 10 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
+/** 覚えると使える、味方全体にかける魔法（魔導書で覚える） */
+export const BUFF_SPELLS = ['power', 'guard', 'magic', 'ward'] as const;
+export type BuffSpell = (typeof BUFF_SPELLS)[number];
 /** 火の魔法と、投げた白紙カードが飛ぶ最大のマス数 */
 const LINE_RANGE = 10;
 /** 満腹度が1減るまでのターン数と、知らせる満腹度（balance.md 1.5） */
@@ -75,13 +82,13 @@ const HUNGER_WARNINGS: Record<number, string> = {
   10: 'おなかがペコペコだ',
   0: 'おなかが空いて倒れそうだ',
 };
-/** 力の魔法・守りの魔法が続くターン数（balance.md 2.1） */
+/** 力・守り・魔攻・魔防の魔法が続くターン数（balance.md 2.1） */
 const BUFF_TURNS = 20;
 /** 魔法のランクの上限。同じ魔導書を読むたびに1つ上がる（balance.md 2.2） */
 export const SPELL_MAX_RANK = 5;
-/** 力の魔法の攻撃力の倍率。無印で1.5、+5で2倍 */
+/** 力の魔法の攻撃力の倍率（魔攻の魔法の魔攻の倍率も同じ）。無印で1.5、+5で2倍 */
 export const powerRate = (rank: number) => Math.round((1.5 + 0.1 * rank) * 100) / 100;
-/** 守りの魔法で受けるダメージの倍率。無印で0.6、+5で0.4 */
+/** 守りの魔法で受ける攻撃のダメージの倍率（魔防の魔法で受ける魔法のダメージの倍率も同じ）。無印で0.6、+5で0.4 */
 export const guardRate = (rank: number) => Math.round((0.6 - 0.04 * rank) * 100) / 100;
 /** 魔法の名前にランクを付ける。無印は付けない */
 export const rankedName = (name: string, rank: number) => (rank > 0 ? `${name}+${rank}` : name);
@@ -117,10 +124,9 @@ export const STATUS_TEXT = {
 const MANA_BITE = 0.01;
 /** チスイが吸い取る、与えたダメージの割合 */
 const DRAIN_RATE = 0.5;
-/** 火を吐く確率と、届くマス数、主人公と仲間への火のダメージ */
+/** 火を吐く確率と、届くマス数。火のダメージは吐く魔物の魔攻と、受ける側の魔防で決まる */
 const BREATH_CHANCE = 0.3;
 const BREATH_RANGE = 4;
-const BREATH_DAMAGE = 8;
 
 /** 星（balance.md 6.6）。激昂・要塞・魔力が続くターン、激昂の攻撃の倍率、要塞で受けるダメージの倍率 */
 const STAR_TURNS = 10;
@@ -189,6 +195,8 @@ export type SceneAction =
   | 'thunder'
   | 'power'
   | 'guard'
+  | 'magic'
+  | 'ward'
   | 'burst'
   | 'item';
 
@@ -213,7 +221,7 @@ export interface Scene {
   action: SceneAction;
   /**
    * 演出がかかるマス。飛ぶもの（投げた物・矢・火・いかずち・舌）は通る道すじで、最後が当たった・止まったマス。
-   * 範囲の魔法はその範囲、力・守りの魔法はかかった味方のマス
+   * 範囲の魔法はその範囲、力・守り・魔攻・魔防の魔法はかかった味方のマス
    */
   cells: Pos[];
   /** 投げた・撃った道具の種類（飛んでいく絵に使う） */
@@ -241,12 +249,17 @@ export interface Player {
   exp: number;
   atk: number;
   def: number;
+  /** 魔法攻撃力・魔法防御力（balance.md 3.6） */
+  matk: number;
+  mdef: number;
   /** 装備しているもの。どちらもバッグの中のアイテム */
   weapon: Item | null;
   shield: Item | null;
-  /** 力の魔法・守りの魔法の残りターン */
+  /** 力・守り・魔攻・魔防の魔法の残りターン */
   powerTurns: number;
   guardTurns: number;
+  magicTurns: number;
+  wardTurns: number;
   /** 魔力の星の残りターン。毎ターンMPが回復する */
   manaTurns: number;
   /** 状態異常と、激昂・要塞の残りターン */
@@ -348,6 +361,8 @@ function poisonHit(ailments: Ailments, maxHp: number): number {
  */
 export function cardFromData(data: CardData): Card {
   const card: Card = { ...data, species: speciesById(data.species) };
+  // 魔攻・魔防を足す前のカードには、その分の足し算がない
+  if (data.bonus) card.bonus = { ...noBonus(), ...data.bonus };
   // 前に作った「きまぐれ」など、今はない性格は「すなお」にする
   if (data.personality !== undefined && !(data.personality in PERSONALITIES)) card.personality = 'sunao';
   if (data.personality === undefined) {
@@ -357,6 +372,8 @@ export function cardFromData(data: CardData): Card {
       maxHp: Math.max(0, data.maxHp - now.maxHp),
       atk: Math.max(0, data.atk - now.atk),
       def: Math.max(0, data.def - now.def),
+      matk: 0,
+      mdef: 0,
     };
   }
   refreshStats(card);
@@ -364,7 +381,7 @@ export function cardFromData(data: CardData): Card {
 }
 
 /** ダンジョンに入るときの主人公の能力（Lv1。balance.md 1章） */
-export const PLAYER_BASE = { hp: 30, mp: 20, food: 100, atk: 5, def: 3 };
+export const PLAYER_BASE = { hp: 30, mp: 20, food: 100, atk: 5, def: 3, matk: 6, mdef: 3 };
 
 /** ダンジョンの中で数える戦績。拠点に戻ると、累積の記録に足す */
 export interface RunStats {
@@ -483,10 +500,14 @@ export class GameState {
       exp: 0,
       atk: b.atk,
       def: b.def,
+      matk: b.matk,
+      mdef: b.mdef,
       weapon: null,
       shield: null,
       powerTurns: 0,
       guardTurns: 0,
+      magicTurns: 0,
+      wardTurns: 0,
       manaTurns: 0,
       ailments: noAilments(),
     };
@@ -553,6 +574,11 @@ export class GameState {
     s.player = {
       ...data.player,
       manaTurns: data.player.manaTurns ?? 0,
+      // 魔攻・魔防を足す前の保存データは、レベルから求める（1レベルごとに +1）
+      matk: data.player.matk ?? PLAYER_BASE.matk + data.player.level - 1,
+      mdef: data.player.mdef ?? PLAYER_BASE.mdef + data.player.level - 1,
+      magicTurns: data.player.magicTurns ?? 0,
+      wardTurns: data.player.wardTurns ?? 0,
       weapon: itemById(data.player.weapon),
       shield: itemById(data.player.shield),
       ailments: { ...noAilments(), ...data.player.ailments },
@@ -566,6 +592,8 @@ export class GameState {
         level: m.level ?? 1,
         atk: m.atk ?? species.atk,
         def: m.def ?? species.def,
+        matk: m.matk ?? monsterStats(species, m.level ?? 1).matk,
+        mdef: m.mdef ?? monsterStats(species, m.level ?? 1).mdef,
         ailments: { ...noAilments(), ...m.ailments },
       };
     });
@@ -907,9 +935,19 @@ export class GameState {
     return this.player.powerTurns > 0 ? Math.round(atk * powerRate(this.rankOf('power'))) : atk;
   }
 
-  /** 主人公と仲間が受けるダメージ。守りの魔法がかかっていれば減る（味方全体にかかる） */
+  /** 仲間の魔攻。魔攻の魔法がかかっていれば上がる（味方全体にかかる）。力の魔法・激昂では上がらない */
+  private allyMagic(a: Ally): number {
+    return this.player.magicTurns > 0 ? Math.round(a.card.matk * powerRate(this.rankOf('magic'))) : a.card.matk;
+  }
+
+  /** 主人公と仲間が受ける攻撃のダメージ。守りの魔法がかかっていれば減る（味方全体にかかる） */
   private guarded(raw: number): number {
     return this.player.guardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('guard')))) : raw;
+  }
+
+  /** 主人公と仲間が受ける魔法のダメージ（火を吐くなど）。魔防の魔法がかかっていれば減る（味方全体にかかる） */
+  private warded(raw: number): number {
+    return this.player.wardTurns > 0 ? Math.max(1, Math.round(raw * guardRate(this.rankOf('ward')))) : raw;
   }
 
   /** 攻撃力と防御力。装備と、力の魔法の分を含む */
@@ -922,6 +960,25 @@ export class GameState {
   defensePower(): number {
     const p = this.player;
     return p.def + (p.shield ? equipBonus(p.shield) : 0);
+  }
+
+  /** 魔攻と魔防（balance.md 3.6）。魔攻の魔法の分を含む。魔防の魔法は、魔防ではなく受けるダメージを減らす */
+  magicPower(): number {
+    const p = this.player;
+    return p.magicTurns > 0 ? Math.round(p.matk * powerRate(this.rankOf('magic'))) : p.matk;
+  }
+
+  magicDefense(): number {
+    return this.player.mdef;
+  }
+
+  /** 攻撃の魔法の威力（balance.md 2.1）。当たる魔物の魔防で減る。力・守りなどの魔法は 0 */
+  spellPower(spell: SpellId): number {
+    const m = this.magicPower();
+    if (spell === 'fire') return m * 2;
+    if (spell === 'bigFire') return m * 2 + 10;
+    if (spell === 'thunder') return m;
+    return 0;
   }
 
   // ---- バッグ ----
@@ -1623,6 +1680,8 @@ export class GameState {
       p.mp += 2;
       p.atk += 1;
       p.def += 1;
+      p.matk += 1;
+      p.mdef += 1;
       this.addLog(`あなたはLv${p.level}になった！`);
       this.popups.push({ pos: p.pos, text: 'Lv UP', kind: 'info' });
     }
@@ -1789,7 +1848,7 @@ export class GameState {
     const spells: SpellId[] = ['fire'];
     if (this.allies.some((a) => isPartner(a.card))) spells.push('thunder');
     if (this.allies.some((a) => a.card.species.special === 'breath')) spells.push('bigFire');
-    for (const id of ['power', 'guard'] as const) if (this.learned.has(id)) spells.push(id);
+    for (const id of BUFF_SPELLS) if (this.learned.has(id)) spells.push(id);
     return spells;
   }
 
@@ -1811,12 +1870,14 @@ export class GameState {
     if (p.mp < mp || !this.availableSpells().includes(spell)) return;
     this.beginAction();
     p.mp -= mp;
-    if (spell === 'power' || spell === 'guard') {
+    if ((BUFF_SPELLS as readonly SpellId[]).includes(spell)) {
       // 味方全体（主人公と召喚中の仲間）にかかる。あとから召喚した仲間にも、続いている間はかかる。
       // 続いている間にかけ直すと、残りターンが元に戻る
       if (spell === 'power') p.powerTurns = BUFF_TURNS;
-      else p.guardTurns = BUFF_TURNS;
-      const text = spell === 'power' ? '力UP' : '守りUP';
+      else if (spell === 'guard') p.guardTurns = BUFF_TURNS;
+      else if (spell === 'magic') p.magicTurns = BUFF_TURNS;
+      else p.wardTurns = BUFF_TURNS;
+      const text = { power: '力UP', guard: '守りUP', magic: '魔攻UP', ward: '魔防UP' }[spell as BuffSpell];
       const cells = [p.pos, ...this.allies.map((a) => a.pos)];
       this.scene(
         p.pos,
@@ -1825,7 +1886,7 @@ export class GameState {
           this.addLog(`${name}を使った（味方全体）`);
           for (const at of cells) this.popups.push({ pos: { ...at }, text, kind: 'info' });
         },
-        { action: spell, cells },
+        { action: spell as BuffSpell, cells },
       );
       this.endTurn();
       return;
@@ -1843,13 +1904,14 @@ export class GameState {
       : (spell === 'bigFire' ? this.bigFireTiles() : DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }))).filter(
           (c) => this.map.isWalkable(c.x, c.y),
         );
-    const dmg = spell === 'fire' ? 10 + p.level * 2 : spell === 'bigFire' ? 20 + p.level * 2 : 6 + p.level;
+    // 威力は魔攻から決まり、当たる魔物の魔防で減る（balance.md 3.6）
+    const power = this.spellPower(spell);
     this.scene(
       p.pos,
       this.ahead(p.pos, p.facing),
       () => {
         if (targets.length === 0) this.addLog(`${name}は外れた`);
-        for (const m of targets) this.damageMonster(m, dmg, null, name);
+        for (const m of targets) this.damageMonster(m, rollDamage(this.rng, power, m.mdef), null, name);
       },
       { action: spell, cells },
     );
@@ -2092,6 +2154,8 @@ export class GameState {
     const p = this.player;
     if (p.powerTurns > 0 && --p.powerTurns === 0) this.addLog('力の魔法が切れた');
     if (p.guardTurns > 0 && --p.guardTurns === 0) this.addLog('守りの魔法が切れた');
+    if (p.magicTurns > 0 && --p.magicTurns === 0) this.addLog('魔攻の魔法が切れた');
+    if (p.wardTurns > 0 && --p.wardTurns === 0) this.addLog('魔防の魔法が切れた');
     if (this.dead) return;
     // 魔力の星：最大MPの2％ずつ。端数は、効いているあいだの合計で切り捨てる
     if (p.manaTurns > 0) {
@@ -2311,12 +2375,17 @@ export class GameState {
         if (pick === 'player') {
           if (turnTo !== null) this.player.facing = turnTo;
           this.provoker = m;
-          this.scene(m.pos, to, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'), fx);
+          this.scene(m.pos, to, () => this.hurtPlayer(m, rollDamage(this.rng, m.matk, this.magicDefense()), '火', true), fx);
         } else {
           const a = pick!;
           if (turnTo !== null) a.facing = turnTo;
           this.allyProvokers.set(a, m);
-          this.scene(m.pos, to, () => this.hurtAlly(m, a, fortified(this.guarded(BREATH_DAMAGE), a.ailments), '火'), fx);
+          this.scene(
+            m.pos,
+            to,
+            () => this.hurtAlly(m, a, fortified(this.warded(rollDamage(this.rng, m.matk, a.card.mdef)), a.ailments), '火'),
+            fx,
+          );
         }
         return;
       }
@@ -2441,10 +2510,13 @@ export class GameState {
     if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player', p.pos);
   }
 
-  /** 魔物から主人公へのダメージ。守りの魔法がかかっていれば減らす。与えたダメージを返す */
-  private hurtPlayer(m: Monster, raw: number, how: string): number {
+  /**
+   * 魔物から主人公へのダメージ。守りの魔法（magic なら魔防の魔法）がかかっていれば減らす。与えたダメージを返す。
+   * magic は火を吐くなどの魔法の攻撃
+   */
+  private hurtPlayer(m: Monster, raw: number, how: string, magic = false): number {
     const p = this.player;
-    const dmg = fortified(this.guarded(raw), p.ailments);
+    const dmg = fortified(magic ? this.warded(raw) : this.guarded(raw), p.ailments);
     p.hp = Math.max(0, p.hp - dmg);
     this.wake(p.ailments);
     this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
@@ -2569,7 +2641,7 @@ export class GameState {
         this.scene(
           a.pos,
           target.pos,
-          () => this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, 'いかずち'),
+          () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef), a, 'いかずち'),
           { action: 'lightning', cells: this.lineCells(a.pos, target.pos) },
         );
         return;
@@ -2584,7 +2656,7 @@ export class GameState {
       );
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-        this.scene(a.pos, target.pos, () => this.damageMonster(target, this.allyAttack(a), a, '火'), {
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef), a, '火'), {
           action: 'breath',
           cells: this.lineCells(a.pos, target.pos),
         });

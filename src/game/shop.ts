@@ -23,6 +23,8 @@ const STOCK_POOL: { kind: ItemKind; weight: number }[] = [
   { kind: 'ironShield', weight: 4 },
   { kind: 'tomePower', weight: 2 },
   { kind: 'tomeGuard', weight: 2 },
+  { kind: 'tomeMagic', weight: 2 },
+  { kind: 'tomeWard', weight: 2 },
   { kind: 'sealReveal', weight: 8 },
   { kind: 'sealEscape', weight: 8 },
   { kind: 'sealPoison', weight: 6 },

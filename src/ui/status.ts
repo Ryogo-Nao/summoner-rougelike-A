@@ -62,6 +62,8 @@ export function statusView(
     ['HP', inDungeon ? `${card.hp}/${card.maxHp}` : `${card.maxHp}`],
     ['攻撃力', `${card.atk}`],
     ['防御力', `${card.def}`],
+    ['魔攻', `${card.matk}`],
+    ['魔防', `${card.mdef}`],
     ['経験値', next === null ? `${Math.floor(card.exp)}（最大レベル）` : `${Math.floor(card.exp)}（次のLvまで${Math.ceil(next)}）`],
     ['性格', up && down ? `${name}（${STAT_LABEL[up]}↑ ${STAT_LABEL[down]}↓）` : name],
     ['召喚MP', `${card.species.cost}`],

@@ -151,6 +151,8 @@ function updateHud(moment?: HudMoment): void {
     p.ailments.asleep > 0 ? `💤${p.ailments.asleep}` : '',
     p.powerTurns > 0 ? `💪${p.powerTurns}` : '',
     p.guardTurns > 0 ? `🧱${p.guardTurns}` : '',
+    p.magicTurns > 0 ? `✨${p.magicTurns}` : '',
+    p.wardTurns > 0 ? `💎${p.wardTurns}` : '',
     p.ailments.raged > 0 ? `💢${p.ailments.raged}` : '',
     p.ailments.fortified > 0 ? `🏰${p.ailments.fortified}` : '',
     p.manaTurns > 0 ? `🔮${p.manaTurns}` : '',

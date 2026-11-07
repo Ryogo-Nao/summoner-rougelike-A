@@ -22,10 +22,14 @@ export const cardIcon = (card: Card) => (isPartner(card) ? '⚡🐈' : card.spec
 /** 仲間の一覧の見出し。仲間の絵（なければ絵文字）を文字の前に出す */
 const cardTitle = (card: Card, text: string): SheetTitle => ({ art: card.species.id, icon: cardIcon(card), text });
 
+/** 仲間の一覧の行の説明。iPhone の幅で途中で折り返さないよう、短い行に分ける */
 export function cardSub(card: Card, status = true): string {
-  const line2 = [`MP${card.species.cost}`, ...(status ? [STATUS_LABEL[card.status]] : []), PERSONALITIES[card.personality].name];
-  return `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${line2.join('　')}`;
+  const last = [`MP${card.species.cost}`, ...(status ? [STATUS_LABEL[card.status]] : []), PERSONALITIES[card.personality].name];
+  return [`Lv${card.level}　HP${card.hp}/${card.maxHp}`, statLines(card), last.join('　')].join('\n');
 }
+
+/** 攻撃・防御の行と、魔攻・魔防の行 */
+export const statLines = (card: Card) => `攻撃${card.atk}　防御${card.def}\n魔攻${card.matk}　魔防${card.mdef}`;
 
 /** 性格の説明。上がる能力と下がる能力 */
 export function personalityText(card: Card): string {
@@ -130,11 +134,14 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     const spell = SPELLS[id];
     const enough = p.mp >= spell.mp;
     const effect: Record<SpellId, string> = {
-      fire: `正面の敵に${10 + p.level * 2}`,
-      thunder: `周りの敵に${6 + p.level}`,
+      // 威力は魔攻から決まる。当たる魔物の魔防で減る
+      fire: `正面の敵に威力${state.spellPower('fire')}`,
+      thunder: `周りの敵に威力${state.spellPower('thunder')}`,
       power: `20ターン味方全体の攻撃力×${powerRate(state.rankOf('power'))}`,
-      guard: `20ターン味方全体の受けるダメージ×${guardRate(state.rankOf('guard'))}`,
-      bigFire: `前方3マス幅の敵に${20 + p.level * 2}`,
+      guard: `20ターン味方全体の受ける攻撃のダメージ×${guardRate(state.rankOf('guard'))}`,
+      magic: `20ターン味方全体の魔攻×${powerRate(state.rankOf('magic'))}`,
+      ward: `20ターン味方全体の受ける魔法のダメージ×${guardRate(state.rankOf('ward'))}`,
+      bigFire: `前方3マス幅の敵に威力${state.spellPower('bigFire')}`,
     };
     return {
       icon: SPELL_ICONS[id],
@@ -155,7 +162,15 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
 }
 
-export const SPELL_ICONS: Record<SpellId, string> = { fire: '🔥', thunder: '⚡', power: '💪', guard: '🧱', bigFire: '☄️' };
+export const SPELL_ICONS: Record<SpellId, string> = {
+  fire: '🔥',
+  thunder: '⚡',
+  power: '💪',
+  guard: '🧱',
+  magic: '✨',
+  ward: '💎',
+  bigFire: '☄️',
+};
 
 /** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
 export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
@@ -170,6 +185,8 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   const buffs = [
     p.powerTurns > 0 ? `力${p.powerTurns}T` : '',
     p.guardTurns > 0 ? `守り${p.guardTurns}T` : '',
+    p.magicTurns > 0 ? `魔攻${p.magicTurns}T` : '',
+    p.wardTurns > 0 ? `魔防${p.wardTurns}T` : '',
     p.ailments.raged > 0 ? `激昂${p.ailments.raged}T` : '',
     p.ailments.fortified > 0 ? `要塞${p.ailments.fortified}T` : '',
     p.manaTurns > 0 ? `魔力${p.manaTurns}T` : '',
@@ -189,7 +206,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
     }),
   );
   sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
-    note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}${buffs ? `　${buffs}` : ''}`,
+    note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}　魔攻${state.magicPower()}　魔防${state.magicDefense()}${buffs ? `\n${buffs}` : ''}`,
     header: sort,
   });
 }
@@ -644,7 +661,7 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
     }),
   );
   sheet.open(cardTitle(card, cardName(card)), rows, {
-    note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${personalityText(card)}`,
+    note: `Lv${card.level}　HP${card.hp}/${card.maxHp}\n攻撃${card.atk}　防御${card.def}　魔攻${card.matk}　魔防${card.mdef}\n${personalityText(card)}`,
     footer,
   });
 }

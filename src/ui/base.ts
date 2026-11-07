@@ -21,8 +21,8 @@ import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemCategory, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
-import { PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName, type SpellId } from '../game/state';
-import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows } from './screens';
+import { BUFF_SPELLS, PLAYER_BASE, SPELLS, guardRate, powerRate, rankedName } from '../game/state';
+import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, statLines } from './screens';
 import type { Settings } from './settings';
 import { renderRow, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
@@ -633,7 +633,7 @@ export class BaseScreen {
           icon: cardIcon(partner),
           art: partner.species.id,
           name: cardName(partner),
-          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回\n攻撃${partner.atk}　防御${partner.def}　${PERSONALITIES[partner.personality].name}`,
+          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回\n${statLines(partner)}\n${PERSONALITIES[partner.personality].name}`,
           className: 'ally taking',
           onSelect: () => this.enter(() => (this.viewing = partner)),
         }),
@@ -709,7 +709,7 @@ export class BaseScreen {
         sub: `Lv1　${rebirthMode ? '転生' : '配合'}${fusions}回`,
       }),
       table([
-        ['足し算', `HP+${bonus.maxHp}　攻撃+${bonus.atk}　防御+${bonus.def}`],
+        ['足し算', `HP+${bonus.maxHp}　攻撃+${bonus.atk}　防御+${bonus.def}\n魔攻+${bonus.matk}　魔防+${bonus.mdef}`],
         ['伸び', `×${growthRate(fusions).toFixed(2)}`],
         ['性格', oddsText],
       ]),
@@ -1068,6 +1068,8 @@ export class BaseScreen {
         ['MP', `${b.mp}`],
         ['攻撃力', `${b.atk}`],
         ['防御力', `${b.def}`],
+        ['魔攻', `${b.matk}`],
+        ['魔防', `${b.mdef}`],
         ['満腹度', `${b.food}`],
       ]),
       note('覚えている魔法', 'base-section'),
@@ -1088,11 +1090,14 @@ export class BaseScreen {
     // 覚えている魔法だけを出す。仲間を召喚している間だけ使える魔法と、まだ読んでいない魔導書の魔法は出さない
     const rows: SheetRow[] = [
       { icon: SPELL_ICONS.fire, name: SPELLS.fire.name, sub: `MP${SPELLS.fire.mp}　最初から使える` },
-      ...(['power', 'guard'] as SpellId[])
-        .filter((id) => p.learned.includes(id))
-        .map((id) => {
+      ...BUFF_SPELLS.filter((id) => p.learned.includes(id)).map((id) => {
           const rank = p.ranks[id] ?? 0;
-          const effect = id === 'power' ? `攻撃力×${powerRate(rank)}` : `受けるダメージ×${guardRate(rank)}`;
+          const effect = {
+            power: `攻撃力×${powerRate(rank)}`,
+            guard: `受ける攻撃のダメージ×${guardRate(rank)}`,
+            magic: `魔攻×${powerRate(rank)}`,
+            ward: `受ける魔法のダメージ×${guardRate(rank)}`,
+          }[id];
           return {
             icon: SPELL_ICONS[id],
             name: rankedName(SPELLS[id].name, rank),
@@ -1175,7 +1180,7 @@ function allyRow(
     icon: cardIcon(card),
     art: card.species.id,
     name: cardName(card),
-    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n攻撃${card.atk}　防御${card.def}　${PERSONALITIES[card.personality].name}`,
+    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n${statLines(card)}\n${PERSONALITIES[card.personality].name}`,
     className: opts.on ? 'ally taking' : 'ally',
     onSelect: opts.onSelect,
   });

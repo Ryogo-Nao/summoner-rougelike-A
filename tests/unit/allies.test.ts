@@ -53,6 +53,8 @@ describe('F-42 仲間の能力', () => {
           expect(now.maxHp, `${s.id} ${pid} Lv${lv}`).toBeGreaterThanOrEqual(prev.maxHp);
           expect(now.atk).toBeGreaterThanOrEqual(prev.atk);
           expect(now.def).toBeGreaterThanOrEqual(prev.def);
+          expect(now.matk).toBeGreaterThanOrEqual(prev.matk);
+          expect(now.mdef).toBeGreaterThanOrEqual(prev.mdef);
           prev = now;
         }
       }

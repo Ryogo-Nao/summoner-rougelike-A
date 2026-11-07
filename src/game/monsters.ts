@@ -15,6 +15,9 @@ export interface Species {
   hp: number;
   atk: number;
   def: number;
+  /** 魔法攻撃力・魔法防御力（balance.md 3.6）。魔法の攻撃（火を吐く・いかずちなど）だけに効く */
+  matk: number;
+  mdef: number;
   exp: number;
   /** 基本捕獲率（0〜1） */
   capture: number;
@@ -45,27 +48,27 @@ export interface Species {
 }
 
 export const SPECIES: readonly Species[] = [
-  { id: 'chuppi', name: 'チュッピ', emoji: '🐭', hp: 8, atk: 3, def: 1, exp: 3, capture: 0.3, cost: 3, speed: 'normal', growth: 'balance', pace: 'early' },
-  { id: 'berogg', name: 'ベロッグ', emoji: '🐸', hp: 12, atk: 4, def: 2, exp: 5, capture: 0.25, cost: 4, speed: 'normal', reach: 2, growth: 'balance', pace: 'normal' },
-  { id: 'patari', name: 'パタリ', emoji: '🦇', hp: 10, atk: 4, def: 1, exp: 6, capture: 0.2, cost: 4, speed: 'normal', twoHits: true, erratic: true, growth: 'balance', pace: 'early' },
-  { id: 'pokotake', name: 'ポコタケ', emoji: '🍄', hp: 18, atk: 5, def: 4, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'spore', growth: 'hp', pace: 'late' },
-  { id: 'shururu', name: 'シュルル', emoji: '🐍', hp: 16, atk: 6, def: 3, exp: 10, capture: 0.15, cost: 6, speed: 'normal', special: 'venom', growth: 'attack', pace: 'early' },
-  { id: 'garuf', name: 'ガルフ', emoji: '🐺', hp: 24, atk: 8, def: 4, exp: 16, capture: 0.12, cost: 8, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
-  { id: 'kaburamu', name: 'カブラム', emoji: '🦂', hp: 26, atk: 9, def: 7, exp: 20, capture: 0.1, cost: 8, speed: 'normal', growth: 'defense', pace: 'normal' },
-  { id: 'moyari', name: 'モヤリ', emoji: '👻', hp: 20, atk: 8, def: 3, exp: 22, capture: 0.08, cost: 9, speed: 'normal', phasing: true, growth: 'attack', pace: 'late' },
-  { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', hp: 30, atk: 10, def: 5, exp: 28, capture: 0.07, cost: 10, speed: 'normal', special: 'breath', growth: 'balance', pace: 'normal' },
-  { id: 'goromu', name: 'ゴロム', emoji: '🗿', hp: 45, atk: 13, def: 10, exp: 40, capture: 0.05, cost: 12, speed: 'slow', growth: 'hp', pace: 'late' },
+  { id: 'chuppi', name: 'チュッピ', emoji: '🐭', hp: 8, atk: 3, def: 1, matk: 2, mdef: 1, exp: 3, capture: 0.3, cost: 3, speed: 'normal', growth: 'balance', pace: 'early' },
+  { id: 'berogg', name: 'ベロッグ', emoji: '🐸', hp: 12, atk: 4, def: 2, matk: 3, mdef: 3, exp: 5, capture: 0.25, cost: 4, speed: 'normal', reach: 2, growth: 'balance', pace: 'normal' },
+  { id: 'patari', name: 'パタリ', emoji: '🦇', hp: 10, atk: 4, def: 1, matk: 3, mdef: 2, exp: 6, capture: 0.2, cost: 4, speed: 'normal', twoHits: true, erratic: true, growth: 'balance', pace: 'early' },
+  { id: 'pokotake', name: 'ポコタケ', emoji: '🍄', hp: 18, atk: 5, def: 4, matk: 5, mdef: 4, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'spore', growth: 'hp', pace: 'late' },
+  { id: 'shururu', name: 'シュルル', emoji: '🐍', hp: 16, atk: 6, def: 3, matk: 4, mdef: 3, exp: 10, capture: 0.15, cost: 6, speed: 'normal', special: 'venom', growth: 'attack', pace: 'early' },
+  { id: 'garuf', name: 'ガルフ', emoji: '🐺', hp: 24, atk: 8, def: 4, matk: 4, mdef: 2, exp: 16, capture: 0.12, cost: 8, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
+  { id: 'kaburamu', name: 'カブラム', emoji: '🦂', hp: 26, atk: 9, def: 7, matk: 4, mdef: 2, exp: 20, capture: 0.1, cost: 8, speed: 'normal', growth: 'defense', pace: 'normal' },
+  { id: 'moyari', name: 'モヤリ', emoji: '👻', hp: 20, atk: 8, def: 3, matk: 8, mdef: 8, exp: 22, capture: 0.08, cost: 9, speed: 'normal', phasing: true, growth: 'attack', pace: 'late' },
+  { id: 'hidamari', name: 'ヒダマリ', emoji: '🦎', hp: 30, atk: 10, def: 5, matk: 10, mdef: 6, exp: 28, capture: 0.07, cost: 10, speed: 'normal', special: 'breath', growth: 'balance', pace: 'normal' },
+  { id: 'goromu', name: 'ゴロム', emoji: '🗿', hp: 45, atk: 13, def: 10, matk: 5, mdef: 3, exp: 40, capture: 0.05, cost: 12, speed: 'slow', growth: 'hp', pace: 'late' },
   // 2026-11-07 に足した10種（強さは仮。balance.md 4章）
-  { id: 'nemuriga', name: 'ネムリガ', emoji: '🦋', hp: 14, atk: 4, def: 2, exp: 9, capture: 0.18, cost: 5, speed: 'normal', special: 'sleep', growth: 'balance', pace: 'early' },
-  { id: 'kuimushi', name: 'クイムシ', emoji: '🐛', hp: 16, atk: 5, def: 3, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'manaBite', growth: 'hp', pace: 'normal' },
-  { id: 'amigumo', name: 'アミグモ', emoji: '🕷️', hp: 18, atk: 6, def: 3, exp: 12, capture: 0.15, cost: 6, speed: 'normal', special: 'pin', growth: 'attack', pace: 'normal' },
-  { id: 'chisui', name: 'チスイ', emoji: '🦟', hp: 15, atk: 7, def: 2, exp: 13, capture: 0.14, cost: 6, speed: 'normal', special: 'drain', growth: 'attack', pace: 'early' },
-  { id: 'tsubumaru', name: 'ツブマル', emoji: '🐌', hp: 30, atk: 6, def: 9, exp: 14, capture: 0.14, cost: 7, speed: 'slow', growth: 'defense', pace: 'late' },
-  { id: 'fuwakura', name: 'フワクラ', emoji: '🪼', hp: 28, atk: 8, def: 3, exp: 24, capture: 0.09, cost: 8, speed: 'normal', regen: 0.05, growth: 'hp', pace: 'late' },
-  { id: 'nurarika', name: 'ヌラリカ', emoji: '🦑', hp: 28, atk: 10, def: 4, exp: 26, capture: 0.08, cost: 9, speed: 'normal', reach: 2, reachName: '触手', growth: 'attack', pace: 'normal' },
-  { id: 'kirigani', name: 'キリガニ', emoji: '🦀', hp: 32, atk: 9, def: 10, exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'defense', pace: 'normal' },
-  { id: 'dosuino', name: 'ドスイノ', emoji: '🐗', hp: 40, atk: 12, def: 4, exp: 34, capture: 0.06, cost: 10, speed: 'normal', growth: 'attack', pace: 'normal' },
-  { id: 'tsuraragu', name: 'ツララグマ', emoji: '🐻‍❄️', hp: 50, atk: 14, def: 8, exp: 48, capture: 0.04, cost: 13, speed: 'normal', growth: 'hp', pace: 'normal' },
+  { id: 'nemuriga', name: 'ネムリガ', emoji: '🦋', hp: 14, atk: 4, def: 2, matk: 6, mdef: 5, exp: 9, capture: 0.18, cost: 5, speed: 'normal', special: 'sleep', growth: 'balance', pace: 'early' },
+  { id: 'kuimushi', name: 'クイムシ', emoji: '🐛', hp: 16, atk: 5, def: 3, matk: 5, mdef: 6, exp: 10, capture: 0.18, cost: 5, speed: 'normal', special: 'manaBite', growth: 'hp', pace: 'normal' },
+  { id: 'amigumo', name: 'アミグモ', emoji: '🕷️', hp: 18, atk: 6, def: 3, matk: 4, mdef: 3, exp: 12, capture: 0.15, cost: 6, speed: 'normal', special: 'pin', growth: 'attack', pace: 'normal' },
+  { id: 'chisui', name: 'チスイ', emoji: '🦟', hp: 15, atk: 7, def: 2, matk: 5, mdef: 3, exp: 13, capture: 0.14, cost: 6, speed: 'normal', special: 'drain', growth: 'attack', pace: 'early' },
+  { id: 'tsubumaru', name: 'ツブマル', emoji: '🐌', hp: 30, atk: 6, def: 9, matk: 3, mdef: 4, exp: 14, capture: 0.14, cost: 7, speed: 'slow', growth: 'defense', pace: 'late' },
+  { id: 'fuwakura', name: 'フワクラ', emoji: '🪼', hp: 28, atk: 8, def: 3, matk: 7, mdef: 7, exp: 24, capture: 0.09, cost: 8, speed: 'normal', regen: 0.05, growth: 'hp', pace: 'late' },
+  { id: 'nurarika', name: 'ヌラリカ', emoji: '🦑', hp: 28, atk: 10, def: 4, matk: 7, mdef: 5, exp: 26, capture: 0.08, cost: 9, speed: 'normal', reach: 2, reachName: '触手', growth: 'attack', pace: 'normal' },
+  { id: 'kirigani', name: 'キリガニ', emoji: '🦀', hp: 32, atk: 9, def: 10, matk: 4, mdef: 3, exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'defense', pace: 'normal' },
+  { id: 'dosuino', name: 'ドスイノ', emoji: '🐗', hp: 40, atk: 12, def: 4, matk: 3, mdef: 2, exp: 34, capture: 0.06, cost: 10, speed: 'normal', growth: 'attack', pace: 'normal' },
+  { id: 'tsuraragu', name: 'ツララグマ', emoji: '🐻‍❄️', hp: 50, atk: 14, def: 8, matk: 4, mdef: 4, exp: 48, capture: 0.04, cost: 13, speed: 'normal', growth: 'hp', pace: 'normal' },
 ];
 
 
@@ -75,6 +78,8 @@ export interface Monster {
   level: number;
   atk: number;
   def: number;
+  matk: number;
+  mdef: number;
   pos: Pos;
   facing: Dir;
   hp: number;
@@ -90,12 +95,14 @@ export interface Monster {
 }
 
 export function createMonster(species: Species, pos: Pos, level = 1): Monster {
-  const { maxHp, atk, def } = monsterStats(species, level);
+  const { maxHp, atk, def, matk, mdef } = monsterStats(species, level);
   return {
     species,
     level,
     atk,
     def,
+    matk,
+    mdef,
     pos,
     facing: 4,
     hp: maxHp,

@@ -68,10 +68,10 @@ function rollPersonality(a: PersonalityId, b: PersonalityId, random: () => numbe
   return a;
 }
 
-/** 子にずっと残す足し算。親2体の今の最大HP・攻撃・防御を、それぞれ足した値の 5％ */
+/** 子にずっと残す足し算。親2体の今の最大HP・攻撃・防御・魔攻・魔防を、それぞれ足した値の 5％ */
 export function inheritedBonus(a: Card, b: Card): Stats {
   const part = (s: keyof Stats) => Math.round((a[s] + b[s]) * INHERIT_RATE);
-  return { maxHp: part('maxHp'), atk: part('atk'), def: part('def') };
+  return { maxHp: part('maxHp'), atk: part('atk'), def: part('def'), matk: part('matk'), mdef: part('mdef') };
 }
 
 /** 子の配合回数。親2体のうち大きい方 +1 */

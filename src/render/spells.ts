@@ -16,12 +16,23 @@ const SPELL_RGB: Record<string, string> = {
   thunder: '255, 236, 120',
   power: '255, 110, 80',
   guard: '120, 190, 255',
+  magic: '190, 120, 255',
+  ward: '110, 230, 210',
 };
 const FIRE = ['#fff6d0', '#ffd84a', '#ff9a3a', '#ff5a2a'];
 const SMOKE = ['#e8e2d6', '#c9c1b4', '#a79f93'];
 const SPARK = ['#ffffff', '#fff3a0', '#ffe14a'];
 const POWER = ['#ffd84a', '#ff9a5a', '#ff6a5a'];
 const GUARD = ['#ffffff', '#bfe4ff', '#7cc4ff'];
+const MAGIC = ['#ffffff', '#e4c4ff', '#b47cff'];
+const WARD = ['#ffffff', '#c8fff2', '#64dcc8'];
+
+/** 力の魔法・魔攻の魔法の光（下の色・上の色）と、守りの魔法・魔防の魔法の壁の色（r, g, b の内・中・ふち） */
+const AURA_RGB: Record<string, [string, string]> = { power: ['255, 120, 70', '255, 220, 90'], magic: ['170, 100, 255', '235, 200, 255'] };
+const SHIELD_RGB: Record<string, [string, string, string]> = {
+  guard: ['120, 190, 255', '140, 205, 255', '220, 240, 255'],
+  ward: ['90, 220, 200', '120, 235, 215', '215, 255, 245'],
+};
 
 const HEAL = ['#ffffff', '#b8ffd8', '#5fe8a0'];
 const GOLD = ['#ffffff', '#fff3b0', '#ffd84a'];
@@ -68,10 +79,11 @@ export class SpellFx {
   /** 唱える段の、主人公の足もとの魔法陣。力の魔法の光は、絵を隠さないよう役者の後ろに描く */
   ground(ctx: CanvasRenderingContext2D, play: Playback, toScreen: ToScreen, ts: number, now: number): void {
     const { scene } = play;
-    if (scene.action === 'power' && play.phase === 'impact') {
+    const aura = AURA_RGB[scene.action];
+    if (aura && play.phase === 'impact') {
       for (const c of scene.cells) {
         const p = toScreen(c);
-        this.aura(ctx, p.x + ts / 2, p.y + ts * 0.5, ts, play.t, now);
+        this.aura(ctx, p.x + ts / 2, p.y + ts * 0.5, ts, play.t, now, aura);
       }
     }
     if (!CAST_ACTIONS.has(scene.action) || play.phase !== 'windup') return;
@@ -222,10 +234,11 @@ export class SpellFx {
         this.pillar(ctx, c.x, c.y, ts, t / 0.85, p.text === '封印');
       }
     }
-    if (scene.action === 'guard' && phase === 'impact') {
+    const shield = SHIELD_RGB[scene.action];
+    if (shield && phase === 'impact') {
       for (const c of scene.cells) {
         const p = center(c);
-        this.shield(ctx, p.x, p.y, ts, t);
+        this.shield(ctx, p.x, p.y, ts, t, shield);
       }
     }
   }
@@ -373,21 +386,21 @@ export class SpellFx {
   }
 
   /** 守りの魔法の盾。光の泡が包み、六角の線が締まって消える */
-  private shield(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, t: number): void {
+  private shield(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, t: number, rgb: [string, string, string]): void {
     const appear = clamp01(t * 4);
     const alpha = appear * (t > 0.6 ? (1 - t) / 0.4 : 1);
     const r = ts * (0.58 + 0.12 * (1 - appear));
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(x, y, r * 0.4, x, y, r);
-    g.addColorStop(0, 'rgba(120, 190, 255, 0)');
-    g.addColorStop(0.85, `rgba(140, 205, 255, ${0.35 * alpha})`);
-    g.addColorStop(1, `rgba(220, 240, 255, ${0.7 * alpha})`);
+    g.addColorStop(0, `rgba(${rgb[0]}, 0)`);
+    g.addColorStop(0.85, `rgba(${rgb[1]}, ${0.35 * alpha})`);
+    g.addColorStop(1, `rgba(${rgb[2]}, ${0.7 * alpha})`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = `rgba(200, 232, 255, ${0.9 * alpha})`;
+    ctx.strokeStyle = `rgba(${rgb[2]}, ${0.9 * alpha})`;
     ctx.lineWidth = Math.max(1.2, ts * 0.04);
     ctx.beginPath();
     for (let k = 0; k <= 6; k++) {
@@ -401,15 +414,15 @@ export class SpellFx {
     ctx.restore();
   }
 
-  /** 力の魔法の光。足もとから赤金の光が立ちのぼる */
-  private aura(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, t: number, now: number): void {
+  /** 力の魔法（赤金）・魔攻の魔法（紫）の光。足もとから光が立ちのぼる */
+  private aura(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, t: number, now: number, rgb: [string, string]): void {
     const alpha = clamp01(t * 4) * (t > 0.55 ? (1 - t) / 0.45 : 1);
     const h = ts * (0.6 + 0.4 * t);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createLinearGradient(x, y + ts * 0.35, x, y + ts * 0.35 - h);
-    g.addColorStop(0, `rgba(255, 120, 70, ${0.55 * alpha})`);
-    g.addColorStop(1, 'rgba(255, 220, 90, 0)');
+    g.addColorStop(0, `rgba(${rgb[0]}, ${0.55 * alpha})`);
+    g.addColorStop(1, `rgba(${rgb[1]}, 0)`);
     ctx.fillStyle = g;
     const w = ts * (0.42 + Math.sin(now / 60) * 0.03);
     ctx.beginPath();
@@ -455,14 +468,18 @@ export class SpellFx {
         break;
       }
       case 'power':
+      case 'magic': {
+        const magic = scene.action === 'magic';
         for (const c of scene.cells) {
-          this.rings.add({ x: c.x + 0.5, y: c.y + 0.8, duration: 420, radius: 0.7, color: 'rgba(255, 160, 80, 1)', flat: true }, now);
-          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.7, count: 12, color: POWER, speed: [0.1, 0.5], size: [0.03, 0.06], life: [380, 560], gravity: -2.2, glow: true });
+          this.rings.add({ x: c.x + 0.5, y: c.y + 0.8, duration: 420, radius: 0.7, color: magic ? 'rgba(190, 130, 255, 1)' : 'rgba(255, 160, 80, 1)', flat: true }, now);
+          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.7, count: 12, color: magic ? MAGIC : POWER, speed: [0.1, 0.5], size: [0.03, 0.06], life: [380, 560], gravity: -2.2, glow: true });
         }
         break;
+      }
       case 'guard':
+      case 'ward':
         for (const c of scene.cells) {
-          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.5, count: 10, color: GUARD, speed: [0.5, 1.2], size: [0.025, 0.05], life: [300, 480], glow: true, delay: 120 });
+          this.particles.burst({ x: c.x + 0.5, y: c.y + 0.5, count: 10, color: scene.action === 'ward' ? WARD : GUARD, speed: [0.5, 1.2], size: [0.025, 0.05], life: [300, 480], glow: true, delay: 120 });
         }
         break;
       case 'burst':
