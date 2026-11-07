@@ -67,6 +67,25 @@ export type ItemKind =
   | 'woodShield'
   | 'leatherShield'
   | 'ironShield'
+  | 'fireSword'
+  | 'iceSword'
+  | 'thunderSword'
+  | 'earthSword'
+  | 'windSword'
+  | 'lightSword'
+  | 'darkSword'
+  | 'fireShield'
+  | 'iceShield'
+  | 'thunderShield'
+  | 'earthShield'
+  | 'windShield'
+  | 'lightShield'
+  | 'darkShield'
+  | 'fireStaff'
+  | 'iceStaff'
+  | 'windStaff'
+  | 'thunderStaff'
+  | 'earthStaff'
   | 'rune';
 
 /** 印の効き目（requirements.md 6章）。どれも1回使うとなくなる */
@@ -102,6 +121,13 @@ export interface ItemDef {
   /** 装備するところと、上がる攻撃力・防御力 */
   slot?: Slot;
   bonus?: number;
+  /** 杖が上げる魔攻。杖の＋値（錬金釜）は、攻撃力ではなく魔攻に足す */
+  magic?: number;
+  /**
+   * 杖（武器）。持っている間、この魔法を覚えていなくても使える。
+   * 杖と同じ属性の魔法は、威力 ×1.25（balance.md 6.7）
+   */
+  staff?: 'fire' | 'ice' | 'wind' | 'thunder' | 'earth';
   /** 属性（balance.md 3.7）。武器と矢はこの属性で攻撃し、盾を持つと主人公はこの属性で受ける。省くと無 */
   element?: Element;
   /** 使うと覚える魔法 */
@@ -184,6 +210,26 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   woodShield: { kana: 'きのたて', name: '木の盾', emoji: '🪵', desc: '防御力+2', slot: 'shield', bonus: 2, value: 60 },
   leatherShield: { kana: 'かわのたて', name: '革の盾', emoji: '🛡️', desc: '防御力+4', slot: 'shield', bonus: 4, value: 180 },
   ironShield: { kana: 'てつのたて', name: '鉄の盾', emoji: '🔰', desc: '防御力+7', slot: 'shield', bonus: 7, value: 450 },
+  // 属性の剣・盾・杖（balance.md 6.7）。光と闇は、これから足すダンジョンで手に入れる（今はどこにも出ない）
+  fireSword: { kana: 'ほのおのけん', name: '炎の剣', emoji: '🗡️', desc: '攻撃力+5　🔥火', slot: 'weapon', bonus: 5, element: 'fire', value: 250 },
+  iceSword: { kana: 'こおりのけん', name: '氷の剣', emoji: '🗡️', desc: '攻撃力+5　💧水', slot: 'weapon', bonus: 5, element: 'water', value: 250 },
+  thunderSword: { kana: 'かみなりのけん', name: '雷の剣', emoji: '🗡️', desc: '攻撃力+5　⚡雷', slot: 'weapon', bonus: 5, element: 'thunder', value: 250 },
+  earthSword: { kana: 'だいちのけん', name: '大地の剣', emoji: '🗡️', desc: '攻撃力+5　🪨土', slot: 'weapon', bonus: 5, element: 'earth', value: 250 },
+  windSword: { kana: 'しっぷうのけん', name: '疾風の剣', emoji: '🗡️', desc: '攻撃力+5　🌪️風', slot: 'weapon', bonus: 5, element: 'wind', value: 250 },
+  lightSword: { kana: 'ひかりのけん', name: '光の剣', emoji: '🗡️', desc: '攻撃力+6　🌟光', slot: 'weapon', bonus: 6, element: 'light', value: 350 },
+  darkSword: { kana: 'やみのけん', name: '闇の剣', emoji: '🗡️', desc: '攻撃力+6　🌑闇', slot: 'weapon', bonus: 6, element: 'dark', value: 350 },
+  fireShield: { kana: 'ほのおのたて', name: '炎の盾', emoji: '🛡️', desc: '防御力+5　🔥火', slot: 'shield', bonus: 5, element: 'fire', value: 280 },
+  iceShield: { kana: 'こおりのたて', name: '氷の盾', emoji: '🛡️', desc: '防御力+5　💧水', slot: 'shield', bonus: 5, element: 'water', value: 280 },
+  thunderShield: { kana: 'かみなりのたて', name: '雷の盾', emoji: '🛡️', desc: '防御力+5　⚡雷', slot: 'shield', bonus: 5, element: 'thunder', value: 280 },
+  earthShield: { kana: 'だいちのたて', name: '大地の盾', emoji: '🛡️', desc: '防御力+5　🪨土', slot: 'shield', bonus: 5, element: 'earth', value: 280 },
+  windShield: { kana: 'しっぷうのたて', name: '疾風の盾', emoji: '🛡️', desc: '防御力+5　🌪️風', slot: 'shield', bonus: 5, element: 'wind', value: 280 },
+  lightShield: { kana: 'ひかりのたて', name: '光の盾', emoji: '🛡️', desc: '防御力+6　🌟光', slot: 'shield', bonus: 6, element: 'light', value: 380 },
+  darkShield: { kana: 'やみのたて', name: '闇の盾', emoji: '🛡️', desc: '防御力+6　🌑闇', slot: 'shield', bonus: 6, element: 'dark', value: 380 },
+  fireStaff: { kana: 'ほのおのつえ', name: '炎の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🔥火\nヒボシ・大火球の威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'fire', element: 'fire', value: 300 },
+  iceStaff: { kana: 'こおりのつえ', name: '氷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　💧水\n装備中はイテホシが使える\nイテホシの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'ice', element: 'water', value: 300 },
+  windStaff: { kana: 'かぜのつえ', name: '風の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🌪️風\n装備中はホシキリが使える\nホシキリの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'wind', element: 'wind', value: 300 },
+  thunderStaff: { kana: 'かみなりのつえ', name: '雷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　⚡雷\n装備中はホシナリが使える\nホシナリの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'thunder', element: 'thunder', value: 300 },
+  earthStaff: { kana: 'つちのつえ', name: '土の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🪨土\n装備中はホシヨビが使える\nホシヨビの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'earth', element: 'earth', value: 300 },
   rune: { kana: 'るーん', name: 'ルーン', emoji: '💠', desc: '拾うと持っているルーンが増える', rune: true, value: 0 },
 };
 
@@ -217,7 +263,12 @@ export function itemName(item: Item): string {
 }
 
 /** 装備で上がる攻撃力・防御力。錬金釜の＋を含む */
-export const equipBonus = (item: Item) => (ITEMS[item.kind].bonus ?? 0) + (item.plus ?? 0);
+/** 装備で上がる攻撃力・防御力。杖の＋値は魔攻に足すので、ここには入れない */
+export const equipBonus = (item: Item) => (ITEMS[item.kind].bonus ?? 0) + (ITEMS[item.kind].magic ? 0 : (item.plus ?? 0));
+/** 杖で上がる魔攻（＋値を含む）。杖でなければ 0 */
+export const equipMagic = (item: Item) => (ITEMS[item.kind].magic ? (ITEMS[item.kind].magic ?? 0) + (item.plus ?? 0) : 0);
+/** 杖と同じ属性の魔法の威力の倍率 */
+export const STAFF_RATE = 1.25;
 
 let nextItemId = 1;
 
@@ -271,6 +322,7 @@ export function allItems(items: Item[]): Item[] {
 /** 道具の種類の呼び名と読み。拠点の一覧の検索で使う（「印」「いん」「星」などで探せる） */
 export function itemCategory(kind: ItemKind): string {
   const d = ITEMS[kind];
+  if (d.staff) return '杖 つえ 武器 ぶき 装備 そうび';
   if (d.slot) return d.slot === 'weapon' ? '武器 ぶき 装備 そうび' : '盾 たて 装備 そうび';
   if (d.seal) return '印 いん しるし';
   if (d.star) return '星 ほし';

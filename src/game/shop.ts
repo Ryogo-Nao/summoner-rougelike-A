@@ -1,3 +1,4 @@
+import { DUNGEONS, isUnlocked } from './dungeons';
 import { BAG_LIMIT, ITEMS, STAR_ITEMS, buyPrice, createItem, sellPrice, type Item, type ItemKind } from './items';
 import type { Profile } from './profile';
 import { WAREHOUSE_LIMIT } from './profile';
@@ -13,14 +14,26 @@ export const ALWAYS_SOLD: ItemKind[] = ['herb', 'bread'];
 /** 戻るたびに入れ替わる品の数 */
 const STOCK_SIZE: [number, number] = [3, 5];
 
-/** 入れ替わる品の出やすさ。強い印は出にくい */
-const STOCK_POOL: { kind: ItemKind; weight: number }[] = [
+/**
+ * 入れ替わる品の出やすさ。強い印は出にくい。
+ * dungeon があるものは、そのダンジョンに挑めるようになってから並ぶ
+ */
+const STOCK_POOL: { kind: ItemKind; weight: number; dungeon?: string }[] = [
   { kind: 'club', weight: 10 },
   { kind: 'bronzeSword', weight: 8 },
   { kind: 'ironSword', weight: 4 },
   { kind: 'woodShield', weight: 10 },
   { kind: 'leatherShield', weight: 8 },
   { kind: 'ironShield', weight: 4 },
+  // 属性の装備は、そのダンジョンの魔物の弱点を突くものを売る（balance.md 6.7）。
+  // ささやきの森の風の魔物には炎、しずくの氷穴の水と風の魔物には雷。
+  // 光と闇の装備は、これから足すダンジョンに挑めるようになったら並べる
+  { kind: 'fireSword', weight: 3, dungeon: 'forest' },
+  { kind: 'fireShield', weight: 3, dungeon: 'forest' },
+  { kind: 'fireStaff', weight: 2, dungeon: 'forest' },
+  { kind: 'thunderSword', weight: 3, dungeon: 'ice' },
+  { kind: 'thunderShield', weight: 3, dungeon: 'ice' },
+  { kind: 'thunderStaff', weight: 2, dungeon: 'ice' },
   { kind: 'tomeFire', weight: 1 },
   { kind: 'tomeIce', weight: 1 },
   { kind: 'tomeWind', weight: 1 },
@@ -46,10 +59,11 @@ const STOCK_POOL: { kind: ItemKind; weight: number }[] = [
   { kind: 'rebirthBook', weight: 1 },
 ];
 
-/** 入れ替わる品を選び直す。同じ品は並べない */
-export function rollStock(random: () => number = Math.random): ItemKind[] {
+/** 入れ替わる品を選び直す。同じ品は並べない。cleared は踏破したダンジョン（挑めるダンジョンの品だけ並べる） */
+export function rollStock(cleared: string[], random: () => number = Math.random): ItemKind[] {
   const size = STOCK_SIZE[0] + Math.floor(random() * (STOCK_SIZE[1] - STOCK_SIZE[0] + 1));
-  const pool = [...STOCK_POOL];
+  const open = (id: string) => DUNGEONS.some((d) => d.id === id && isUnlocked(d, cleared));
+  const pool = STOCK_POOL.filter((e) => !e.dungeon || open(e.dungeon));
   const stock: ItemKind[] = [];
   while (stock.length < size && pool.length > 0) {
     const total = pool.reduce((n, e) => n + e.weight, 0);

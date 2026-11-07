@@ -144,7 +144,7 @@ export function newProfile(): Profile {
     cleared: [],
     shortcuts: noShortcuts(),
     runes: 0,
-    shopStock: rollStock(),
+    shopStock: rollStock([]),
     records: newRecords(),
     generation: 1,
     notices: noNotices(),
@@ -163,7 +163,7 @@ export function loadProfile(): Profile {
       cleared: data.cleared ?? [],
       shortcuts: data.shortcuts ?? noShortcuts(),
       runes: data.runes ?? 0,
-      shopStock: data.shopStock ?? rollStock(),
+      shopStock: data.shopStock ?? rollStock(data.cleared ?? []),
       records: { ...newRecords(), ...data.records },
       generation: data.generation ?? 1,
       notices: { ...noNotices(), ...data.notices },
@@ -248,7 +248,7 @@ function giveUpToBase(profile: Profile, state: GameState): Losses {
   const { bag, lost, downgraded } = halveBag(profile.bag);
   profile.bag = bag;
   profile.runes -= runesLost;
-  profile.shopStock = rollStock();
+  profile.shopStock = rollStock(profile.cleared);
   profile.notices.shop = true;
   saveProfile(profile);
   clearRun();
@@ -313,11 +313,11 @@ export function returnToBase(profile: Profile, state: GameState): Losses {
   profile.learned = [...state.learned];
   profile.shortcuts = [...state.shortcuts];
   profile.runes += losses.runesKept;
-  // 戻るたびに、商店の品を入れ替える
-  profile.shopStock = rollStock();
+  if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
+  // 戻るたびに、商店の品を入れ替える（踏破して挑めるようになったダンジョンの品も並ぶ）
+  profile.shopStock = rollStock(profile.cleared);
   profile.notices.shop = true;
   if (kept.some((c) => !brought.has(c.id))) profile.notices.allies = true;
-  if (state.cleared && !profile.cleared.includes(state.dungeon.id)) profile.cleared.push(state.dungeon.id);
   saveProfile(profile);
   clearRun();
   return losses;

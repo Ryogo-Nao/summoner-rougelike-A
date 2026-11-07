@@ -161,7 +161,8 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     // 威力は魔攻から決まる。当たる魔物の魔防で減る
     return {
       icon: SPELL_ICONS[id],
-      name: rankedName(spell.name, state.rankOf(id)),
+      // 覚えていなくて、杖で使えている魔法は「（杖）」を付ける
+      name: `${rankedName(spell.name, state.rankOf(id))}${!state.knows(id) && state.staffSpell() === id ? '（杖）' : ''}`,
       sub: spellEffect(id, state.rankOf(id), state.spellPower(id)),
       dim: !enough,
       button: {

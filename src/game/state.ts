@@ -40,6 +40,8 @@ import {
   START_ITEMS,
   createItem,
   equipBonus,
+  equipMagic,
+  STAFF_RATE,
   itemName,
   reserveItemIds,
   sortItems,
@@ -1020,7 +1022,8 @@ export class GameState {
   /** 魔攻と魔防（balance.md 3.6）。魔攻の魔法の分を含む。魔防の魔法は、魔防ではなく受けるダメージを減らす */
   magicPower(): number {
     const p = this.player;
-    return p.magicTurns > 0 ? Math.round(p.matk * rankRate(this.rankOf('magic'))) : p.matk;
+    const m = p.matk + (p.weapon ? equipMagic(p.weapon) : 0);
+    return p.magicTurns > 0 ? Math.round(m * rankRate(this.rankOf('magic'))) : m;
   }
 
   magicDefense(): number {
@@ -1041,8 +1044,17 @@ export class GameState {
   /** 攻撃の魔法の威力（balance.md 2.1）。魔攻 × 倍率（＋値で上がる）。当たる魔物の魔防で減る。チカラボシなどは 0 */
   spellPower(spell: SpellId): number {
     const m = this.magicPower();
-    if (spell === 'bigFire') return m * 2 + 10;
-    return Math.round(m * spellRate(spell, this.rankOf(spell)));
+    // 杖と同じ属性の魔法は強くなる（balance.md 6.7）
+    const w = this.player.weapon;
+    const staff = w && ITEMS[w.kind].staff && ITEMS[w.kind].element === SPELL_ELEMENT[spell] ? STAFF_RATE : 1;
+    if (spell === 'bigFire') return Math.round((m * 2 + 10) * staff);
+    return Math.round(m * spellRate(spell, this.rankOf(spell)) * staff);
+  }
+
+  /** 持っている杖で使える魔法。杖を持っていなければ null */
+  staffSpell(): SpellId | null {
+    const w = this.player.weapon;
+    return (w && ITEMS[w.kind].staff) || null;
   }
 
   // ---- バッグ ----
@@ -1061,17 +1073,19 @@ export class GameState {
   }
 
   /** 装備する（装備中なら外す）と、攻撃力か防御力がいくつからいくつになるか。装備できないアイテムは null */
-  equipPreview(item: Item): { stat: '攻撃力' | '防御力'; before: number; after: number } | null {
+  equipPreview(item: Item): { stat: '攻撃力' | '防御力' | '魔攻'; before: number; after: number } | null {
     const slot = ITEMS[item.kind].slot;
     if (!slot) return null;
     const p = this.player;
-    const value = () => (slot === 'weapon' ? this.attackPower() : this.defensePower());
+    // 杖は魔攻を上げるので、魔攻の変わり方を出す
+    const staff = ITEMS[item.kind].staff !== undefined;
+    const value = () => (staff ? this.magicPower() : slot === 'weapon' ? this.attackPower() : this.defensePower());
     const current = p[slot];
     const before = value();
     p[slot] = current === item ? null : item;
     const after = value();
     p[slot] = current;
-    return { stat: slot === 'weapon' ? '攻撃力' : '防御力', before, after };
+    return { stat: staff ? '魔攻' : slot === 'weapon' ? '攻撃力' : '防御力', before, after };
   }
 
   isEquipped(item: Item): boolean {
@@ -1912,10 +1926,11 @@ export class GameState {
 
   // ---- 魔法 ----
 
-  /** いま使える魔法。ヒボシと覚えた魔法。大火球は火を吐く仲間を召喚している間だけ */
+  /** いま使える魔法。ヒボシと覚えた魔法と、持っている杖の魔法。大火球は火を吐く仲間を召喚している間だけ */
   availableSpells(): SpellId[] {
     const spells: SpellId[] = ['fire'];
-    for (const id of ATTACK_SPELLS) if (this.learned.has(id)) spells.push(id);
+    const staff = this.staffSpell();
+    for (const id of ATTACK_SPELLS) if (this.learned.has(id) || staff === id) spells.push(id);
     if (this.allies.some((a) => a.card.species.special === 'breath')) spells.push('bigFire');
     for (const id of BUFF_SPELLS) if (this.learned.has(id)) spells.push(id);
     return spells;
