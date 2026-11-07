@@ -124,3 +124,20 @@ test('F-79 ［見通し］を押すとオンになり、もう一度押すとオ
   expect(await turn(page)).toBe(t0);
   expect(errors).toEqual([]);
 });
+
+test('F-83 メニューの「正面のマスの枠」を押すと オン → オフ に変わり、保存される', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  await expect(async () => {
+    await press(page, '#btn-menu');
+    await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  const button = () => page.locator('#sheet-body .sheet-row', { hasText: '正面のマスの枠' }).locator('button');
+  await expect(button()).toHaveText('オン');
+  await button().click();
+  await expect(button()).toHaveText('オフ');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('summoner-settings') ?? '{}').facingTile);
+  expect(saved).toBe(false);
+  expect(errors).toEqual([]);
+});

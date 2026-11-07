@@ -563,6 +563,12 @@ export function settingRows(settings: Settings, onChange: () => void): SheetRow[
       },
     },
     {
+      icon: '➤',
+      name: '正面のマスの枠',
+      sub: settings.facingTile ? '向いている先の1マスを\n金の枠で強調する' : '枠は出さない\n（向きの矢印は出る）',
+      button: { label: settings.facingTile ? 'オン' : 'オフ', onClick: toggle(() => (settings.facingTile = !settings.facingTile)) },
+    },
+    {
       icon: '✨',
       name: '演出の速さ',
       sub: EFFECT_SPEED_SUB[settings.effectSpeed],

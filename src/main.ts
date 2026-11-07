@@ -28,6 +28,7 @@ const base = new BaseScreen((dungeonId) => startRun(dungeonId), dialog, settings
 
 const canvas = document.querySelector<HTMLCanvasElement>('#map')!;
 const renderer = new Renderer(canvas);
+renderer.facingTile = settings.facingTile;
 
 /** 遊んでいるダンジョン。拠点にいる間は、前のダンジョン（または仮の状態）が入っている */
 let state = resumeRun() ?? new GameState(nextSeed(), loadoutOf(profile));
@@ -507,8 +508,10 @@ onButton('btn-menu', () =>
 function settingsChanged(): void {
   state.turnFirst = settings.turnFirst;
   state.allyMove = settings.allyMove;
+  renderer.facingTile = settings.facingTile;
   saveSettings(settings);
   applyPadSide();
+  if (!playing) renderer.draw(state);
 }
 
 /** 設定に合わせて、パッドを左右どちらかに置く */

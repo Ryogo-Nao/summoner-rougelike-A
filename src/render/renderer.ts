@@ -146,6 +146,8 @@ export class Renderer {
   private viewH = 0;
   /** true のとき、ミニマップを画面いっぱいに広げて表示する */
   minimapExpanded = false;
+  /** true のとき、主人公の正面のマスを金の枠で強調する（設定「正面のマスの枠」） */
+  facingTile = true;
   /** true のとき「見通し」。今いる部屋のマス目に線を引き、自分から8方向にまっすぐ並ぶマスに色を付ける */
   lookMode = false;
   private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -307,7 +309,7 @@ export class Renderer {
     this.drawLighting(state, toScreen(cam), toScreen, now);
     if (this.lookMode) this.drawLookGrid(state, toScreen);
     const me = actors.find((a) => a.isPlayer);
-    if (me) this.drawFacingTile(toScreen({ x: cam.x, y: cam.y }), me.facing);
+    if (me && this.facingTile) this.drawFacingTile(toScreen({ x: cam.x, y: cam.y }), me.facing);
 
     // 投げた物・矢が飛んでいる間は、落ちる先に置かれた物をまだ出さない
     const flying = play && (play.scene.action === 'throw' || play.scene.action === 'shoot') && play.phase !== 'impact';
