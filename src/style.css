@@ -2627,6 +2627,9 @@ body {
 .dialog-buttons button:first-child {
   border-width: 12px 26px;
   border-image: url('./ui-art/btn-main.png') 40 76 fill / 12px 26px stretch;
+  /* 前の茶色の石の地（--btn-main）が、宝石の絵の角のすき間から見えないように消す */
+  background: none;
+  box-shadow: none;
   color: #fff;
   text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66;
 }
