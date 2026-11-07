@@ -181,9 +181,15 @@ function updateHud(moment?: HudMoment): void {
     fill.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
     bar.classList.toggle('low', ratio <= 0.25);
     bar.append(fill);
-    // ついてくる以外の指示を出しているときは、指示も出す
-    const order = a.order !== 'follow' ? ORDER_LABEL[a.order] : `${card.hp}/${card.maxHp}`;
-    slot.replaceChildren(face, el('span', 'slot-info', '', [el('span', 'slot-name', order), bar]));
+    // 作戦（ついてくる・突撃など）をHPの上に、いつも出す
+    slot.replaceChildren(
+      face,
+      el('span', 'slot-info', '', [
+        el('span', 'slot-order', ORDER_LABEL[a.order]),
+        el('span', 'slot-name', `${card.hp}/${card.maxHp}`),
+        bar,
+      ]),
+    );
   });
 
   const log = document.getElementById('log')!;

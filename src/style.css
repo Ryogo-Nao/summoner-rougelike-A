@@ -295,6 +295,16 @@ button {
   color: var(--muted);
   font-family: var(--serif);
 }
+/* 仲間の作戦。HPの数字の上に、金の小さな字で出す */
+.slot-order {
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1.1;
+  color: #e8c97a;
+  white-space: nowrap;
+  overflow: hidden;
+  font-family: var(--font);
+}
 .slot-hp {
   display: block;
   height: 6px;
