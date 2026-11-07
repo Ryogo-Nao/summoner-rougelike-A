@@ -18,6 +18,7 @@ export const IZUTSUCHI: Species = {
   def: 3,
   matk: 6,
   mdef: 4,
+  element: 'thunder',
   exp: 0,
   capture: 0,
   cost: 3,

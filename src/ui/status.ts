@@ -1,5 +1,6 @@
 import { NICKNAME_LIMIT, ORDER_LABEL, PERSONALITIES, STAT_LABEL, cardName, growthRate, isPartner, nicknameLength, type Ally, type Card } from '../game/cards';
 import { allyExpToNext } from '../game/combat';
+import { elementText } from '../game/elements';
 import { characterInfo } from '../game/characters';
 import type { Species } from '../game/monsters';
 import { artElement } from '../render/art';
@@ -54,6 +55,7 @@ export function statusView(
   const next = allyExpToNext(card.exp);
   const rows: [string, string][] = [
     ['種族', card.species.name],
+    ['属性', elementText(card.species.element)],
     ['レベル', `Lv${card.level}`],
     ...(card.fusions
       ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])

@@ -1,3 +1,4 @@
+import { EFFECT_TEXT } from '../game/elements';
 import type { ActorView, GameState, Popup, Scene, SceneAction } from '../game/state';
 import { ITEMS } from '../game/items';
 import { DIR_VECTORS, type Dir } from '../game/dir';
@@ -109,6 +110,9 @@ const COLORS = {
 
 /** 見通しで、通路にいるときに線を引く範囲（自分からのマス数） */
 const LOOK_REACH = 4;
+
+/** よく効いた（橙）・効きにくい（灰青）の言葉の色 */
+const EFFECT_COLORS: Record<'strong' | 'weak', string> = { strong: '#ffb347', weak: '#a9bbd8' };
 
 const POPUP_COLORS: Record<Popup['kind'], string> = {
   damage: '#ffffff',
@@ -710,12 +714,22 @@ export class Renderer {
     for (const popup of popups) {
       const key = `${popup.pos.x},${popup.pos.y}`;
       const n = stack.get(key) ?? 0;
-      stack.set(key, n + 1);
+      // よく効いた・効きにくいの言葉は、数字の上にもう1段使う
+      stack.set(key, n + (popup.effect ? 2 : 1));
       const { x, y } = toScreen(popup.pos);
       const ty = y + ts * 0.12 - n * ts * 0.4 + lift;
       ctx.fillStyle = POPUP_COLORS[popup.kind];
       ctx.strokeText(popup.text, x + ts / 2, ty);
       ctx.fillText(popup.text, x + ts / 2, ty);
+      if (popup.effect) {
+        ctx.save();
+        ctx.font = `bold ${Math.floor(ts * 0.26)}px -apple-system, sans-serif`;
+        ctx.fillStyle = EFFECT_COLORS[popup.effect];
+        const ly = ty - ts * 0.36;
+        ctx.strokeText(EFFECT_TEXT[popup.effect], x + ts / 2, ly);
+        ctx.fillText(EFFECT_TEXT[popup.effect], x + ts / 2, ly);
+        ctx.restore();
+      }
     }
   }
 

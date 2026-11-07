@@ -1,4 +1,5 @@
 import type { Pos } from './dir';
+import type { Element } from './elements';
 
 /** バッグに入るアイテムの数（requirements.md 11章）。まとまった矢は1つと数える */
 export const BAG_LIMIT = 40;
@@ -96,6 +97,8 @@ export interface ItemDef {
   /** 装備するところと、上がる攻撃力・防御力 */
   slot?: Slot;
   bonus?: number;
+  /** 属性（balance.md 3.7）。武器と矢はこの属性で攻撃し、盾を持つと主人公はこの属性で受ける。省くと無 */
+  element?: Element;
   /** 使うと覚える魔法 */
   spell?: 'power' | 'guard' | 'magic' | 'ward';
   /** 拠点の［配合］で使う書（requirements.md 9.2・9.3）。ダンジョンでは使えない */

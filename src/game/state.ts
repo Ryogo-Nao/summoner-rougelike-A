@@ -24,6 +24,7 @@ import {
   type Card,
 } from './cards';
 import { HIT_RATE, allyLevelForExp, playerLevelForExp, rollDamage } from './combat';
+import { EFFECT_TEXT, effectOf, elementRate, type Element } from './elements';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { dungeonById, monstersForFloor, randomItem, randomRune, type Dungeon } from './dungeons';
@@ -275,7 +276,24 @@ export interface Popup {
   pos: Pos;
   text: string;
   kind: 'damage' | 'hurt' | 'miss' | 'info' | 'status';
+  /** 属性で、よく効いた（strong）・効きにくい（weak）ダメージ。数字の上に小さく出す */
+  effect?: 'strong' | 'weak';
 }
+
+/** 属性のある攻撃の魔法（balance.md 3.7） */
+const SPELL_ELEMENT: Partial<Record<SpellId, Element>> = { fire: 'fire', bigFire: 'fire', thunder: 'thunder' };
+
+/** ダメージの数字に付ける、属性の効き目 */
+const withEffect = (rate: number): Pick<Popup, 'effect'> => {
+  const e = effectOf(rate);
+  return e ? { effect: e } : {};
+};
+
+/** ログのダメージのあとに付ける、属性の効き目 */
+const effectNote = (rate: number) => {
+  const e = effectOf(rate);
+  return e ? `（${EFFECT_TEXT[e]}）` : '';
+};
 
 /** ダンジョンに持っていくもの。拠点で選ぶ */
 export interface Loadout {
@@ -972,6 +990,17 @@ export class GameState {
     return this.player.mdef;
   }
 
+  /** 主人公の属性（balance.md 3.7）。ふつうの攻撃は武器の属性、受けるときは盾の属性。持っていなければ無 */
+  weaponElement(): Element {
+    const w = this.player.weapon;
+    return (w && ITEMS[w.kind].element) || 'none';
+  }
+
+  playerElement(): Element {
+    const s = this.player.shield;
+    return (s && ITEMS[s.kind].element) || 'none';
+  }
+
   /** 攻撃の魔法の威力（balance.md 2.1）。当たる魔物の魔防で減る。力・守りなどの魔法は 0 */
   spellPower(spell: SpellId): number {
     const m = this.magicPower();
@@ -1538,7 +1567,8 @@ export class GameState {
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (monster && this.rng.chance(HIT_RATE)) {
         const atk = Math.round(this.attackPower() * (def.arrow ?? 1));
-        this.damageMonster(monster, rollDamage(this.rng, atk, monster.def), null, def.name);
+        const rate = elementRate(def.element ?? 'none', monster.species.element);
+        this.damageMonster(monster, rollDamage(this.rng, atk, monster.def, rate), null, def.name, rate);
         return;
       }
       if (monster) {
@@ -1623,7 +1653,8 @@ export class GameState {
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (!target || !reachable) return;
       if (this.rng.chance(HIT_RATE)) {
-        this.damageMonster(target, rollDamage(this.rng, this.attackPower(), target.def), null, '攻撃');
+        const rate = elementRate(this.weaponElement(), target.species.element);
+        this.damageMonster(target, rollDamage(this.rng, this.attackPower(), target.def, rate), null, '攻撃', rate);
       } else {
         this.addLog(`${target.species.name}はかわした`);
         this.popups.push({ pos: target.pos, text: 'ミス', kind: 'miss' });
@@ -1631,16 +1662,19 @@ export class GameState {
     });
   }
 
-  /** by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前。与えたダメージを返す */
-  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string): number {
+  /**
+   * by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前。
+   * rate は属性の倍率（raw にはもうかけてある）。よく効いた・効きにくいを出すのに使う。与えたダメージを返す
+   */
+  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string, rate = 1): number {
     const dmg = fortified(raw, m.ailments);
     m.hp -= dmg;
     this.wake(m.ailments);
     m.dormant = false;
-    this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage' });
+    this.popups.push({ pos: m.pos, text: `${dmg}`, kind: 'damage', ...withEffect(rate) });
     // 攻撃された魔物は、見えていなくても主人公に気づく
     m.lastSeen = { ...this.player.pos };
-    this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}ダメージ`);
+    this.addLog(`${by ? by.card.species.name : 'あなた'}の${how} → ${m.species.name}に${dmg}ダメージ${effectNote(rate)}`);
     if (m.hp <= 0) this.defeatMonster(m, by, true);
     return dmg;
   }
@@ -1911,7 +1945,10 @@ export class GameState {
       this.ahead(p.pos, p.facing),
       () => {
         if (targets.length === 0) this.addLog(`${name}は外れた`);
-        for (const m of targets) this.damageMonster(m, rollDamage(this.rng, power, m.mdef), null, name);
+        for (const m of targets) {
+          const rate = elementRate(SPELL_ELEMENT[spell] ?? 'none', m.species.element);
+          this.damageMonster(m, rollDamage(this.rng, power, m.mdef, rate), null, name, rate);
+        }
       },
       { action: spell, cells },
     );
@@ -2375,7 +2412,15 @@ export class GameState {
         if (pick === 'player') {
           if (turnTo !== null) this.player.facing = turnTo;
           this.provoker = m;
-          this.scene(m.pos, to, () => this.hurtPlayer(m, rollDamage(this.rng, m.matk, this.magicDefense()), '火', true), fx);
+          this.scene(
+            m.pos,
+            to,
+            () => {
+              const rate = elementRate(m.species.element, this.playerElement());
+              this.hurtPlayer(m, rollDamage(this.rng, m.matk, this.magicDefense(), rate), '火', true, rate);
+            },
+            fx,
+          );
         } else {
           const a = pick!;
           if (turnTo !== null) a.facing = turnTo;
@@ -2383,7 +2428,10 @@ export class GameState {
           this.scene(
             m.pos,
             to,
-            () => this.hurtAlly(m, a, fortified(this.warded(rollDamage(this.rng, m.matk, a.card.mdef)), a.ailments), '火'),
+            () => {
+              const rate = elementRate(m.species.element, a.card.species.element);
+              this.hurtAlly(m, a, fortified(this.warded(rollDamage(this.rng, m.matk, a.card.mdef, rate)), a.ailments), '火', rate);
+            },
             fx,
           );
         }
@@ -2505,7 +2553,8 @@ export class GameState {
       this.popups.push({ pos: p.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower()), how);
+    const rate = elementRate(m.species.element, this.playerElement());
+    const dmg = this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower(), rate), how, false, rate);
     this.drain(m.species, m, dmg, m.species.name);
     if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player', p.pos);
   }
@@ -2514,13 +2563,13 @@ export class GameState {
    * 魔物から主人公へのダメージ。守りの魔法（magic なら魔防の魔法）がかかっていれば減らす。与えたダメージを返す。
    * magic は火を吐くなどの魔法の攻撃
    */
-  private hurtPlayer(m: Monster, raw: number, how: string, magic = false): number {
+  private hurtPlayer(m: Monster, raw: number, how: string, magic = false, rate = 1): number {
     const p = this.player;
     const dmg = fortified(magic ? this.warded(raw) : this.guarded(raw), p.ailments);
     p.hp = Math.max(0, p.hp - dmg);
     this.wake(p.ailments);
-    this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ`);
-    this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt' });
+    this.addLog(`${m.species.name}の${how} → あなたに${dmg}ダメージ${effectNote(rate)}`);
+    this.popups.push({ pos: p.pos, text: `${dmg}`, kind: 'hurt', ...withEffect(rate) });
     if (p.hp === 0) {
       this.dead = true;
       this.addLog('あなたは力つきてしまった…');
@@ -2547,19 +2596,20 @@ export class GameState {
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
-    const dmg = fortified(this.guarded(rollDamage(this.rng, raged(m.atk, m.ailments), a.card.def)), a.ailments);
-    if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃')) return;
+    const rate = elementRate(m.species.element, a.card.species.element);
+    const dmg = fortified(this.guarded(rollDamage(this.rng, raged(m.atk, m.ailments), a.card.def, rate)), a.ailments);
+    if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃', rate)) return;
     this.drain(m.species, m, dmg, m.species.name);
     this.afflict(m.species, a.ailments, name, 'ally', a.pos);
   }
 
-  /** 魔物が仲間にダメージを与える。how はログに出す攻撃の名前。瀕死になって召喚が解けたら false */
-  private hurtAlly(m: Monster, a: Ally, dmg: number, how: string): boolean {
+  /** 魔物が仲間にダメージを与える。how はログに出す攻撃の名前、rate は属性の倍率。瀕死になって召喚が解けたら false */
+  private hurtAlly(m: Monster, a: Ally, dmg: number, how: string, rate = 1): boolean {
     const name = cardName(a.card);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
-    this.addLog(`${m.species.name}の${how} → ${name}に${dmg}ダメージ`);
-    this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
+    this.addLog(`${m.species.name}の${how} → ${name}に${dmg}ダメージ${effectNote(rate)}`);
+    this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt', ...withEffect(rate) });
     if (a.card.hp > 0) return true;
     this.allies = this.allies.filter((x) => x !== a);
     a.card.status = 'dying';
@@ -2620,7 +2670,8 @@ export class GameState {
       for (let i = 0; i < hits && this.monsters.includes(target); i++) {
         this.scene(a.pos, target.pos, () => {
           if (this.rng.chance(HIT_RATE)) {
-            const dmg = this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, '攻撃');
+            const rate = elementRate(a.card.species.element, target.species.element);
+            const dmg = this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def, rate), a, '攻撃', rate);
             this.drain(species, a.card, dmg, cardName(a.card));
             // 仲間のポコタケ・シュルルなどは、攻撃が当たった魔物を混乱・毒などにすることがある
             if (this.monsters.includes(target))
@@ -2641,7 +2692,10 @@ export class GameState {
         this.scene(
           a.pos,
           target.pos,
-          () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef), a, 'いかずち'),
+          () => {
+            const rate = elementRate(a.card.species.element, target.species.element);
+            this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef, rate), a, 'いかずち', rate);
+          },
           { action: 'lightning', cells: this.lineCells(a.pos, target.pos) },
         );
         return;
@@ -2656,7 +2710,8 @@ export class GameState {
       );
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-        this.scene(a.pos, target.pos, () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef), a, '火'), {
+        const rate = elementRate(a.card.species.element, target.species.element);
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef, rate), a, '火', rate), {
           action: 'breath',
           cells: this.lineCells(a.pos, target.pos),
         });

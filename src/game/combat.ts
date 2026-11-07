@@ -3,11 +3,14 @@ import type { Rng } from './rng';
 /** 通常攻撃の命中率（balance.md 3.2） */
 export const HIT_RATE = 0.9;
 
-/** ダメージ = 攻撃力 × 16 ÷ (16 + 防御力) × 乱数(0.88〜1.12)。四捨五入、最低1（balance.md 3.1） */
-export function rollDamage(rng: Rng, atk: number, def: number): number {
+/**
+ * ダメージ = 攻撃力 × 16 ÷ (16 + 防御力) × 属性の倍率 × 乱数(0.88〜1.12)。四捨五入、最低1（balance.md 3.1・3.7）。
+ * 魔法の攻撃は、攻撃力の代わりに威力、防御力の代わりに魔防を渡す（3.6）
+ */
+export function rollDamage(rng: Rng, atk: number, def: number, rate = 1): number {
   const base = (atk * 16) / (16 + def);
   const spread = 0.88 + rng.next() * 0.24;
-  return Math.max(1, Math.round(base * spread));
+  return Math.max(1, Math.round(base * rate * spread));
 }
 
 /** いちばん上のレベル。主人公も仲間も、ここまで上がる（balance.md 1.3） */

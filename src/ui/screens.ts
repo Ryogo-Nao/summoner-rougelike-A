@@ -1,3 +1,4 @@
+import { elementText } from '../game/elements';
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartner, type Card } from '../game/cards';
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
@@ -25,7 +26,7 @@ const cardTitle = (card: Card, text: string): SheetTitle => ({ art: card.species
 /** 仲間の一覧の行の説明。iPhone の幅で途中で折り返さないよう、短い行に分ける */
 export function cardSub(card: Card, status = true): string {
   const last = [`MP${card.species.cost}`, ...(status ? [STATUS_LABEL[card.status]] : []), PERSONALITIES[card.personality].name];
-  return [`Lv${card.level}　HP${card.hp}/${card.maxHp}`, statLines(card), last.join('　')].join('\n');
+  return [`Lv${card.level}　HP${card.hp}/${card.maxHp}　${elementText(card.species.element)}`, statLines(card), last.join('　')].join('\n');
 }
 
 /** 攻撃・防御の行と、魔攻・魔防の行 */
@@ -206,7 +207,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
     }),
   );
   sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
-    note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}　魔攻${state.magicPower()}　魔防${state.magicDefense()}${buffs ? `\n${buffs}` : ''}`,
+    note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}　魔攻${state.magicPower()}　魔防${state.magicDefense()}\n属性：攻撃 ${elementText(state.weaponElement())}　守り ${elementText(state.playerElement())}${buffs ? `\n${buffs}` : ''}`,
     header: sort,
   });
 }

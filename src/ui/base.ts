@@ -1,3 +1,4 @@
+import { elementText } from '../game/elements';
 import { HAND_LIMIT, PERSONALITIES, PERSONALITY_IDS, SUMMON_LIMIT, cardName, growthRate, isPartner, type Card } from '../game/cards';
 import {
   FUSION_BOOK,
@@ -633,7 +634,7 @@ export class BaseScreen {
           icon: cardIcon(partner),
           art: partner.species.id,
           name: cardName(partner),
-          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回\n${statLines(partner)}\n${PERSONALITIES[partner.personality].name}`,
+          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回　${elementText(partner.species.element)}\n${statLines(partner)}\n${PERSONALITIES[partner.personality].name}`,
           className: 'ally taking',
           onSelect: () => this.enter(() => (this.viewing = partner)),
         }),
@@ -1180,7 +1181,7 @@ function allyRow(
     icon: cardIcon(card),
     art: card.species.id,
     name: cardName(card),
-    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}\n${statLines(card)}\n${PERSONALITIES[card.personality].name}`,
+    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}　${elementText(card.species.element)}\n${statLines(card)}\n${PERSONALITIES[card.personality].name}`,
     className: opts.on ? 'ally taking' : 'ally',
     onSelect: opts.onSelect,
   });
