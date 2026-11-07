@@ -52,7 +52,7 @@ describe('F-84 魔攻・魔防', () => {
     }
   });
 
-  it('マリョクボシで魔法の威力が上がる。チカラボシでは上がらない', () => {
+  it('イノリホシで魔法の威力が上がる。チカラボシでは上がらない', () => {
     const g = emptyState(1);
     g.allies = [];
     g.player.mp = g.player.maxMp = 99;
@@ -66,7 +66,7 @@ describe('F-84 魔攻・魔防', () => {
     expect(g.spellPower('fire')).toBe(18);
   });
 
-  it('火を吐く火は、マモリホシでは減らず、マヨケボシで減る', () => {
+  it('火を吐く火は、マモリホシでは減らず、カゴホシで減る', () => {
     /** 2マス先のヒダマリが火を吐いたときのダメージ。吐かなければ null */
     const breath = (seed: number, spell: 'guard' | 'ward' | null): number | null => {
       const g = emptyState(seed);
@@ -105,7 +105,7 @@ describe('F-84 魔攻・魔防', () => {
         seen.guard++;
         expect(guard).toBeGreaterThanOrEqual(88);
       }
-      // マヨケボシで ÷1.5 ＝ 59〜75
+      // カゴホシで ÷1.5 ＝ 59〜75
       const ward = breath(seed, 'ward');
       if (ward !== null) {
         seen.ward++;

@@ -72,8 +72,8 @@ export const SPELLS = {
   earth: { name: 'ホシヨビ', mp: 8 },
   power: { name: 'チカラボシ', mp: 6 },
   guard: { name: 'マモリホシ', mp: 6 },
-  magic: { name: 'マリョクボシ', mp: 6 },
-  ward: { name: 'マヨケボシ', mp: 6 },
+  magic: { name: 'イノリホシ', mp: 6 },
+  ward: { name: 'カゴホシ', mp: 6 },
   bigFire: { name: '大火球', mp: 10 },
 } as const;
 export type SpellId = keyof typeof SPELLS;
@@ -110,7 +110,7 @@ const BUFF_TURNS = 20;
 export const SPELL_MAX_RANK = 2;
 /**
  * ＋値の倍率。無印で1.5、+1で1.75、+2で2。
- * チカラボシは攻撃力、マリョクボシは魔攻にかけ、マモリホシ・マヨケボシは受けるダメージをこれで割る
+ * チカラボシは攻撃力、イノリホシは魔攻にかけ、マモリホシ・カゴホシは受けるダメージをこれで割る
  */
 export const rankRate = (rank: number) => 1.5 + 0.25 * Math.min(rank, SPELL_MAX_RANK);
 /** 攻撃の魔法の倍率（威力 ＝ 魔攻 × 倍率）。＋値で rankRate と同じ割合で上がる。小数第2位まで */
