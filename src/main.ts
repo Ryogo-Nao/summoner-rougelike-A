@@ -348,6 +348,15 @@ canvas.addEventListener('pointerdown', (e) => {
   redraw();
 });
 
+// ［見通し］：押すたびに、今いる部屋のマス目と、自分から8方向にまっすぐ並ぶマスを出す・消す。ターンは使わない
+const lookButton = document.getElementById('btn-look')!;
+lookButton.addEventListener('pointerdown', () => {
+  renderer.lookMode = !renderer.lookMode;
+  lookButton.classList.toggle('on', renderer.lookMode);
+  lookButton.setAttribute('aria-pressed', String(renderer.lookMode));
+  if (!playing) renderer.draw(state);
+});
+
 // iOS は CSS だけでは長押しのルーペが消えないので、タッチの既定動作を止める。
 // そのため画面上のボタンでは click が来ない。ボタンには pointer イベントを使うこと
 // （確認ダイアログは除外しているので click のまま使える）

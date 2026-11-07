@@ -45,7 +45,11 @@
             <button class="ally-slot" data-slot="2"></button>
           </section>
         </div>
-        <canvas id="map"></canvas>
+        <!-- マップと、その左上の［見通し］（押すたびに、部屋のマス目を出す・消す） -->
+        <div id="map-wrap">
+          <canvas id="map"></canvas>
+          <button id="btn-look" aria-pressed="false">見通し</button>
+        </div>
       </main>
 
       <section id="log"></section>

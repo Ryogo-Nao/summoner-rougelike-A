@@ -1,5 +1,6 @@
 import type { ActorView, GameState, Popup, Scene, SceneAction } from '../game/state';
 import { ITEMS } from '../game/items';
+import { DIR_VECTORS, type Dir } from '../game/dir';
 import { Tile } from '../game/map';
 import { characterInfo, type Motion } from '../game/characters';
 import { artImage, itemArt } from './art';
@@ -96,7 +97,18 @@ const COLORS = {
   hpBarEdge: '#3d2f22',
   /** 拡大したミニマップの後ろに敷く色 */
   expandedBg: 'rgba(46, 36, 27, 0.85)',
+  /** 向いている方向の矢印と、正面のマスの枠 */
+  facing: '#ffd84a',
+  facingEdge: '#3d2f22',
+  facingTile: 'rgba(255, 216, 74, 0.13)',
+  facingTileEdge: 'rgba(255, 216, 74, 0.8)',
+  /** 見通しのマス目の線と、8方向にまっすぐ並ぶマスの色 */
+  lookGrid: 'rgba(255, 244, 208, 0.42)',
+  lookLine: 'rgba(120, 200, 255, 0.16)',
 };
+
+/** 見通しで、通路にいるときに線を引く範囲（自分からのマス数） */
+const LOOK_REACH = 4;
 
 const POPUP_COLORS: Record<Popup['kind'], string> = {
   damage: '#ffffff',
@@ -133,6 +145,8 @@ export class Renderer {
   private viewH = 0;
   /** true のとき、ミニマップを画面いっぱいに広げて表示する */
   minimapExpanded = false;
+  /** true のとき「見通し」。今いる部屋のマス目に線を引き、自分から8方向にまっすぐ並ぶマスに色を付ける */
+  lookMode = false;
   private minimapRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   /** 歩いている途中のもの（ActorView.key ごと） */
   private steps = new Map<string, Step>();
@@ -290,6 +304,9 @@ export class Renderer {
     });
 
     this.drawLighting(state, toScreen(cam), toScreen, now);
+    if (this.lookMode) this.drawLookGrid(state, toScreen);
+    const me = actors.find((a) => a.isPlayer);
+    if (me) this.drawFacingTile(toScreen({ x: cam.x, y: cam.y }), me.facing);
 
     // 投げた物・矢が飛んでいる間は、落ちる先に置かれた物をまだ出さない
     const flying = play && (play.scene.action === 'throw' || play.scene.action === 'shoot') && play.phase !== 'impact';
@@ -581,7 +598,7 @@ export class Renderer {
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     }
     if (actor.hp) this.drawHpBar(sx, ground, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);
-    if (actor.isPlayer) this.drawFacing(sx + ts / 2, ground + ts / 2, actor.facing);
+    if (actor.isPlayer) this.drawFacingArrow(sx + ts / 2, ground + ts / 2, actor.facing);
     ctx.globalAlpha = 1;
   }
 
@@ -691,15 +708,81 @@ export class Renderer {
     }
   }
 
-  /** 向いている方向に小さな印を出す */
-  private drawFacing(cx: number, cy: number, facing: number): void {
+  /** 主人公の向いている方向に、マスのふちから外へ向けた金の矢印を出す */
+  private drawFacingArrow(cx: number, cy: number, facing: number): void {
     const { ctx, tileSize: ts } = this;
     const angle = (facing * Math.PI) / 4 - Math.PI / 2;
-    const r = ts * 0.46;
-    ctx.fillStyle = '#ffcf5a';
+    // 斜めはマスの角まで遠いので、少し外に出す
+    const r = ts * (facing % 2 === 1 ? 0.58 : 0.5);
+    const size = Math.max(5, ts * 0.17);
+    ctx.save();
+    ctx.translate(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    ctx.rotate(angle);
     ctx.beginPath();
-    ctx.arc(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, Math.max(2, ts * 0.07), 0, Math.PI * 2);
+    ctx.moveTo(size, 0);
+    ctx.lineTo(-size * 0.7, -size * 0.8);
+    ctx.lineTo(-size * 0.35, 0);
+    ctx.lineTo(-size * 0.7, size * 0.8);
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.5, ts * 0.05);
+    ctx.strokeStyle = COLORS.facingEdge;
+    ctx.stroke();
+    ctx.fillStyle = COLORS.facing;
     ctx.fill();
+    ctx.restore();
+  }
+
+  /** 主人公の正面のマスを、金の枠でうっすら強調する。me は主人公が見えている位置（マスの左上） */
+  private drawFacingTile(me: { x: number; y: number }, facing: Dir): void {
+    const { ctx, tileSize: ts } = this;
+    const v = DIR_VECTORS[facing];
+    const x = me.x + v.x * ts;
+    const y = me.y + v.y * ts;
+    const inset = Math.max(2, ts * 0.06);
+    ctx.save();
+    ctx.fillStyle = COLORS.facingTile;
+    ctx.strokeStyle = COLORS.facingTileEdge;
+    ctx.lineWidth = Math.max(1.5, ts * 0.05);
+    ctx.beginPath();
+    ctx.roundRect(x + inset, y + inset, ts - inset * 2, ts - inset * 2, ts * 0.14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * 見通し。今いる部屋の床のマスに線を引く（通路にいるときは、見えている近くの床）。
+   * 自分から縦・横・斜めにまっすぐ並ぶマスには色を付け、矢や魔法が届く列と距離を数えやすくする
+   */
+  private drawLookGrid(state: GameState, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }): void {
+    const { ctx, tileSize: ts } = this;
+    const { map, player } = state;
+    const p = player.pos;
+    const room = map.roomAt(p.x, p.y);
+    const cells: { x: number; y: number }[] = [];
+    if (room) {
+      for (let y = room.y - 1; y <= room.y + room.h; y++)
+        for (let x = room.x - 1; x <= room.x + room.w; x++) if (map.roomAt(x, y) === room && map.isWalkable(x, y)) cells.push({ x, y });
+    } else {
+      for (let y = p.y - LOOK_REACH; y <= p.y + LOOK_REACH; y++)
+        for (let x = p.x - LOOK_REACH; x <= p.x + LOOK_REACH; x++) if (map.isWalkable(x, y) && state.isVisible(x, y)) cells.push({ x, y });
+    }
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (const c of cells) {
+      const { x, y } = toScreen(c);
+      const dx = c.x - p.x;
+      const dy = c.y - p.y;
+      const onLine = (dx !== 0 || dy !== 0) && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+      if (onLine) {
+        ctx.fillStyle = COLORS.lookLine;
+        ctx.fillRect(x, y, ts, ts);
+      }
+      ctx.strokeStyle = COLORS.lookGrid;
+      ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, ts - 1, ts - 1);
+    }
+    ctx.restore();
   }
 
   /** 歩いたところだけのミニマップを、1マス tile px で (left, top) から描く */

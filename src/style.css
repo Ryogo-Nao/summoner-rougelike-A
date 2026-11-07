@@ -338,9 +338,34 @@ button {
   display: flex;
   align-items: center;
 }
-#map {
+#map-wrap {
+  position: relative;
   flex: none;
+}
+#map {
   display: block;
+}
+/* 見通しのボタン。マップの左上に小さく置く（右上はミニマップ）。オンのときは金の地にする */
+#btn-look {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  min-width: 56px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(232, 201, 122, 0.85);
+  border-radius: 8px;
+  background: rgba(13, 21, 48, 0.78);
+  color: #ffe596;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+#btn-look.on {
+  background: linear-gradient(180deg, #f3d77e, #c99a3a);
+  color: #1a2747;
+  border-color: #fff4d0;
 }
 
 /* ログ */

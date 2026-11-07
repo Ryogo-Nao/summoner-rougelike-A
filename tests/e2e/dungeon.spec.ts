@@ -106,3 +106,21 @@ test('F-75 メニューの「演出の速さ」を押すと ふつう → 速い
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('summoner-settings') ?? '{}').effectSpeed);
   expect(saved).toBe('fast');
 });
+
+test('F-79 ［見通し］を押すとオンになり、もう一度押すとオフになる。ターンは進まない', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  const look = page.locator('#btn-look');
+  await expect(look).toBeVisible();
+  const box = await look.boundingBox();
+  expect(box!.height).toBeGreaterThanOrEqual(32);
+  const t0 = await turn(page);
+  await press(page, '#btn-look');
+  await expect(look).toHaveClass(/on/);
+  await expect(look).toHaveAttribute('aria-pressed', 'true');
+  await press(page, '#btn-look');
+  await expect(look).not.toHaveClass(/on/);
+  expect(await turn(page)).toBe(t0);
+  expect(errors).toEqual([]);
+});
