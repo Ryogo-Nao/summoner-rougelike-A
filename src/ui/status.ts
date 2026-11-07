@@ -1,5 +1,6 @@
 import { NICKNAME_LIMIT, ORDER_LABEL, PERSONALITIES, STAT_LABEL, cardName, growthRate, isPartner, nicknameLength, type Ally, type Card } from '../game/cards';
 import { allyExpToNext } from '../game/combat';
+import { characterInfo } from '../game/characters';
 import type { Species } from '../game/monsters';
 import { artElement } from '../render/art';
 
@@ -46,8 +47,8 @@ export function statusView(
   // 魔物の背景。名前の下に、細い金の線ではさんで出す
   const lore = document.createElement('p');
   lore.className = 'status-lore';
-  // 読点のところで改行して、句の途中で折り返さないようにする
-  lore.textContent = card.species.lore.replace('、', '、\n');
+  // 背景はキャラクターの台帳（characters.ts）から。読点のところで改行して、句の途中で折り返さないようにする
+  lore.textContent = characterInfo(card.species.id).lore.replace('、', '、\n');
 
   const { name, up, down } = PERSONALITIES[card.personality];
   const next = allyExpToNext(card.exp);

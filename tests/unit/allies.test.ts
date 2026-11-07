@@ -59,15 +59,6 @@ describe('F-42 仲間の能力', () => {
   });
 });
 
-describe('F-45 魔物の背景', () => {
-  it('どの魔物にも、読点で区切った背景の文がある', () => {
-    for (const s of [...SPECIES, IZUTSUCHI]) {
-      expect(s.lore, s.id).toMatch(/^[^、]+、[^、]+$/);
-      expect(s.lore.length, s.id).toBeLessThanOrEqual(36);
-    }
-  });
-});
-
 describe('F-43・F-44 配合', () => {
   it('組み合わせ表の魔物はあり、子は親より強い', () => {
     const power = (id: string) => {

@@ -9,7 +9,8 @@
     "preview": "vite preview --host",
     "test": "tsc --noEmit -p tests && vitest run",
     "test:e2e": "playwright test",
-    "test:all": "npm test && playwright test"
+    "test:all": "npm test && playwright test",
+    "characters": "node scripts/characters.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
