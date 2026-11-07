@@ -23,13 +23,15 @@ describe('F-45 キャラクターの台帳', () => {
     for (const c of CHARACTERS) if (!c.planned) expect(inGame.has(c.id), c.id).toBe(true);
   });
 
-  it('背景は読点で区切った2つの句で、36字まで。英語・見た目も書いてある', () => {
+  it('背景は読点で区切った2つの句で、36字まで。英語・見た目・色も書いてある', () => {
     for (const c of CHARACTERS) {
       expect(c.lore, c.id).toMatch(/^[^、]+、[^、]+$/);
       expect(c.lore.length, c.id).toBeLessThanOrEqual(36);
       expect(c.loreEn.length, c.id).toBeGreaterThan(20);
       expect(c.look.length, c.id).toBeGreaterThan(10);
       expect(c.lookEn.length, c.id).toBeGreaterThan(20);
+      expect(c.colors.length, c.id).toBeGreaterThan(3);
+      expect(c.colorsEn.length, c.id).toBeGreaterThan(10);
     }
   });
 

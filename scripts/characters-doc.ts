@@ -8,27 +8,27 @@ const REFERENCE: Record<ArtPole, string> = {
   dark: 'design/art-direction/ref_dark_softened.webp',
 };
 
-/** 方向ごとの共通の指示文（docs/art-guide.md 2.2）。{subject} と {story} を差し込む */
+/** 方向ごとの共通の指示文（docs/art-guide.md 2.1）。{subject}・{story}・{colors} を差し込む。色は方向で決めず、キャラクターごとに持つ */
 const TEMPLATE: Record<ArtPole, string> = {
   divine: [
-    'Majestic mythical beast fantasy game art, original character design. Same art style, line work and shading as the attached reference image (but a different creature).',
+    'Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.',
     'Subject: {subject}',
     'Background story: {story}',
-    'Noble, dignified posture. Ornamental gold accents that suit the creature.',
+    'Color scheme: {colors}',
+    'Noble, dignified posture. Ornamental details that suit the creature.',
     '3/4 front view facing down-left, looking at the viewer, full body, centered, single character.',
     'Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.',
-    "Colors: white, sky blue, deep royal blue and rich gold, keeping the creature's natural colors where needed.",
     'Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.',
     'No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.',
   ].join('\n'),
   dark: [
-    'Dark mythical beast fantasy game art, original character design, menacing but not gory. Same art style, line work and shading as the attached reference image (but a different creature).',
+    'Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.',
     'Subject: {subject}',
     'Background story: {story}',
-    'Intimidating posture. Slate blue-gray tones with pale sky-blue highlights and a few gold swirl markings.',
+    'Color scheme: {colors}',
+    'Intimidating posture.',
     '3/4 front view facing down-left, looking at the viewer, full body, centered, single character.',
     'Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.',
-    "Colors: slate blue, steel gray, dark indigo, pale sky blue, with small gold accents, keeping the creature's natural colors where needed.",
     'Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.',
     'No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.',
   ].join('\n'),
@@ -36,7 +36,10 @@ const TEMPLATE: Record<ArtPole, string> = {
 
 /** そのキャラクターの絵を頼む指示文（英語） */
 export function promptOf(c: CharacterInfo): string {
-  return TEMPLATE[c.pole].replace('{subject}', c.lookEn).replace('{story}', c.loreEn);
+  let colors = c.colorsEn;
+  // 緑の色のキャラクターは、背景の緑と一緒に抜けないよう、緑を暗く・くすませてもらう
+  if (/green|olive|lime|teal|moss/i.test(c.colorsEn)) colors += ". Keep the creature's greens clearly darker and more muted than the pure green background";
+  return TEMPLATE[c.pole].replace('{subject}', c.lookEn).replace('{story}', c.loreEn).replace('{colors}', `${colors}.`);
 }
 
 export function renderCharactersDoc(): string {
@@ -69,6 +72,7 @@ export function renderCharactersDoc(): string {
     lines.push(`### ${c.name}（${c.id}）　${POLE_LABEL[c.pole]}`, '');
     lines.push(`- 背景：${c.lore}`);
     lines.push(`- 見た目：${c.look}`);
+    lines.push(`- 色：${c.colors}`);
     lines.push(`- 絵：${ART_STATUS_LABEL[c.art]}`);
     lines.push(`- 添える見本：${REFERENCE[c.pole]}`);
     if (c.note) lines.push(`- メモ：${c.note}`);
