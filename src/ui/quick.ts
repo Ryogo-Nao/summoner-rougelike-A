@@ -1,7 +1,11 @@
+import { artElement, hasArt } from '../render/art';
+
 /** 扇に出す1枠ぶん */
 export interface QuickSlot {
   /** 絵文字。空いている枠は空 */
   emoji: string;
+  /** 道具の絵の id（item_〜）。絵があれば絵文字の代わりに出す */
+  art?: string;
   /** 数（例：×3、42本）。空いている枠は空 */
   label: string;
   /** 押せるか（登録していて、バッグにある） */
@@ -59,7 +63,8 @@ export function setupQuick(button: HTMLElement, handlers: QuickHandlers): void {
         el.className = slot.enabled ? 'quick-slot' : 'quick-slot off';
         el.dataset.slot = String(i);
         const icon = document.createElement('span');
-        icon.textContent = slot.emoji || '—';
+        if (slot.art && hasArt(slot.art)) icon.append(artElement(slot.art, slot.emoji, 'art item-art'));
+        else icon.textContent = slot.emoji || '—';
         const label = document.createElement('small');
         label.textContent = slot.label;
         el.append(icon, label);

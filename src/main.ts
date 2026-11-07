@@ -5,7 +5,7 @@ import { GameState, sickMark, type RunData } from './game/state';
 import { DUNGEONS } from './game/dungeons';
 import { Renderer } from './render/renderer';
 import { TURN_CAP_MS, isRepeat, phaseAt, scaledTiming, totalOf } from './render/effects';
-import { faceElement, onArtLoaded, preloadArt } from './render/art';
+import { faceElement, itemArt, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
 import { setupQuick } from './ui/quick';
@@ -481,7 +481,7 @@ setupQuick(document.getElementById('btn-attack')!, {
       if (!kind) return { emoji: '', label: '', enabled: false };
       const n = state.countInBag(kind);
       const label = ITEMS[kind].arrow ? `${n}本` : `×${n}`;
-      return { emoji: ITEMS[kind].emoji, label, enabled: n > 0 };
+      return { emoji: ITEMS[kind].emoji, art: itemArt(kind), label, enabled: n > 0 };
     }),
   onPick(slot) {
     if (acceptsInput()) useShortcut(state, sheet, slot, afterAction);

@@ -319,6 +319,10 @@ export function speciesById(id: string): Species {
 }
 
 export const cardToData = (card: Card): CardData => ({ ...card, species: card.species.id });
+/** 眠っている（まだ起きていない魔物も）・はりつけで、動けない魔物か。仲間はこの魔物を狙わない */
+export function isHelplessMonster(m: Monster): boolean {
+  return (m.dormant ?? false) || m.ailments.asleep > 0 || m.ailments.pinned > 0;
+}
 /** 状態異常の印。混乱は🌀、毒は☠️。激昂は💢、要塞は🏰（仮の絵文字。あとで絵に差し替える） */
 export const sickMark = (a: Ailments) =>
   `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}${a.pinned > 0 ? '📌' : ''}${a.asleep > 0 ? '💤' : ''}${a.raged > 0 ? '💢' : ''}${a.fortified > 0 ? '🏰' : ''}`;
@@ -2478,7 +2482,9 @@ export class GameState {
     const confused = a.ailments.confused > 0;
     // 逃げる：近くに魔物がいれば、まず離れる。逃げ場がなければ、その場で戦う
     if (a.order === 'flee' && this.fleeStep(a)) return;
-    const adjacent = this.monsters
+    // 眠っている・はりつけの魔物は、起こしたり解いたりしないよう、仲間は狙わない（主人公は攻撃できる）
+    const foes = this.monsters.filter((m) => !isHelplessMonster(m));
+    const adjacent = foes
       .filter((m) => this.canHitAdjacent(species, a.pos, m.pos))
       .sort((x, y) => x.hp - y.hp);
     if (adjacent.length > 0) {
@@ -2517,7 +2523,7 @@ export class GameState {
     }
 
     if (!confused && isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
-      const target = this.monsters.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
+      const target = foes.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
         this.scene(
@@ -2532,7 +2538,7 @@ export class GameState {
 
     // 火を吐く仲間は、まっすぐ4マス以内に見えている魔物に、ときどき火を吐く（必ず当たる）
     if (!confused && species.special === 'breath' && this.rng.chance(BREATH_CHANCE)) {
-      const target = this.monsters.find(
+      const target = foes.find(
         (m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) >= 2 && this.isClearLine(a.pos, m.pos, BREATH_RANGE),
       );
       if (target) {
@@ -2550,7 +2556,7 @@ export class GameState {
 
     // 突撃：見えている魔物のうち、いちばん近いものへ向かう。いなければついてくる
     if (a.order === 'charge') {
-      const target = this.monsters
+      const target = foes
         .filter((m) => this.isVisible(m.pos.x, m.pos.y))
         .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
       if (target) {
@@ -2561,7 +2567,10 @@ export class GameState {
     }
 
     const provoker = this.provoker;
-    if (provoker && (!this.monsters.includes(provoker) || !this.isVisible(provoker.pos.x, provoker.pos.y))) {
+    if (
+      provoker &&
+      (!this.monsters.includes(provoker) || !this.isVisible(provoker.pos.x, provoker.pos.y) || isHelplessMonster(provoker))
+    ) {
       this.provoker = null;
     }
     if (this.provoker) {

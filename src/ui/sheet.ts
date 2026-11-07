@@ -1,5 +1,14 @@
 import { artElement, hasArt } from '../render/art';
 
+/**
+ * 一覧の見出し。文字だけか、文字の前に絵を付けたもの。
+ * art は絵の id（魔物の種族、item_〜）で、絵がなければ icon の絵文字を出す
+ */
+export type SheetTitle = string | { art?: string; icon: string; text: string };
+
+/** 見出しの文字（スクロールの位置を覚えるときの名前にも使う） */
+const titleText = (title: SheetTitle) => (typeof title === 'string' ? title : title.text);
+
 /** 1行ぶんの中身。button を省くと、ボタンのない行になる */
 export interface SheetRow {
   icon: string;
@@ -23,6 +32,8 @@ export class Sheet {
   private readonly closeButton = document.getElementById('sheet-close')!;
   private readonly onOpen: () => void;
   private closable = true;
+  /** 今開いている一覧の見出しの文字 */
+  private current = '';
   /**
    * 一覧ごとのスクロールの位置（見出しで見分ける）。つよさなどを見て同じ一覧へ戻ったときに、もとの位置へ戻す。
    * 閉じたら忘れる
@@ -41,12 +52,22 @@ export class Sheet {
 
   /** header は一覧の上に固定して出す（スクロールしても見える。並べ替えのボタンなど） */
   open(
-    title: string,
+    title: SheetTitle,
     rows: SheetRow[],
     options: { note?: string; header?: HTMLElement; footer?: HTMLElement; closable?: boolean } = {},
   ): void {
-    if (!this.root.hidden) this.scrolls.set(this.title.textContent ?? '', this.body.scrollTop);
-    this.title.textContent = title;
+    if (!this.root.hidden) this.scrolls.set(this.current, this.body.scrollTop);
+    this.current = titleText(title);
+    if (typeof title === 'string') {
+      this.title.textContent = title;
+    } else {
+      // 絵があれば絵を、なければ絵文字を、見出しの文字の前に出す
+      const icon =
+        title.art && hasArt(title.art)
+          ? artElement(title.art, title.icon, title.art.startsWith('item_') ? 'art title-art item-art' : 'art title-art')
+          : Object.assign(document.createElement('span'), { textContent: title.icon, className: 'title-emoji' });
+      this.title.replaceChildren(icon, document.createTextNode(title.text));
+    }
     this.closable = options.closable ?? true;
     this.closeButton.hidden = !this.closable;
     const children: HTMLElement[] = [];
@@ -64,7 +85,7 @@ export class Sheet {
     if (options.footer) children.push(options.footer);
     this.body.replaceChildren(...children);
     this.root.hidden = false;
-    this.body.scrollTop = this.scrolls.get(title) ?? 0;
+    this.body.scrollTop = this.scrolls.get(this.current) ?? 0;
     this.onOpen();
   }
 

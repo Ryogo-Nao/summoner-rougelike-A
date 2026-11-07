@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { IZUTSUCHI, PERSONALITY_IDS, cardStats, createCard } from '../../src/game/cards';
 import { RECIPES, personalityOdds } from '../../src/game/fusion';
 import { buyPrice } from '../../src/game/items';
-import { SPECIES } from '../../src/game/monsters';
+import { DIR_VECTORS } from '../../src/game/dir';
+import { SPECIES, createMonster } from '../../src/game/monsters';
 import { loadoutOf, newProfile } from '../../src/game/profile';
 import { buy, sell } from '../../src/game/shop';
 import { GameState } from '../../src/game/state';
@@ -100,5 +101,44 @@ describe('F-65 商店', () => {
     expect(got).toBeGreaterThan(0);
     expect(p.runes).toBe(got);
     expect(p.bag.includes(item)).toBe(false);
+  });
+});
+
+describe('F-46 仲間は、眠っている・はりつけの魔物を攻撃しない', () => {
+  const setup = (ailment: 'asleep' | 'pinned' | null) => {
+    const g = withParty(['garuf'], 3);
+    g.allies = g.allies.slice(0, 1);
+    const ally = g.allies[0];
+    g.player.hp = g.player.maxHp = 9999;
+    // 仲間の隣の空いた床に魔物を置く
+    for (const v of DIR_VECTORS) {
+      const at = { x: ally.pos.x + v.x, y: ally.pos.y + v.y };
+      const busy = (at.x === g.player.pos.x && at.y === g.player.pos.y) || g.allies.some((a) => a.pos.x === at.x && a.pos.y === at.y);
+      if (!g.map.isWalkable(at.x, at.y) || busy) continue;
+      const m = createMonster(species('chuppi'), at, 1);
+      m.hp = m.maxHp = 999;
+      if (ailment) m.ailments[ailment] = 99;
+      g.monsters.push(m);
+      return { g, m, ally };
+    }
+    throw new Error('置けない');
+  };
+
+  for (const ailment of ['asleep', 'pinned'] as const) {
+    it(`${ailment} の魔物が隣にいても、仲間は攻撃しない`, () => {
+      const { g, m, ally } = setup(ailment);
+      for (let i = 0; i < 5; i++) {
+        g.wait();
+        const hits = g.takeScenes().filter((s) => s.actors[s.attacker]?.key === `a${ally.card.id}` && s.action === 'attack');
+        expect(hits).toEqual([]);
+      }
+      expect(m.hp).toBe(999);
+    });
+  }
+
+  it('起きている魔物が隣にいれば、仲間は攻撃する', () => {
+    const { g, m } = setup(null);
+    for (let i = 0; i < 5; i++) g.wait();
+    expect(m.hp).toBeLessThan(999);
   });
 });

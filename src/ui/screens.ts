@@ -2,7 +2,7 @@ import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartne
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, guardRate, powerRate, type GameState, type SpellId } from '../game/state';
-import { Sheet, wideButton, type SheetRow } from './sheet';
+import { Sheet, wideButton, type SheetRow, type SheetTitle } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
 import { itemArt } from '../render/art';
@@ -18,6 +18,9 @@ const STATUS_LABEL: Record<Card['status'], string> = {
 };
 
 export const cardIcon = (card: Card) => (isPartner(card) ? '⚡🐈' : card.species.emoji);
+
+/** 仲間の一覧の見出し。仲間の絵（なければ絵文字）を文字の前に出す */
+const cardTitle = (card: Card, text: string): SheetTitle => ({ art: card.species.id, icon: cardIcon(card), text });
 
 export function cardSub(card: Card, status = true): string {
   const line2 = [`MP${card.species.cost}`, ...(status ? [STATUS_LABEL[card.status]] : []), PERSONALITIES[card.personality].name];
@@ -217,7 +220,7 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
     wideButton('バッグの道具と入れ替える', state.bag.length === 0, () => openFloorSwapSheet(state, sheet, after)),
   );
   buttons.append(wideButton('足踏みする', false, act(() => state.wait())));
-  sheet.open(`足元：${def.emoji} ${itemName(item)}`, [], { note: def.desc, footer: buttons });
+  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: `足元：${itemName(item)}` }, [], { note: def.desc, footer: buttons });
 }
 
 /**
@@ -316,7 +319,7 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
     contents.length === 0 ? '中は空' : space <= 0 ? 'バッグがいっぱいで出せない' : `押して選ぶ（あと${space}個まで出せる）`,
     ITEMS[pouch.kind].pouch?.holy ? '力つきても中の道具は失わない' : '',
   ];
-  sheet.open(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}`, rows, {
+  sheet.open({ art: itemArt(pouch.kind), icon: ITEMS[pouch.kind].emoji, text: itemName(pouch) }, rows, {
     note: lines.filter(Boolean).join('\n'),
     footer,
   });
@@ -365,7 +368,7 @@ function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: Af
       },
     };
   });
-  sheet.open(`${ITEMS[kind].emoji} ${ITEMS[kind].name}を登録`, rows, {
+  sheet.open({ art: itemArt(kind), icon: ITEMS[kind].emoji, text: `${ITEMS[kind].name}を登録` }, rows, {
     note: '［攻撃］を長押しして\n登録した枠の方へ指を滑らせると使える',
     footer: wideButton('戻る', false, () => openItemSheet(state, sheet, item, after)),
   });
@@ -465,7 +468,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
     },
   }));
   const back = wideButton('戻る', false, () => openFloorSheet(state, sheet, after));
-  sheet.open(`${ITEMS[floor.kind].emoji} ${itemName(floor)}と入れ替える`, rows, {
+  sheet.open({ art: itemArt(floor.kind), icon: ITEMS[floor.kind].emoji, text: `${itemName(floor)}と入れ替える` }, rows, {
     note: '選んだ道具を足元に置いて拾う',
     footer: back,
   });
@@ -501,7 +504,7 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
     buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
   }
   buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
-  sheet.open(`${def.emoji} ${itemName(item)}`, [], { note: def.desc, footer: buttons });
+  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: itemName(item) }, [], { note: def.desc, footer: buttons });
 }
 
 /** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */
@@ -640,7 +643,7 @@ export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after
       after();
     }),
   );
-  sheet.open(`${cardIcon(card)} ${cardName(card)}`, rows, {
+  sheet.open(cardTitle(card, cardName(card)), rows, {
     note: `Lv${card.level}　HP${card.hp}/${card.maxHp}　攻撃${card.atk}　防御${card.def}\n${personalityText(card)}`,
     footer,
   });
@@ -659,7 +662,7 @@ export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after:
   buttons.append(
     wideButton(canPush ? '押す' : '押せない', !canPush, act(() => state.moveThroughAlly(ally, 'push'))),
   );
-  sheet.open(`${cardIcon(ally.card)} ${cardName(ally.card)}`, [], {
+  sheet.open(cardTitle(ally.card, cardName(ally.card)), [], {
     note: `HP${ally.card.hp}/${ally.card.maxHp}`,
     footer: buttons,
   });
@@ -710,7 +713,7 @@ function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number
     }),
     wideButton('戻る', false, () => openSwapSheet(state, sheet, after)),
   );
-  sheet.open(`${cardIcon(card)} ${cardName(card)}と別れる？`, [], {
+  sheet.open(cardTitle(card, `${cardName(card)}と別れる？`), [], {
     note: `${cardSub(card)}\n別れた仲間は戻らない`,
     footer: buttons,
     closable: false,

@@ -600,10 +600,13 @@ export class BaseScreen {
       if (this.fusionMode === mode) b.classList.add('on');
       modes.append(b);
     }
-    const cost = note(
-      // 持っている数 / 1回に使う数
-      `${ITEMS[book].emoji} ${ITEMS[book].name} ${bookCount(p, book)}/1　💠 ルーン ${p.runes}/${FUSION_COST}`,
-      'fusion-cost',
+    // 持っている数 / 1回に使う数。書とルーンは絵で出す
+    const cost = note('', 'fusion-cost');
+    cost.append(
+      inlineArt(itemArt(book), ITEMS[book].emoji),
+      ` ${ITEMS[book].name} ${bookCount(p, book)}/1　`,
+      uiImage('ui_rune', 'inline-art'),
+      ` ルーン ${p.runes}/${FUSION_COST}`,
     );
     head.append(modes, cost);
     const out: HTMLElement[] = [head];
@@ -802,7 +805,7 @@ export class BaseScreen {
     const room = contents.length < (pouch.capacity ?? 0);
     const holy = ITEMS[pouch.kind].pouch?.holy ? '\n力つきても中の道具は失わない' : '';
     return [
-      note(`${ITEMS[pouch.kind].emoji} ${itemName(pouch)}${holy}`, 'base-section'),
+      withArt(note(`${itemName(pouch)}${holy}`, 'base-section'), inlineArt(itemArt(pouch.kind), ITEMS[pouch.kind].emoji)),
       ...sortItems(contents, 'kind').map((item) =>
         this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => {
           pouch.contents = contents.filter((i) => i !== item);
@@ -1216,6 +1219,17 @@ function badge(kind: 'new' | 'dot'): HTMLElement {
   el.className = `badge ${kind}`;
   if (kind === 'dot') el.textContent = '！';
   else el.setAttribute('aria-label', 'NEW');
+  return el;
+}
+
+/** 文の中に置く小さな絵。絵がなければ絵文字 */
+function inlineArt(id: string | undefined, emoji: string): HTMLElement {
+  return id ? artElement(id, emoji, 'inline-art') : Object.assign(document.createElement('span'), { textContent: emoji });
+}
+
+/** 文の頭に絵を足す */
+function withArt(el: HTMLElement, art: HTMLElement): HTMLElement {
+  el.prepend(art, ' ');
   return el;
 }
 

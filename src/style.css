@@ -1516,6 +1516,31 @@ body:has(#base:not([hidden])) {
   width: 18px;
   height: 18px;
 }
+/* 文の中の小さな絵（配合の書・ルーン・袋など） */
+.inline-art {
+  width: 1.5em;
+  height: 1.5em;
+  vertical-align: middle;
+  object-fit: contain;
+}
+/* 一覧の見出しの前の絵（仲間・道具） */
+#sheet-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#sheet-title .title-art {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex: none;
+}
+.quick-slot span .art {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  display: block;
+}
 #base-depart {
   margin-bottom: 6px;
 }
