@@ -1804,11 +1804,12 @@ export class GameState {
       : spell === 'bigFire'
         ? this.bigFireTargets()
         : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
+    // 演出をかけるマス。範囲の魔法は、壁のマスには出さない
     const cells = line
       ? line.cells
-      : spell === 'bigFire'
-        ? this.bigFireTiles()
-        : DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }));
+      : (spell === 'bigFire' ? this.bigFireTiles() : DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }))).filter(
+          (c) => this.map.isWalkable(c.x, c.y),
+        );
     const dmg = spell === 'fire' ? 10 + p.level * 2 : spell === 'bigFire' ? 20 + p.level * 2 : 6 + p.level;
     this.scene(
       p.pos,

@@ -3,7 +3,21 @@ import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
 import { characterInfo, type Motion } from '../game/characters';
 import { artImage, itemArt } from './art';
-import { Particles, SLASH_FROM, SLASH_TO, Shake, motionPose, type EffectPhase, type Pose } from './effects';
+import {
+  CAST_ACTIONS,
+  Flash,
+  Particles,
+  Rings,
+  SLASH_FROM,
+  SLASH_TO,
+  Shake,
+  castPose,
+  hopPose,
+  motionPose,
+  type EffectPhase,
+  type Pose,
+} from './effects';
+import { SpellFx } from './spells';
 import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
@@ -26,7 +40,7 @@ const KNOCKBACK = 0.14;
 const FADE_FROM = 0.35;
 const SMOKE = ['#e8e2d6', '#c9c1b4', '#a79f93'];
 /** 構える段で踏み込まない場面 */
-const NO_LUNGE: ReadonlySet<SceneAction> = new Set(['item', 'power', 'guard']);
+const NO_LUNGE: ReadonlySet<SceneAction> = new Set(['item']);
 /** 当たったときの火花の色。こちらが与えたダメージは白と金、受けたダメージは赤 */
 const SPARK_DEAL = ['#ffffff', '#ffe58a', '#ffd84a'];
 const SPARK_HURT = ['#ffffff', '#ff9aa6', '#ff5a6e'];
@@ -131,6 +145,10 @@ export class Renderer {
   /** 火花などの粒と、画面の揺れ */
   private readonly particles = new Particles();
   private readonly shake = new Shake();
+  /** 広がる輪と、画面全体の光り。魔法と星の演出（spells.ts）が使う */
+  private readonly rings = new Rings();
+  private readonly flash = new Flash();
+  private readonly spells = new SpellFx(this.particles, this.rings, this.flash, this.shake);
   /** 当たる段の始まりの演出（火花・揺れ）を出し終えた場面 */
   private impacted = new WeakSet<Scene>();
   /** 前に描いた時刻。粒を動かす */
@@ -138,7 +156,7 @@ export class Renderer {
 
   /** 歩いている途中のもの、飛んでいる粒、画面の揺れがあるか。あれば毎フレーム描き続ける */
   moving(now = performance.now()): boolean {
-    if (this.particles.alive || this.shake.active(now)) return true;
+    if (this.particles.alive || this.shake.active(now) || this.rings.alive(now) || this.flash.active(now)) return true;
     for (const s of this.steps.values()) if (now - s.start < STEP_MS) return true;
     return false;
   }
@@ -303,6 +321,8 @@ export class Renderer {
       popups.filter((p) => p.kind === 'damage' || p.kind === 'hurt').map((p) => `${p.pos.x},${p.pos.y}`),
     );
     const attackerPos = play && play.scene.attacker >= 0 ? play.scene.actors[play.scene.attacker].pos : undefined;
+    // 魔法陣は役者より下に描く
+    if (play) this.spells.ground(ctx, play, toScreen, ts, now);
     actors.forEach((actor, i) => {
       const at = shown.get(actor.key)!;
       let { x: sx, y: sy } = toScreen(at);
@@ -312,13 +332,18 @@ export class Renderer {
       let alpha = 1;
       if (play?.phase === 'windup' && i === play.scene.attacker && !NO_LUNGE.has(play.scene.action)) {
         const { x: ux, y: uy } = unitToward(actor.pos, play.scene.toward);
-        if (play.scene.action === 'attack') {
-          // 隣への攻撃は、種族ごとの動き方（キャラクターの台帳）で動く
-          pose = motionPose(actor.isPlayer ? PLAYER_MOTION : characterInfo(actor.art).motion, play.t);
+        if (play.scene.action === 'attack' || CAST_ACTIONS.has(play.scene.action) || play.scene.action === 'burst') {
+          // 隣への攻撃は種族ごとの動き方（キャラクターの台帳）で、魔法は唱える姿で、炸裂の星はぴょんと跳ねて動く
+          pose =
+            play.scene.action === 'attack'
+              ? motionPose(actor.isPlayer ? PLAYER_MOTION : characterInfo(actor.art).motion, play.t)
+              : play.scene.action === 'burst'
+                ? hopPose(play.t)
+                : castPose(play.t);
           sx += ux * pose.forward * ts;
           sy += uy * pose.forward * ts - pose.lift * ts;
         } else {
-          // 魔法・投げるなどは、相手の方へ踏み込んで、元の位置に戻る（演出はステップ3・4で作る）
+          // 舌・火を吐く・いかずち・投げるなどは、相手の方へ踏み込んで、元の位置に戻る
           const tossing = play.scene.action === 'throw' || play.scene.action === 'shoot';
           const depth = Math.sin(play.t * Math.PI) * (tossing ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
           sx += ux * depth;
@@ -352,7 +377,10 @@ export class Renderer {
 
     if (play?.phase === 'windup' && play.scene.action === 'attack') this.drawSlash(play, toScreen);
     if (play?.phase === 'travel') this.drawFlying(play, toScreen);
+    if (play) this.spells.top(ctx, play, toScreen, ts, now);
+    this.rings.draw(ctx, toScreen, ts, now);
     this.particles.draw(ctx, (p) => toScreen(p), ts);
+    this.flash.draw(ctx, viewW, viewH, now);
     this.drawPopups(popups, toScreen, impact ? play!.t : 1);
     ctx.restore();
 
@@ -373,6 +401,7 @@ export class Renderer {
    * 当たる段の始まり。ダメージを受けたマスに火花を散らし、主人公が受けたときは画面を揺らす
    */
   private startImpact(scene: Scene, now: number): void {
+    this.spells.impact(scene, now);
     const me = scene.actors.find((a) => a.isPlayer)?.pos;
     for (const p of scene.popups) {
       if (p.kind !== 'damage' && p.kind !== 'hurt') continue;

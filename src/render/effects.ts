@@ -5,7 +5,7 @@
  */
 
 import type { Motion } from '../game/characters';
-import type { Scene } from '../game/state';
+import type { Scene, SceneAction } from '../game/state';
 
 /**
  * 場面の段。windup は構える・踏み込むところ、travel は投げた物や魔法が飛ぶところ、
@@ -42,16 +42,45 @@ const MIN_IMPACT_MS = 160;
 /** 1回の行動で見せる場面の合計の長さの上限。こえるときは全体を速める */
 export const TURN_CAP_MS = 2600;
 
+/** 主人公が魔法陣を出して唱える魔法 */
+export const CAST_ACTIONS: ReadonlySet<SceneAction> = new Set(['fire', 'bigFire', 'thunder', 'power', 'guard']);
+
+/**
+ * 魔法と星の段の長さ（ミリ秒）。cast は唱える（魔法陣）、travel は火が飛ぶ・炎が広がる、
+ * impact は爆発・雷・守りの光などを見せる最低の長さ
+ */
+const SPELL_TIMING: Partial<Record<SceneAction, { cast: number; travel: number; impact: number }>> = {
+  fire: { cast: 220, travel: 0, impact: 300 },
+  bigFire: { cast: 280, travel: 380, impact: 380 },
+  thunder: { cast: 300, travel: 0, impact: 400 },
+  power: { cast: 240, travel: 0, impact: 460 },
+  guard: { cast: 240, travel: 0, impact: 460 },
+  burst: { cast: 150, travel: 0, impact: 400 },
+};
+/** 火の魔法が1マス進む長さと、いちばん短い飛ぶ長さ */
+const FIRE_PER_TILE_MS = 45;
+const FIRE_TRAVEL_MIN_MS = 120;
+/** 投げた炸裂の星が当たって爆発するときの、当たる段の長さ */
+const BLAST_IMPACT_MS = 400;
+
 /** 速さ「ふつう」のときの、場面の段の長さ */
 export function timingOf(scene: Scene): EffectTiming {
   const impact = scene.defeated.length > 0 ? IMPACT_DEFEAT_MS : scene.popups.length > 0 ? IMPACT_MS : IMPACT_EMPTY_MS;
+  const spell = SPELL_TIMING[scene.action];
+  if (spell) {
+    const travel =
+      scene.action === 'fire' ? Math.max(FIRE_TRAVEL_MIN_MS, scene.cells.length * FIRE_PER_TILE_MS) : spell.travel;
+    return { windup: spell.cast, travel, impact: Math.max(impact, spell.impact) };
+  }
   switch (scene.action) {
     case 'throw':
-    case 'shoot':
-      return { windup: TOSS_MS, travel: Math.max(TRAVEL_MIN_MS, scene.cells.length * TRAVEL_PER_TILE_MS), impact };
+    case 'shoot': {
+      const travel = Math.max(TRAVEL_MIN_MS, scene.cells.length * TRAVEL_PER_TILE_MS);
+      // 投げた炸裂の星が当たったときは、爆発を見せる
+      const blast = scene.item === 'starBurst' && scene.popups.some((p) => p.kind === 'damage');
+      return { windup: TOSS_MS, travel, impact: blast ? Math.max(impact, BLAST_IMPACT_MS) : impact };
+    }
     case 'item':
-    case 'power':
-    case 'guard':
       // 誰も踏み込まない。すぐに文字を出す
       return { windup: 0, travel: 0, impact };
     default:
@@ -170,6 +199,22 @@ export function motionPose(motion: Motion, t: number): Pose {
   }
 }
 
+/** 魔法を唱える姿。杖を掲げるように、少しのけぞって伸び上がる */
+export function castPose(t: number): Pose {
+  return keyed(t, [
+    [0.35, { lift: 0.04, lean: -0.12, sx: 0.95, sy: 1.08 }],
+    [0.8, { lift: 0.06, lean: -0.06, sx: 0.97, sy: 1.06 }],
+  ]);
+}
+
+/** 炸裂の星を食べる姿。ぴょんと跳ねる */
+export function hopPose(t: number): Pose {
+  return keyed(t, [
+    [0.25, { sx: 1.1, sy: 0.88 }],
+    [0.6, { lift: 0.14, sx: 0.95, sy: 1.08 }],
+  ]);
+}
+
 /** 薙ぎ払う動きで、相手のマスに斬った跡を出す時刻（構える段の進み具合） */
 export const SLASH_FROM = 0.46;
 export const SLASH_TO = 0.86;
@@ -279,6 +324,77 @@ export class Particles {
       ctx.fill();
     }
     ctx.restore();
+  }
+}
+
+/** 広がって消える輪（爆発の衝撃・力の魔法など）。位置と半径はマス単位 */
+interface Ring {
+  x: number;
+  y: number;
+  start: number;
+  duration: number;
+  radius: number;
+  color: string;
+  /** 縦につぶして、地面に描いたように見せる */
+  flat: boolean;
+}
+
+/** 広がる輪の集まり */
+export class Rings {
+  private list: Ring[] = [];
+
+  add(ring: Omit<Ring, 'start'>, now: number): void {
+    this.list.push({ ...ring, start: now });
+  }
+
+  alive(now: number): boolean {
+    this.list = this.list.filter((r) => now - r.start < r.duration);
+    return this.list.length > 0;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }, ts: number, now: number): void {
+    if (!this.alive(now)) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const r of this.list) {
+      const t = (now - r.start) / r.duration;
+      const { x, y } = toScreen(r);
+      ctx.globalAlpha = (1 - t) * 0.9;
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = Math.max(1.5, ts * 0.09 * (1 - t));
+      ctx.beginPath();
+      const rad = r.radius * ts * (0.25 + 0.75 * easeInOut(t));
+      ctx.ellipse(x, y, rad, r.flat ? rad * 0.45 : rad, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+/** 画面全体の光り（雷・爆発）。色と強さが、長さの間に0へ減っていく */
+export class Flash {
+  private color = '255,255,255';
+  private strength = 0;
+  private start = 0;
+  private duration = 0;
+
+  kick(color: string, strength: number, duration: number, now: number): void {
+    this.color = color;
+    this.strength = strength;
+    this.start = now;
+    this.duration = duration;
+  }
+
+  active(now: number): boolean {
+    return now - this.start < this.duration;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, now: number): void {
+    if (!this.active(now)) return;
+    const t = (now - this.start) / this.duration;
+    ctx.fillStyle = `rgba(${this.color}, ${this.strength * (1 - t) * (1 - t)})`;
+    // 画面が揺れていても端が残らないよう、少し広く塗る
+    ctx.fillRect(-w * 0.1, -h * 0.1, w * 1.2, h * 1.2);
   }
 }
 

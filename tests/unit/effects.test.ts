@@ -1,4 +1,4 @@
-// 1.8 演出（docs/test-plan.md F-74・F-77）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
+// 1.8 演出（docs/test-plan.md F-74・F-77・F-78）。場面に、何をしたか（演出の種類）と、かかるマスが入っているか。
 // 段の長さ（src/render/effects.ts）も確かめる。見た目は手とブラウザで確かめる
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS, MOTION_LABEL, type Motion } from '../../src/game/characters';
@@ -170,5 +170,63 @@ describe('F-77 攻撃の動き方・たおれる・2回攻撃', () => {
     expect(isRepeat(undefined, hits[0])).toBe(false);
     expect(isRepeat(hits[0], hits[1])).toBe(true);
     expect(scaledTiming(hits[1], 'normal', true).windup).toBeLessThan(scaledTiming(hits[0], 'normal').windup);
+  });
+});
+
+describe('F-78 魔法と星の演出', () => {
+  const caster = (seed: number) => {
+    const g = emptyState(seed);
+    g.player.mp = g.player.maxMp = 99;
+    g.availableSpells = () => ['fire', 'bigFire', 'thunder', 'power', 'guard'];
+    return g;
+  };
+
+  it('魔法はどれも唱える段があり、雷・守りなどは踏み込まない（飛ぶ段がない）', () => {
+    for (const spell of ['fire', 'bigFire', 'thunder', 'power', 'guard'] as const) {
+      const g = caster(41);
+      g.cast(spell);
+      const s = g.takeScenes().find((x) => x.action === spell)!;
+      const t = timingOf(s);
+      expect(t.windup, spell).toBeGreaterThan(0);
+      expect(t.impact, spell).toBeGreaterThanOrEqual(300);
+      if (spell === 'thunder' || spell === 'power' || spell === 'guard') expect(t.travel, spell).toBe(0);
+    }
+  });
+
+  it('火の魔法の飛ぶ長さは、道すじが長いほど長い', () => {
+    const near = caster(42);
+    const a = placeMonster(near, 'chuppi', 1)!;
+    near.player.facing = a.dir;
+    near.cast('fire');
+    const far = caster(42);
+    const b = placeMonster(far, 'chuppi', 4)!;
+    far.player.facing = b.dir;
+    far.cast('fire');
+    const t1 = timingOf(near.takeScenes()[0]);
+    const t4 = timingOf(far.takeScenes()[0]);
+    expect(t4.travel).toBeGreaterThan(t1.travel);
+  });
+
+  it('大火球と雷のかかるマスに、壁のマスは入らない', () => {
+    for (const seed of [43, 44, 45, 46, 47]) {
+      for (const spell of ['bigFire', 'thunder'] as const) {
+        const g = caster(seed);
+        g.cast(spell);
+        const s = g.takeScenes().find((x) => x.action === spell)!;
+        for (const c of s.cells) expect(g.map.isWalkable(c.x, c.y), `${spell} ${c.x},${c.y}`).toBe(true);
+      }
+    }
+  });
+
+  it('投げた炸裂の星が魔物に当たると、爆発を見せるぶん当たる段が長い', () => {
+    const g = emptyState(48);
+    const placed = placeMonster(g, 'dosuino', 2)!;
+    g.player.facing = placed.dir;
+    const star = createItem('starBurst');
+    g.bag.push(star);
+    g.throwItem(star);
+    const s = g.takeScenes()[0];
+    expect(s.action).toBe('throw');
+    expect(timingOf(s).impact).toBeGreaterThanOrEqual(400);
   });
 });
