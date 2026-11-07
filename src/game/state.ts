@@ -99,6 +99,10 @@ const SLEEP_TURNS: [number, number] = [2, 4];
 const AILMENT_CHANCE = 0.3;
 /** アミグモの糸で、主人公と仲間がはりつけになるターン数（魔物は攻撃されるまで） */
 const PIN_TURNS: [number, number] = [3, 5];
+/** 魔物が主人公にも仲間にも攻撃が届くとき、主人公を選ぶ確率（主人公:仲間 = 3:1） */
+const PLAYER_TARGET_RATE = 0.75;
+/** 突撃の仲間が、魔物の近づいてくるのを待つ距離（このマス数まで近づいたら止まる） */
+const CHARGE_WAIT_DISTANCE = 2;
 /** 状態異常・状態の変化のとき、マスの上に出す文字（演出の色と形もこれで決まる。render/spells.ts） */
 export const STATUS_TEXT = {
   confuse: '混乱',
@@ -419,6 +423,8 @@ export class GameState {
   private followField: Int16Array = new Int16Array(0);
   /** この行動で起きた攻撃の場面。画面が再生する */
   private scenes: Scene[] = [];
+  /** 離れたところ（舌・触手・火）から仲間を攻撃してきた魔物。その仲間は見えている間、近づいて戦う。保存しない */
+  private allyProvokers = new WeakMap<Ally, Monster>();
   /** この行動の前のログの番号と、主人公のHP。主人公の行動で出た文字を見せる場面に使う */
   private actionLog = 0;
   private actionHp = 0;
@@ -2288,26 +2294,39 @@ export class GameState {
     // 混乱している魔物は、ふつうに動くが、攻撃の向きがでたらめになる。火・舌などの離れた攻撃はしない
     const confused = m.ailments.confused > 0;
 
-    // 火を吐く魔物は、まっすぐ4マス以内に主人公がいれば、ときどき火を吐く
-    if (
-      !confused &&
-      m.species.special === 'breath' &&
-      m.lastSeen !== null &&
-      distance(m.pos, p) >= 2 &&
-      this.isClearLine(m.pos, p, BREATH_RANGE) &&
-      this.rng.chance(BREATH_CHANCE)
-    ) {
-      m.facing = dirFromDelta(p.x - m.pos.x, p.y - m.pos.y) ?? m.facing;
-      this.player.facing = dirFromDelta(m.pos.x - p.x, m.pos.y - p.y) ?? this.player.facing;
-      this.provoker = m;
-      this.scene(m.pos, p, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'), { action: 'breath', cells: this.lineCells(m.pos, p) });
-      return;
+    // 火を吐く魔物は、まっすぐ4マス以内に主人公か仲間がいれば、ときどき火を吐く（両方いれば 3:1 で主人公）
+    if (!confused && m.species.special === 'breath') {
+      const inLine = (to: Pos) => distance(m.pos, to) >= 2 && this.isClearLine(m.pos, to, BREATH_RANGE);
+      const playerOk = m.lastSeen !== null && inLine(p);
+      const allyOks = this.allies.filter((a) => inLine(a.pos));
+      if ((playerOk || allyOks.length > 0) && this.rng.chance(BREATH_CHANCE)) {
+        const pick = this.pickTarget(playerOk, allyOks);
+        const to = pick === 'player' ? p : pick!.pos;
+        m.facing = dirFromDelta(to.x - m.pos.x, to.y - m.pos.y) ?? m.facing;
+        const turnTo = dirFromDelta(m.pos.x - to.x, m.pos.y - to.y);
+        const fx = { action: 'breath' as const, cells: this.lineCells(m.pos, to) };
+        if (pick === 'player') {
+          if (turnTo !== null) this.player.facing = turnTo;
+          this.provoker = m;
+          this.scene(m.pos, to, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'), fx);
+        } else {
+          const a = pick!;
+          if (turnTo !== null) a.facing = turnTo;
+          this.allyProvokers.set(a, m);
+          this.scene(m.pos, to, () => this.hurtAlly(m, a, fortified(this.guarded(BREATH_DAMAGE), a.ailments), '火'), fx);
+        }
+        return;
+      }
     }
 
-    // 主人公に届けば主人公を、届かなくても隣に仲間がいれば仲間を攻撃する
-    let attackPlayer =
-      m.lastSeen !== null && (confused ? this.canHitAdjacent(m.species, m.pos, p) : this.canAttackPlayer(m));
-    let allyTarget = attackPlayer ? undefined : this.allies.find((a) => this.canHitAdjacent(m.species, m.pos, a.pos));
+    // 攻撃が届く相手（隣か、舌・触手の届く2マス先）。主人公にも仲間にも届くときは、3:1 で主人公を狙う
+    const reachAlly = (a: Ally) =>
+      this.canHitAdjacent(m.species, m.pos, a.pos) ||
+      (!confused && m.species.reach !== undefined && this.isClearLine(m.pos, a.pos, m.species.reach));
+    const playerOk = m.lastSeen !== null && (confused ? this.canHitAdjacent(m.species, m.pos, p) : this.canAttackPlayer(m));
+    const pick = this.pickTarget(playerOk, this.allies.filter(reachAlly));
+    let attackPlayer = pick === 'player';
+    let allyTarget = pick !== null && pick !== 'player' ? pick : undefined;
     if ((attackPlayer || allyTarget) && confused) {
       // 混乱：まわり8方向からでたらめに選んで攻撃する。そこに主人公か仲間がいれば当たり、いなければ空振り
       const dir = this.rng.pick([0, 1, 2, 3, 4, 5, 6, 7] as Dir[]);
@@ -2445,24 +2464,42 @@ export class GameState {
 
   private monsterAttackAlly(m: Monster, a: Ally): void {
     const name = cardName(a.card);
+    // 舌・触手で2マス先から攻撃された仲間は、その魔物へ近づいて戦う
+    const ranged = distance(m.pos, a.pos) > 1;
+    if (ranged) this.allyProvokers.set(a, m);
     if (!this.rng.chance(HIT_RATE)) {
       this.addLog(`${name}はかわした`);
       this.popups.push({ pos: a.pos, text: 'ミス', kind: 'miss' });
       return;
     }
     const dmg = fortified(this.guarded(rollDamage(this.rng, raged(m.atk, m.ailments), a.card.def)), a.ailments);
+    if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃')) return;
+    this.drain(m.species, m, dmg, m.species.name);
+    this.afflict(m.species, a.ailments, name, 'ally', a.pos);
+  }
+
+  /** 魔物が仲間にダメージを与える。how はログに出す攻撃の名前。瀕死になって召喚が解けたら false */
+  private hurtAlly(m: Monster, a: Ally, dmg: number, how: string): boolean {
+    const name = cardName(a.card);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
-    this.addLog(`${m.species.name}の攻撃 → ${name}に${dmg}ダメージ`);
+    this.addLog(`${m.species.name}の${how} → ${name}に${dmg}ダメージ`);
     this.popups.push({ pos: a.pos, text: `${dmg}`, kind: 'hurt' });
-    this.drain(m.species, m, dmg, m.species.name);
-    if (a.card.hp === 0) {
-      this.allies = this.allies.filter((x) => x !== a);
-      a.card.status = 'dying';
-      this.addLog(`${name}は瀕死になり召喚が解けた`);
-      return;
-    }
-    this.afflict(m.species, a.ailments, name, 'ally', a.pos);
+    if (a.card.hp > 0) return true;
+    this.allies = this.allies.filter((x) => x !== a);
+    a.card.status = 'dying';
+    this.addLog(`${name}は瀕死になり召喚が解けた`);
+    return false;
+  }
+
+  /**
+   * 魔物が狙う相手。主人公（playerOk）にも仲間（allies）にも届くときは、PLAYER_TARGET_RATE で主人公、残りで仲間のどれか。
+   * どちらにも届かなければ null
+   */
+  private pickTarget(playerOk: boolean, allies: Ally[]): 'player' | Ally | null {
+    if (playerOk && allies.length > 0) return this.rng.chance(PLAYER_TARGET_RATE) ? 'player' : this.rng.pick(allies);
+    if (playerOk) return 'player';
+    return allies.length > 0 ? this.rng.pick(allies) : null;
   }
 
   // ---- 仲間の行動（ついてくる） ----
@@ -2554,12 +2591,29 @@ export class GameState {
     // 待機：その場から動かない（隣の魔物への攻撃と、いかずちはする）
     if (a.order === 'wait') return;
 
-    // 突撃：見えている魔物のうち、いちばん近いものへ向かう。いなければついてくる
+    // 舌・触手・火で離れたところから自分を攻撃してきた魔物には、近づいて戦う（逃げるの指示のときは近づかない）
+    const shooter = a.order === 'flee' ? undefined : this.allyProvokers.get(a);
+    if (shooter) {
+      if (!this.monsters.includes(shooter) || !this.isVisible(shooter.pos.x, shooter.pos.y) || isHelplessMonster(shooter)) {
+        this.allyProvokers.delete(a);
+      } else {
+        const dir = this.stepToward(species, a.pos, shooter.pos);
+        if (dir !== null && this.canMoveTo(species, a.pos, dir)) this.moveAlly(a, dir);
+        return;
+      }
+    }
+
+    // 突撃：見えている魔物のうち、いちばん近いものへ向かう。いなければついてくる。
+    // ただし2マス手前まで来たら止まり、魔物が近づいてくるのを待つ（先に隣へ入って攻撃を受けないように）。
+    // その魔物が主人公やほかの仲間と戦っているときは、待たずに加勢する
     if (a.order === 'charge') {
       const target = foes
         .filter((m) => this.isVisible(m.pos.x, m.pos.y))
         .sort((x, y) => distance(x.pos, a.pos) - distance(y.pos, a.pos))[0];
       if (target) {
+        const engaged =
+          distance(target.pos, this.player.pos) === 1 || this.allies.some((o) => o !== a && distance(target.pos, o.pos) === 1);
+        if (!engaged && distance(a.pos, target.pos) <= CHARGE_WAIT_DISTANCE) return;
         const dir = this.stepToward(species, a.pos, target.pos);
         if (dir !== null && this.canMoveTo(species, a.pos, dir)) this.moveAlly(a, dir);
         return;
