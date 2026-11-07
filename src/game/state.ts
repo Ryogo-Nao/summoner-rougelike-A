@@ -1476,7 +1476,7 @@ export class GameState {
     if ((stack.count ?? 1) > 1) stack.count! -= 1;
     else this.release(stack);
     const arrow = createItem(stack.kind, 1);
-    const { monster, landing } = this.traceThrow(false);
+    const { monster, landing } = this.traceThrow(false, true);
     const shootFx: SceneFx = { action: 'shoot', cells: this.lineCells(p.pos, landing), item: stack.kind };
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (monster && this.rng.chance(HIT_RATE)) {
@@ -1747,11 +1747,12 @@ export class GameState {
    * 投げたアイテムが飛ぶ先。最初に当たる魔物（stopAtAlly なら仲間も）と、何にも当たらなかったときに止まるマス。
    * 壁の手前で止まる
    */
-  private traceThrow(stopAtAlly: boolean): { monster?: Monster; ally?: Ally; landing: Pos } {
+  private traceThrow(stopAtAlly: boolean, flying = false): { monster?: Monster; ally?: Ally; landing: Pos } {
     let at = this.player.pos;
     const dir = this.player.facing;
     for (let i = 0; i < LINE_RANGE; i++) {
-      if (!this.map.canStep(at, dir)) break;
+      // 矢（flying）は壁の角を越えて飛ぶ。投げた道具は角で止まる
+      if (!(flying ? this.map.canFly(at, dir) : this.map.canStep(at, dir))) break;
       at = this.ahead(at, dir);
       const monster = this.monsterAt(at.x, at.y);
       if (monster) return { monster, landing: at };
@@ -1770,7 +1771,8 @@ export class GameState {
     const dir = this.player.facing;
     const cells: Pos[] = [];
     for (let i = 0; i < LINE_RANGE; i++) {
-      if (!this.map.canStep(at, dir)) break;
+      // 火は壁の角を越えて飛ぶ
+      if (!this.map.canFly(at, dir)) break;
       const v = DIR_VECTORS[dir];
       at = { x: at.x + v.x, y: at.y + v.y };
       cells.push(at);
@@ -2241,8 +2243,8 @@ export class GameState {
     return distance(from, to) === 1 && dir !== null && this.canPass(species, from, dir);
   }
 
-  /** from から to がまっすぐ dist マス以内にあり、間のマスが空いているか */
-  private isClearLine(from: Pos, to: Pos, maxDist: number): boolean {
+  /** from から to がまっすぐ dist マス以内にあり、間のマスが空いているか。flying なら壁の角を越えてよい */
+  private isClearLine(from: Pos, to: Pos, maxDist: number, flying = false): boolean {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = distance(from, to);
@@ -2251,7 +2253,8 @@ export class GameState {
     if (!straight || dir === null || dist > maxDist) return false;
     let at = from;
     for (let i = 0; i < dist; i++) {
-      if (!this.map.canStep(at, dir)) return false;
+      // flying（火・いかずち）は壁の角を越える。舌・触手は角で止まる
+      if (!(flying ? this.map.canFly(at, dir) : this.map.canStep(at, dir))) return false;
       const v = DIR_VECTORS[dir];
       at = { x: at.x + v.x, y: at.y + v.y };
       if (i < dist - 1 && this.isOccupied(at.x, at.y)) return false;
@@ -2296,7 +2299,7 @@ export class GameState {
 
     // 火を吐く魔物は、まっすぐ4マス以内に主人公か仲間がいれば、ときどき火を吐く（両方いれば 3:1 で主人公）
     if (!confused && m.species.special === 'breath') {
-      const inLine = (to: Pos) => distance(m.pos, to) >= 2 && this.isClearLine(m.pos, to, BREATH_RANGE);
+      const inLine = (to: Pos) => distance(m.pos, to) >= 2 && this.isClearLine(m.pos, to, BREATH_RANGE, true);
       const playerOk = m.lastSeen !== null && inLine(p);
       const allyOks = this.allies.filter((a) => inLine(a.pos));
       if ((playerOk || allyOks.length > 0) && this.rng.chance(BREATH_CHANCE)) {
@@ -2560,7 +2563,7 @@ export class GameState {
     }
 
     if (!confused && isPartner(a.card) && this.rng.chance(LIGHTNING_CHANCE)) {
-      const target = foes.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
+      const target = foes.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2, true));
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
         this.scene(
@@ -2576,7 +2579,8 @@ export class GameState {
     // 火を吐く仲間は、まっすぐ4マス以内に見えている魔物に、ときどき火を吐く（必ず当たる）
     if (!confused && species.special === 'breath' && this.rng.chance(BREATH_CHANCE)) {
       const target = foes.find(
-        (m) => this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) >= 2 && this.isClearLine(a.pos, m.pos, BREATH_RANGE),
+        (m) =>
+          this.isVisible(m.pos.x, m.pos.y) && distance(m.pos, a.pos) >= 2 && this.isClearLine(a.pos, m.pos, BREATH_RANGE, true),
       );
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;

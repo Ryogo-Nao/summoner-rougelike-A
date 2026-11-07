@@ -80,4 +80,17 @@ export class GameMap {
     }
     return true;
   }
+
+  /**
+   * 飛ぶ攻撃（矢・火・雷）が1マス進めるか。壁の角は越えられる（斜めの両隣の片方が壁でもよい）。
+   * 両隣とも壁の、すき間のような斜めは通れない
+   */
+  canFly(from: Pos, dir: Dir): boolean {
+    const v = DIR_VECTORS[dir];
+    if (!this.isWalkable(from.x + v.x, from.y + v.y)) return false;
+    if (isDiagonal(dir)) {
+      return this.isWalkable(from.x + v.x, from.y) || this.isWalkable(from.x, from.y + v.y);
+    }
+    return true;
+  }
 }
