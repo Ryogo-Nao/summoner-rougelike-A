@@ -6,6 +6,7 @@ import { Sheet, wideButton, type SheetRow } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
 import { itemArt } from '../render/art';
+import { EFFECT_SPEED_LABEL, type EffectSpeed } from '../render/effects';
 
 /** 一覧から行動したあとに呼ぶ（再描画、力つきたかの確認など） */
 type AfterAction = () => void;
@@ -525,6 +526,14 @@ function statChange(
   return el;
 }
 
+/** 演出の速さの説明と、押したときの次の速さ */
+const EFFECT_SPEED_SUB: Record<EffectSpeed, string> = {
+  normal: '画面を押すと早送り',
+  fast: 'ふつうの半分の長さ',
+  min: '動きなし\n数字だけ短く出す',
+};
+const NEXT_SPEED: Record<EffectSpeed, EffectSpeed> = { normal: 'fast', fast: 'min', min: 'normal' };
+
 /** 遊び方の短い説明。ダンジョンのメニューと、拠点のその他に出す */
 export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる';
 
@@ -551,6 +560,15 @@ export function settingRows(settings: Settings, onChange: () => void): SheetRow[
       button: {
         label: settings.allyMove === 'swap' ? '入れ替わる' : '押す',
         onClick: toggle(() => (settings.allyMove = settings.allyMove === 'swap' ? 'push' : 'swap')),
+      },
+    },
+    {
+      icon: '✨',
+      name: '演出の速さ',
+      sub: EFFECT_SPEED_SUB[settings.effectSpeed],
+      button: {
+        label: EFFECT_SPEED_LABEL[settings.effectSpeed],
+        onClick: toggle(() => (settings.effectSpeed = NEXT_SPEED[settings.effectSpeed])),
       },
     },
     {

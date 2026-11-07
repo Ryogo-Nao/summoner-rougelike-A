@@ -87,3 +87,22 @@ test('P-08 ダンジョンの描画で、止まるフレーム（50ms 以上）�
   // テストのブラウザは画面に出さないので、間隔そのものは機械によって変わる。止まったフレームの割合で見る
   expect(result.janky).toBeLessThan(0.05);
 });
+
+test('F-75 メニューの「演出の速さ」を押すと ふつう → 速い → 最小 → ふつう と変わり、保存される', async ({ page }) => {
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  await expect(async () => {
+    await press(page, '#btn-menu');
+    await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  const row = page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' });
+  const button = row.locator('button');
+  await expect(button).toHaveText('ふつう');
+  for (const next of ['速い', '最小', 'ふつう']) {
+    await button.click();
+    await expect(page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' }).locator('button')).toHaveText(next);
+  }
+  await page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' }).locator('button').click();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('summoner-settings') ?? '{}').effectSpeed);
+  expect(saved).toBe('fast');
+});

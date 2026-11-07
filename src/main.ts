@@ -3,7 +3,8 @@ import { randomSeed } from './game/rng';
 import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
 import { DUNGEONS } from './game/dungeons';
-import { Renderer, type Playback } from './render/renderer';
+import { Renderer } from './render/renderer';
+import { TURN_CAP_MS, phaseAt, scaledTiming, totalOf } from './render/effects';
 import { faceElement, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
 import { setupPad } from './ui/pad';
@@ -203,11 +204,12 @@ function redraw(): void {
   updateHud();
 }
 
-/** 攻撃の場面1つの長さ（ミリ秒）。踏み込み、受けた側の点滅と数字。何も当たらなければ点滅は短くする */
-const LUNGE_MS = 170;
-const HIT_MS = 280;
-const HIT_EMPTY_MS = 60;
+/** 画面を押して早送りしているときの速さの倍率と、動けず自動でターンが進むときの倍率 */
+const SKIP_RATE = 4;
+const HELPLESS_RATE = 2;
 let playing = false;
+/** 場面の再生中に画面を押したら、その行動の残りを早送りする */
+let skipping = false;
 // 絵を読み込み終えたら描き直す。場面の再生中は、終わったあとに描き直される
 preloadArt();
 // 歩く動きと、立っているときの息づかいのために、マップを描き続ける。
@@ -227,47 +229,59 @@ onArtLoaded(() => {
   if (!playing) renderer.draw(state);
 });
 
-/** この行動で起きた攻撃を、起きた順に1つずつ見せる。見せ終わったら done を呼ぶ */
+/**
+ * この行動で起きた場面を、起きた順に1つずつ見せる（段の長さは effects.ts、速さは設定）。見せ終わったら done を呼ぶ。
+ * 合計が長すぎるときは全体を速め、画面を押すと残りを早送りする
+ */
 function playScenes(done: () => void): void {
   const scenes = state.takeScenes();
-  if (scenes.length === 0) {
+  const timings = scenes.map((s) => scaledTiming(s, settings.effectSpeed));
+  const total = timings.reduce((sum, t) => sum + totalOf(t), 0);
+  if (scenes.length === 0 || total === 0) {
     done();
     return;
   }
   playing = true;
+  skipping = false;
+  const base = Math.max(1, total / TURN_CAP_MS) * (state.helpless ? HELPLESS_RATE : 1);
   let index = 0;
-  let phase: Playback['phase'] = 'lunge';
-  let start = performance.now();
+  let elapsed = 0;
+  let last = performance.now();
   const frame = (now: number) => {
-    const scene = scenes[index];
-    // 踏み込む者がいない場面（道具を使ったときなど）は、すぐに文字を出す
-    const lunge = scene.attacker < 0 ? 1 : LUNGE_MS;
-    const duration = phase === 'lunge' ? lunge : scene.popups.length > 0 ? HIT_MS : HIT_EMPTY_MS;
-    const t = Math.min(1, (now - start) / duration);
-    renderer.draw(state, { scene, phase, t });
-    updateHud(
-      phase === 'lunge'
-        ? { hp: scene.hpBefore, logSerial: scene.logBefore }
-        : { hp: scene.hpAfter, logSerial: scene.logAfter },
-    );
-    if (t >= 1) {
-      start = now;
-      if (phase === 'lunge') {
-        phase = 'hit';
-      } else {
-        index++;
-        phase = 'lunge';
-        if (index >= scenes.length) {
-          playing = false;
-          done();
-          return;
-        }
-      }
+    elapsed += (now - last) * base * (skipping ? SKIP_RATE : 1);
+    last = now;
+    // 終わった場面をとばす（長さ0の場面もここでとぶ）
+    while (index < scenes.length && elapsed >= totalOf(timings[index])) {
+      elapsed -= totalOf(timings[index]);
+      index++;
     }
+    if (index >= scenes.length) {
+      playing = false;
+      skipping = false;
+      done();
+      return;
+    }
+    const scene = scenes[index];
+    const { phase, t } = phaseAt(timings[index], elapsed);
+    renderer.draw(state, { scene, phase, t });
+    // HPとログは、当たる段から後のものにする
+    updateHud(
+      phase === 'impact'
+        ? { hp: scene.hpAfter, logSerial: scene.logAfter }
+        : { hp: scene.hpBefore, logSerial: scene.logBefore },
+    );
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
+// 場面の再生中に画面のどこかを押すと、早送りする（ボタンやマップの操作はそのまま、再生中は受け付けない）
+document.addEventListener(
+  'pointerdown',
+  () => {
+    if (playing) skipping = true;
+  },
+  true,
+);
 
 function askDescend(): void {
   dialog.open('階段を降りる？', '降りる', 'やめる', () => {

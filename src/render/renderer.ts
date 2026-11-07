@@ -1,21 +1,30 @@
-import type { ActorView, GameState, Popup, Scene } from '../game/state';
+import type { ActorView, GameState, Popup, Scene, SceneAction } from '../game/state';
 import { ITEMS } from '../game/items';
 import { Tile } from '../game/map';
 import { artImage, itemArt } from './art';
+import { Particles, Shake, type EffectPhase } from './effects';
 import { buildTerrain, terrainTile, type Terrain } from './terrain';
 
 /**
- * 攻撃の場面を再生している途中の様子。
- * lunge は攻撃する側が踏み込んで戻るところ、hit は攻撃を受けた側が点滅して数字が出るところ。t は 0〜1
+ * 場面を再生している途中の様子（段の分け方は effects.ts）。t はその段の中の進み具合で 0〜1
  */
 export interface Playback {
   scene: Scene;
-  phase: 'lunge' | 'hit';
+  phase: EffectPhase;
   t: number;
 }
 
-/** 踏み込む深さ（マスの何割か） */
+/** 踏み込む深さ（マスの何割か）。投げる・撃つときは軽く構えるだけ */
 const LUNGE_DEPTH = 0.4;
+const TOSS_DEPTH = 0.18;
+/** 構える段で踏み込まない場面 */
+const NO_LUNGE: ReadonlySet<SceneAction> = new Set(['item', 'power', 'guard']);
+/** 当たったときの火花の色。こちらが与えたダメージは白と金、受けたダメージは赤 */
+const SPARK_DEAL = ['#ffffff', '#ffe58a', '#ffd84a'];
+const SPARK_HURT = ['#ffffff', '#ff9aa6', '#ff5a6e'];
+/** 主人公がダメージを受けたときの画面の揺れ（マスの何割か、ミリ秒） */
+const HURT_SHAKE = 0.07;
+const HURT_SHAKE_MS = 200;
 
 /** 1マス歩くのにかける時間（ミリ秒）と、歩くときに跳ねる高さ（マスの何割か） */
 const STEP_MS = 120;
@@ -103,9 +112,17 @@ export class Renderer {
   private rockPattern: CanvasPattern | null = null;
   /** 絵を左右反転しているか。上下を向いたときは前の向きのまま */
   private flipped = new Map<string, boolean>();
+  /** 火花などの粒と、画面の揺れ */
+  private readonly particles = new Particles();
+  private readonly shake = new Shake();
+  /** 当たる段の始まりの演出（火花・揺れ）を出し終えた場面 */
+  private impacted = new WeakSet<Scene>();
+  /** 前に描いた時刻。粒を動かす */
+  private lastDraw = 0;
 
-  /** 歩いている途中のものがあるか。あれば描き続ける */
+  /** 歩いている途中のもの、飛んでいる粒、画面の揺れがあるか。あれば毎フレーム描き続ける */
   moving(now = performance.now()): boolean {
+    if (this.particles.alive || this.shake.active(now)) return true;
     for (const s of this.steps.values()) if (now - s.start < STEP_MS) return true;
     return false;
   }
@@ -159,6 +176,9 @@ export class Renderer {
     const { ctx, tileSize: ts, viewW, viewH } = this;
     const { map, player } = state;
     const now = performance.now();
+    // 粒は前に描いてからの時間だけ動かす（間があきすぎたときは止まっていたことにする）
+    this.particles.update(Math.min(100, Math.max(0, now - this.lastDraw)));
+    this.lastDraw = now;
     const actors = play ? play.scene.actors : state.actorViews();
     // 攻撃の場面では、マスの上にぴったり置く。ふだんは前のマスから歩いてくる
     const shown = new Map(actors.map((a) => [a.key, this.stepAt(a.key, a.pos, now, play !== undefined)]));
@@ -175,6 +195,10 @@ export class Renderer {
 
     const theme = state.dungeon.theme;
 
+    // 画面の揺れ。ミニマップは揺らさない
+    const quake = this.shake.offset(now, ts);
+    ctx.save();
+    ctx.translate(quake.x, quake.y);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
@@ -233,11 +257,15 @@ export class Renderer {
 
     this.drawLighting(state, toScreen(cam), toScreen, now);
 
+    // 投げた物・矢が飛んでいる間は、落ちる先に置かれた物をまだ出さない
+    const flying = play && (play.scene.action === 'throw' || play.scene.action === 'shoot') && play.phase !== 'impact';
+    const landing = flying ? play.scene.cells[play.scene.cells.length - 1] : undefined;
     // 落ちているアイテムは、見たことのあるマスなら出す
     ctx.fillStyle = EMOJI_FILL;
     ctx.font = `${Math.floor(ts * 0.62)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     for (const f of state.floorItems) {
       if (!state.isExplored(f.pos.x, f.pos.y)) continue;
+      if (landing && f.pos.x === landing.x && f.pos.y === landing.y && f.item.kind === play!.scene.item) continue;
       const { x: sx, y: sy } = toScreen(f.pos);
       if (sx < -ts || sx > viewW || sy < -ts || sy > viewH) continue;
       // 絵があれば絵で、なければ絵文字で出す
@@ -248,7 +276,12 @@ export class Renderer {
     }
     ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
-    const popups = play ? (play.phase === 'hit' ? play.scene.popups : []) : state.popups;
+    const impact = play?.phase === 'impact';
+    if (play && impact && !this.impacted.has(play.scene)) {
+      this.impacted.add(play.scene);
+      this.startImpact(play.scene, now);
+    }
+    const popups = play ? (impact ? play.scene.popups : []) : state.popups;
     // 攻撃を受けたマス。点滅させる
     const hurt = new Set(
       popups.filter((p) => p.kind === 'damage' || p.kind === 'hurt').map((p) => `${p.pos.x},${p.pos.y}`),
@@ -258,24 +291,28 @@ export class Renderer {
       let { x: sx, y: sy } = toScreen(at);
       // 歩いている間は小さく跳ねる
       sy -= Math.sin(at.t * Math.PI) * HOP * ts;
-      if (play?.phase === 'lunge' && i === play.scene.attacker) {
+      if (play?.phase === 'windup' && i === play.scene.attacker && !NO_LUNGE.has(play.scene.action)) {
         // 相手の方へ踏み込んで、元の位置に戻る
-        const depth = Math.sin(play.t * Math.PI) * LUNGE_DEPTH * ts;
+        const tossing = play.scene.action === 'throw' || play.scene.action === 'shoot';
+        const depth = Math.sin(play.t * Math.PI) * (tossing ? TOSS_DEPTH : LUNGE_DEPTH) * ts;
         const dx = Math.sign(play.scene.toward.x - actor.pos.x);
         const dy = Math.sign(play.scene.toward.y - actor.pos.y);
         const len = Math.hypot(dx, dy) || 1;
         sx += (dx / len) * depth;
         sy += (dy / len) * depth;
       }
-      if (play?.phase === 'hit' && hurt.has(`${actor.pos.x},${actor.pos.y}`)) {
+      if (impact && hurt.has(`${actor.pos.x},${actor.pos.y}`)) {
         // 受けた側は細かく揺れて点滅する
-        if (Math.floor(play.t * 6) % 2 === 1) return;
-        sx += Math.sin(play.t * Math.PI * 8) * ts * 0.06;
+        if (Math.floor(play!.t * 6) % 2 === 1) return;
+        sx += Math.sin(play!.t * Math.PI * 8) * ts * 0.06;
       }
       this.drawActor(actor, sx, sy, now);
     });
 
-    this.drawPopups(popups, toScreen, play?.phase === 'hit' ? play.t : 1);
+    if (play?.phase === 'travel') this.drawFlying(play, toScreen);
+    this.particles.draw(ctx, (p) => toScreen(p), ts);
+    this.drawPopups(popups, toScreen, impact ? play!.t : 1);
+    ctx.restore();
 
     if (this.minimapExpanded) {
       ctx.fillStyle = COLORS.expandedBg;
@@ -288,6 +325,61 @@ export class Renderer {
       const w = map.width * MINI_TILE;
       this.drawMinimap(state, MINI_TILE, viewW - w - 4, 4);
     }
+  }
+
+  /**
+   * 当たる段の始まり。ダメージを受けたマスに火花を散らし、主人公が受けたときは画面を揺らす
+   */
+  private startImpact(scene: Scene, now: number): void {
+    const me = scene.actors.find((a) => a.isPlayer)?.pos;
+    for (const p of scene.popups) {
+      if (p.kind !== 'damage' && p.kind !== 'hurt') continue;
+      this.particles.burst({
+        x: p.pos.x + 0.5,
+        y: p.pos.y + 0.45,
+        count: 10,
+        color: p.kind === 'damage' ? SPARK_DEAL : SPARK_HURT,
+        speed: [1.6, 3.4],
+        size: [0.035, 0.07],
+        life: [180, 320],
+        glow: true,
+      });
+      if (p.kind === 'hurt' && me && p.pos.x === me.x && p.pos.y === me.y) this.shake.kick(HURT_SHAKE, HURT_SHAKE_MS, now);
+    }
+  }
+
+  /**
+   * 飛ぶ段。投げた物・矢を、投げた者のマスから道すじの最後のマスまで動かす。
+   * 投げた物は回り、矢は飛ぶ向きを向く（矢の絵は右上を向いている）
+   */
+  private drawFlying(play: Playback, toScreen: (pos: { x: number; y: number }) => { x: number; y: number }): void {
+    const { scene, t } = play;
+    if (scene.action !== 'throw' && scene.action !== 'shoot') return;
+    const from = scene.actors[scene.attacker]?.pos;
+    const to = scene.cells[scene.cells.length - 1];
+    if (!from || !to || !scene.item) return;
+    const { ctx, tileSize: ts } = this;
+    const a = toScreen(from);
+    const b = toScreen(to);
+    const x = a.x + (b.x - a.x) * t + ts / 2;
+    // 投げた物は少し山なりに飛ぶ
+    const arc = scene.action === 'throw' ? Math.sin(t * Math.PI) * ts * 0.25 : 0;
+    const y = a.y + (b.y - a.y) * t + ts * 0.45 - arc;
+    const angle =
+      scene.action === 'shoot' ? Math.atan2(b.y - a.y, b.x - a.x) + Math.PI / 4 : t * Math.PI * 3;
+    const id = itemArt(scene.item);
+    const img = id ? artImage(id) : null;
+    const size = ts * 0.62;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    else {
+      ctx.fillStyle = EMOJI_FILL;
+      ctx.font = `${Math.floor(ts * 0.5)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.fillText(ITEMS[scene.item].emoji, 0, 1);
+    }
+    ctx.restore();
   }
 
   /** 画面上の点（CSS px、キャンバスの左上が原点）にあるマス。draw と同じく、主人公を中央に置いた位置で求める */

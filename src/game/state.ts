@@ -158,14 +158,52 @@ export interface DashSnapshot {
 }
 
 /**
+ * 場面の種類（演出の種類。docs/effects.md）。
+ * attack は隣への攻撃（空振りも）、reach は舌・触手で2マス先へ、breath は火を吐く、lightning はいかずち、
+ * throw は投げる、shoot は矢、fire・bigFire・thunder・power・guard は魔法、burst は炸裂の星を食べた爆発、
+ * item は道具を使った（薬草の回復など。誰も動かない）
+ */
+export type SceneAction =
+  | 'attack'
+  | 'reach'
+  | 'breath'
+  | 'lightning'
+  | 'throw'
+  | 'shoot'
+  | 'fire'
+  | 'bigFire'
+  | 'thunder'
+  | 'power'
+  | 'guard'
+  | 'burst'
+  | 'item';
+
+/** 場面を記録するときに渡す、演出の種類と範囲 */
+interface SceneFx {
+  action: SceneAction;
+  /** 演出がかかるマス。省くと toward の1マス */
+  cells?: Pos[];
+  item?: ItemKind;
+}
+
+/**
  * 攻撃1回ぶんの場面。行動のあとに、起きた順に画面で再生する。
- * actors は攻撃する直前の様子。attacker（actors の番号、-1 ならいない）が toward へ踏み込み、popups が出る
+ * actors は攻撃する直前の様子。attacker（actors の番号、-1 ならいない）が toward へ向けて action をし、popups が出る
  */
 export interface Scene {
   actors: ActorView[];
   /** 攻撃する者の actors の番号。-1 なら誰も踏み込まない（主人公が道具を使った場面など） */
   attacker: number;
   toward: Pos;
+  /** 何をした場面か */
+  action: SceneAction;
+  /**
+   * 演出がかかるマス。飛ぶもの（投げた物・矢・火・いかずち・舌）は通る道すじで、最後が当たった・止まったマス。
+   * 範囲の魔法はその範囲、力・守りの魔法はかかった味方のマス
+   */
+  cells: Pos[];
+  /** 投げた・撃った道具の種類（飛んでいく絵に使う） */
+  item?: ItemKind;
   popups: Popup[];
   /** 攻撃の前と後で、ログをどこまで出すか（serial）と主人公のHP */
   logBefore: number;
@@ -1088,10 +1126,15 @@ export class GameState {
     if (kind === 'burst') {
       const at = this.ahead(p.pos, p.facing);
       const target = this.monsterAt(at.x, at.y);
-      this.scene(p.pos, at, () => {
-        this.addLog('1マス先で爆発が起きた');
-        if (target) this.damageMonster(target, BURST_EAT_DAMAGE, null, '爆発');
-      });
+      this.scene(
+        p.pos,
+        at,
+        () => {
+          this.addLog('1マス先で爆発が起きた');
+          if (target) this.damageMonster(target, BURST_EAT_DAMAGE, null, '爆発');
+        },
+        { action: 'burst' },
+      );
       return;
     }
     if (kind === 'mana') {
@@ -1355,6 +1398,7 @@ export class GameState {
     // 回復する道具と、仲間を助ける星（激昂・要塞・癒し）は、仲間にも当たる。ほかは仲間の上を越えていく
     const helps = def.heal !== undefined || def.cure !== undefined || (def.star !== undefined && ['rage', 'fort', 'heal'].includes(def.star));
     const { monster, ally, landing } = this.traceThrow(helps);
+    const throwFx: SceneFx = { action: 'throw', cells: this.lineCells(p.pos, landing), item: item.kind };
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       const hitName = ally ? cardName(ally.card) : monster?.species.name;
       const hitPos = ally?.pos ?? monster?.pos;
@@ -1376,7 +1420,7 @@ export class GameState {
       } else {
         this.landItem(item, landing);
       }
-    });
+    }, throwFx);
     this.endTurn();
   }
 
@@ -1400,6 +1444,7 @@ export class GameState {
     else this.release(stack);
     const arrow = createItem(stack.kind, 1);
     const { monster, landing } = this.traceThrow(false);
+    const shootFx: SceneFx = { action: 'shoot', cells: this.lineCells(p.pos, landing), item: stack.kind };
     this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
       if (monster && this.rng.chance(HIT_RATE)) {
         const atk = Math.round(this.attackPower() * (def.arrow ?? 1));
@@ -1411,7 +1456,7 @@ export class GameState {
         this.popups.push({ pos: monster.pos, text: 'ミス', kind: 'miss' });
       }
       this.landItem(arrow, landing);
-    });
+    }, shootFx);
   }
 
   /** 床に落とす。そのマスに置けなければまわりに落とし、どこにも置けなければなくなる */
@@ -1683,18 +1728,23 @@ export class GameState {
     return { landing: at };
   }
 
-  /** 主人公の向いている方向にまっすぐ進み、最初に当たる魔物。仲間はすり抜け、壁で止まる */
-  private traceLine(): Monster | undefined {
+  /**
+   * 主人公の向いている方向にまっすぐ進み、最初に当たる魔物と、そこまでに通るマス。仲間はすり抜け、壁で止まる。
+   * 何にも当たらなければ、通るマスは壁の手前まで
+   */
+  private traceLine(): { monster?: Monster; cells: Pos[] } {
     let at = this.player.pos;
     const dir = this.player.facing;
+    const cells: Pos[] = [];
     for (let i = 0; i < LINE_RANGE; i++) {
-      if (!this.map.canStep(at, dir)) return undefined;
+      if (!this.map.canStep(at, dir)) break;
       const v = DIR_VECTORS[dir];
       at = { x: at.x + v.x, y: at.y + v.y };
+      cells.push(at);
       const m = this.monsterAt(at.x, at.y);
-      if (m) return m;
+      if (m) return { monster: m, cells };
     }
-    return undefined;
+    return { cells };
   }
 
   // ---- 魔法 ----
@@ -1731,23 +1781,42 @@ export class GameState {
       // 続いている間にかけ直すと、残りターンが元に戻る
       if (spell === 'power') p.powerTurns = BUFF_TURNS;
       else p.guardTurns = BUFF_TURNS;
-      this.addLog(`${name}を使った（味方全体）`);
       const text = spell === 'power' ? '力UP' : '守りUP';
-      for (const at of [p.pos, ...this.allies.map((a) => a.pos)]) this.popups.push({ pos: at, text, kind: 'info' });
+      const cells = [p.pos, ...this.allies.map((a) => a.pos)];
+      this.scene(
+        p.pos,
+        p.pos,
+        () => {
+          this.addLog(`${name}を使った（味方全体）`);
+          for (const at of cells) this.popups.push({ pos: { ...at }, text, kind: 'info' });
+        },
+        { action: spell, cells },
+      );
       this.endTurn();
       return;
     }
-    const targets =
-      spell === 'fire'
-        ? [this.traceLine()].filter((m) => m !== undefined)
-        : spell === 'bigFire'
-          ? this.bigFireTargets()
-          : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
+    // 雷はまわり8マス、大火球は前の3マス幅、火は最初の魔物まで
+    const line = spell === 'fire' ? this.traceLine() : undefined;
+    const targets = line
+      ? [line.monster].filter((m) => m !== undefined)
+      : spell === 'bigFire'
+        ? this.bigFireTargets()
+        : this.monsters.filter((m) => distance(m.pos, p.pos) === 1);
+    const cells = line
+      ? line.cells
+      : spell === 'bigFire'
+        ? this.bigFireTiles()
+        : DIR_VECTORS.map((v) => ({ x: p.pos.x + v.x, y: p.pos.y + v.y }));
     const dmg = spell === 'fire' ? 10 + p.level * 2 : spell === 'bigFire' ? 20 + p.level * 2 : 6 + p.level;
-    this.scene(p.pos, this.ahead(p.pos, p.facing), () => {
-      if (targets.length === 0) this.addLog(`${name}は外れた`);
-      for (const m of targets) this.damageMonster(m, dmg, null, name);
-    });
+    this.scene(
+      p.pos,
+      this.ahead(p.pos, p.facing),
+      () => {
+        if (targets.length === 0) this.addLog(`${name}は外れた`);
+        for (const m of targets) this.damageMonster(m, dmg, null, name);
+      },
+      { action: spell, cells },
+    );
     this.endTurn();
   }
 
@@ -1756,6 +1825,14 @@ export class GameState {
    * 見えている魔物だけに当たり、仲間には当たらない
    */
   private bigFireTargets(): Monster[] {
+    const tiles = this.bigFireTiles();
+    return this.monsters.filter(
+      (m) => this.isVisible(m.pos.x, m.pos.y) && tiles.some((t) => t.x === m.pos.x && t.y === m.pos.y),
+    );
+  }
+
+  /** 大火球がかかるマス。前へ1マスずつ、まん中・左・右の順に並ぶ */
+  private bigFireTiles(): Pos[] {
     const p = this.player;
     const v = DIR_VECTORS[p.facing];
     const tiles: Pos[] = [];
@@ -1763,9 +1840,7 @@ export class GameState {
       const c = { x: p.pos.x + v.x * i, y: p.pos.y + v.y * i };
       tiles.push(c, { x: c.x - v.y, y: c.y + v.x }, { x: c.x + v.y, y: c.y - v.x });
     }
-    return this.monsters.filter(
-      (m) => this.isVisible(m.pos.x, m.pos.y) && tiles.some((t) => t.x === m.pos.x && t.y === m.pos.y),
-    );
+    return tiles;
   }
 
   /** 階段を降りる。最下層の階段なら踏破 */
@@ -1836,6 +1911,8 @@ export class GameState {
       actors: this.actorViews(),
       attacker: -1,
       toward: { ...this.player.pos },
+      action: 'item',
+      cells: [{ ...this.player.pos }],
       popups: this.popups.splice(0),
       logBefore: last ? last.logAfter : this.actionLog,
       logAfter: this.logSerial,
@@ -1889,8 +1966,11 @@ export class GameState {
     return views;
   }
 
-  /** attacker が toward へ攻撃する場面を記録しながら act を行う。act の中で出た文字はその場面で出す */
-  private scene(attacker: Pos, toward: Pos, act: () => void): void {
+  /**
+   * attacker が toward へ攻撃する場面を記録しながら act を行う。act の中で出た文字はその場面で出す。
+   * fx は演出の種類と範囲。省くと隣への攻撃
+   */
+  private scene(attacker: Pos, toward: Pos, act: () => void, fx: SceneFx = { action: 'attack' }): void {
     const actors = this.actorViews();
     const index = actors.findIndex((a) => a.pos.x === attacker.x && a.pos.y === attacker.y);
     const start = this.popups.length;
@@ -1901,6 +1981,9 @@ export class GameState {
       actors,
       attacker: index,
       toward: { ...toward },
+      action: fx.action,
+      cells: (fx.cells ?? [toward]).map((c) => ({ ...c })),
+      item: fx.item,
       popups: this.popups.splice(start),
       logBefore,
       logAfter: this.logSerial,
@@ -1913,6 +1996,15 @@ export class GameState {
   private ahead(at: Pos, dir: Dir): Pos {
     const v = DIR_VECTORS[dir];
     return { x: at.x + v.x, y: at.y + v.y };
+  }
+
+  /** from から to へまっすぐ（縦・横・斜め）並ぶマス。from は入れず、to は入れる */
+  private lineCells(from: Pos, to: Pos): Pos[] {
+    const sx = Math.sign(to.x - from.x);
+    const sy = Math.sign(to.y - from.y);
+    const cells: Pos[] = [];
+    for (let i = 1; i <= distance(from, to); i++) cells.push({ x: from.x + sx * i, y: from.y + sy * i });
+    return cells;
   }
 
   /** 主人公のあと、仲間、魔物の順に動く */
@@ -2170,7 +2262,7 @@ export class GameState {
       m.facing = dirFromDelta(p.x - m.pos.x, p.y - m.pos.y) ?? m.facing;
       this.player.facing = dirFromDelta(m.pos.x - p.x, m.pos.y - p.y) ?? this.player.facing;
       this.provoker = m;
-      this.scene(m.pos, p, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'));
+      this.scene(m.pos, p, () => this.hurtPlayer(m, BREATH_DAMAGE, '火'), { action: 'breath', cells: this.lineCells(m.pos, p) });
       return;
     }
 
@@ -2209,10 +2301,16 @@ export class GameState {
       const hits = m.species.twoHits ? 2 : 1;
       for (let i = 0; i < hits; i++) {
         if (this.dead || (allyTarget && !this.allies.includes(allyTarget))) break;
-        this.scene(m.pos, target, () => {
-          if (allyTarget) this.monsterAttackAlly(m, allyTarget);
-          else this.monsterAttack(m);
-        });
+        const reach = distance(m.pos, target) > 1;
+        this.scene(
+          m.pos,
+          target,
+          () => {
+            if (allyTarget) this.monsterAttackAlly(m, allyTarget);
+            else this.monsterAttack(m);
+          },
+          reach ? { action: 'reach', cells: this.lineCells(m.pos, target) } : { action: 'attack' },
+        );
       }
       return;
     }
@@ -2387,8 +2485,11 @@ export class GameState {
       const target = this.monsters.find((m) => distance(m.pos, a.pos) === 2 && this.isClearLine(a.pos, m.pos, 2));
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-        this.scene(a.pos, target.pos, () =>
-          this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, 'いかずち'),
+        this.scene(
+          a.pos,
+          target.pos,
+          () => this.damageMonster(target, rollDamage(this.rng, this.allyAttack(a), target.def), a, 'いかずち'),
+          { action: 'lightning', cells: this.lineCells(a.pos, target.pos) },
         );
         return;
       }
@@ -2401,7 +2502,10 @@ export class GameState {
       );
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
-        this.scene(a.pos, target.pos, () => this.damageMonster(target, this.allyAttack(a), a, '火'));
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, this.allyAttack(a), a, '火'), {
+          action: 'breath',
+          cells: this.lineCells(a.pos, target.pos),
+        });
         return;
       }
     }
