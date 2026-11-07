@@ -26,7 +26,7 @@ const STOCK_POOL: { kind: ItemKind; weight: number; dungeon?: string }[] = [
   { kind: 'leatherShield', weight: 8 },
   { kind: 'ironShield', weight: 4 },
   // 属性の装備は、そのダンジョンの魔物の弱点を突くものを売る（balance.md 6.7）。
-  // ささやきの森の風の魔物には炎、しずくの氷穴の水と風の魔物には雷。
+  // ささやきの森の風の魔物には炎、しずくの氷穴の水の魔物には雷。
   // 光と闇の装備は、これから足すダンジョンに挑めるようになったら並べる
   { kind: 'fireSword', weight: 3, dungeon: 'forest' },
   { kind: 'fireShield', weight: 3, dungeon: 'forest' },

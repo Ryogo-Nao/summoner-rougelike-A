@@ -10,7 +10,6 @@ describe('F-85 属性', () => {
     const strong: [Element, Element][] = [
       ['fire', 'wind'],
       ['water', 'fire'],
-      ['thunder', 'wind'],
       ['thunder', 'water'],
       ['earth', 'thunder'],
       ['wind', 'earth'],
@@ -29,6 +28,9 @@ describe('F-85 属性', () => {
     }
     expect(elementRate('fire', 'earth')).toBe(1);
     expect(elementRate('light', 'fire')).toBe(1);
+    // 雷と風は、どちらからも ×1（風の弱点は火だけ）
+    expect(elementRate('thunder', 'wind')).toBe(1);
+    expect(elementRate('wind', 'thunder')).toBe(1);
   });
 
   it('魔物の属性。シュルル・クイムシ・ドスイノは無、イヅツチは雷', () => {

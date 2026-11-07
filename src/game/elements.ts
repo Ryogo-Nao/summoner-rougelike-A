@@ -28,12 +28,14 @@ export const ELEMENT_ICON: Record<Element, string> = {
 /** 「🔥火」のように、しるしと名前。無は「無」だけ */
 export const elementText = (e: Element) => `${ELEMENT_ICON[e]}${ELEMENT_LABEL[e]}`;
 
-/** それぞれの属性が強い相手。光と闇は、おたがいに強い（おたがいの弱点） */
+/**
+ * それぞれの属性が強い相手。火→風→土→雷→水→火 と1つずつ強い。光と闇は、おたがいに強い（おたがいの弱点）
+ */
 const STRONG_AGAINST: Record<Element, readonly Element[]> = {
   none: [],
   fire: ['wind'],
   water: ['fire'],
-  thunder: ['wind', 'water'],
+  thunder: ['water'],
   earth: ['thunder'],
   wind: ['earth'],
   light: ['dark'],
