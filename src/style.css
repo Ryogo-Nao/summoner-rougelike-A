@@ -2563,8 +2563,9 @@ body {
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
   color: #eef1fa;
 }
+/* 上へずらすと、枠の中だけを見せる箱（overflow: hidden）で［閉じる］の上が切れるので、ずらさない */
 .sheet-head {
-  margin: -6px 0 0;
+  margin: 0;
   padding: 0 0 8px 4px;
   border-bottom: 1px solid rgba(230, 190, 100, 0.45);
   color: #ffe596;
