@@ -276,7 +276,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
     lookEn: 'A large mosquito-like insect with a long needle-like proboscis, thin translucent wings, a slim body with a swollen abdomen and sharp eyes.',
     colors: '黒と暗い赤の体、灰色に透ける羽、赤い目',
     colorsEn: 'black and dark crimson body, gray translucent wings and red eyes',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'tsubumaru',
