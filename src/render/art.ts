@@ -37,6 +37,7 @@ export function itemArt(kind: string): string | undefined {
 
 const ART_IDS = new Set([
   'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
+  'nemuriga', 'kuimushi', 'amigumo', 'tsubumaru', 'fuwakura', 'nurarika', 'kirigani', 'dosuino', 'tsuraragu',
   ...[...ITEM_ART].map((k) => `item_${k}`),
 ]);
 
@@ -44,7 +45,10 @@ const fileOf = (id: string) =>
   id === 'player' ? 'art/player.png' : id.startsWith('item_') ? `art/${id}.png` : `art/monster_${id}.png`;
 
 /** 顔のアイコンの絵があるもの（全身の絵から scripts/crop-face.ps1 で切り出す） */
-const FACE_IDS = new Set(['player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu']);
+const FACE_IDS = new Set([
+  'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
+  'nemuriga', 'kuimushi', 'amigumo', 'tsubumaru', 'fuwakura', 'nurarika', 'kirigani', 'dosuino', 'tsuraragu',
+]);
 
 /** 丸い枠に入れる顔。絵がなければ fallback の絵文字を文字で出す */
 export function faceElement(id: string, fallback: string): HTMLElement {

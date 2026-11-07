@@ -203,7 +203,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A large, elegant moth with broad wings patterned with crescent moons and eye-like circles, a soft fluffy body, feathery antennae and dreamy half-closed eyes.',
     colors: '薄紫と夜空の紺の羽に、銀と金の模様',
     colorsEn: 'pale lavender and night-sky navy wings with silver and gold patterns',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'kuimushi',
@@ -216,7 +216,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A bloated, segmented caterpillar with a huge round mouth lined with small teeth, faint magic-rune patterns showing through its skin, and greedy narrowed eyes.',
     colors: '毒々しい黄緑と紫の体、淡く光る青の文字',
     colorsEn: 'sickly yellow-green and purple body with faint blue glowing runes',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'amigumo',
@@ -228,7 +228,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
     lookEn: 'A spider with long jointed legs, a round abdomen marked with a web pattern, several gleaming eyes and a thin silk thread trailing behind.',
     colors: '黒い体と白い縞の脚、腹に赤い網の模様',
     colorsEn: 'black body and white-banded legs, a red web pattern on the abdomen',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'chisui',
@@ -253,7 +253,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A huge snail whose spiral shell is built from ancient ruin stones and a small broken pillar, with faded carvings, and a calm, patient face.',
     colors: '苔の緑と古い石の灰色の殻、湿った茶色の体',
     colorsEn: 'moss-green and weathered stone-gray shell with a damp brown body',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'fuwakura',
@@ -266,7 +266,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A floating translucent jellyfish with a bell like frosted glass marked with a ring pattern, long ribbon-like tentacles, and a serene expression.',
     colors: '透明な水色と乳白色、触手の先は桃色、金の輪',
     colorsEn: 'translucent aqua and milky white with pink-tipped tentacles and a gold ring pattern',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'nurarika',
@@ -278,7 +278,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
     lookEn: 'A giant squid with a long, slick body, two very long tentacles reaching forward, many curling arms with suckers and large, cold eyes.',
     colors: '深い藍と紫の体、白い吸盤',
     colorsEn: 'deep indigo and violet body with white suckers',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'kirigani',
@@ -291,7 +291,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A heavy crab with a jagged armored shell of ice with frost-cracked edges, two huge serrated pincers raised high, and small menacing eyes on stalks.',
     colors: '氷の青白と濃い青の甲羅に白い霜',
     colorsEn: 'icy pale-blue and deep-blue shell with white frost',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'dosuino',
@@ -304,7 +304,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A huge muscular boar with a bristling mane, massive curved tusks and a scarred hide, head lowered and ready to charge, with furious eyes.',
     colors: 'こげ茶と黒の毛、象牙色の牙',
     colorsEn: 'dark brown and black bristles with ivory tusks',
-    art: 'none',
+    art: 'old',
   },
   {
     id: 'tsuraragu',
@@ -317,7 +317,7 @@ export const CHARACTERS: readonly CharacterInfo[] = [
       'A towering white bear with sharp icicles growing along its back and shoulders, heavy claws, cold piercing eyes and an old, broken crown of ice on its head.',
     colors: '白い毛、透き通る氷の青のつららと冠',
     colorsEn: 'white fur with clear icy-blue icicles and crown',
-    art: 'none',
+    art: 'old',
   },
 ];
 
