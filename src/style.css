@@ -1125,6 +1125,20 @@ button {
   background: var(--paper-2);
   color: var(--muted);
 }
+/* 魔物の背景。名前の下に、細い金の線ではさんで出す */
+.status-lore {
+  margin: 0 6px 10px;
+  padding: 8px 6px;
+  border-top: 1px solid rgba(184, 140, 60, 0.55);
+  border-bottom: 1px solid rgba(184, 140, 60, 0.55);
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  white-space: pre-line;
+  color: #5a4128;
+  letter-spacing: 0.02em;
+}
 .status-table {
   display: grid;
   grid-template-columns: 76px 1fr;

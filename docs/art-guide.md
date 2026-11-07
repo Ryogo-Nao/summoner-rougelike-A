@@ -15,9 +15,75 @@
 
 ## 2. 世界観
 - 召喚士が、仲間の魔物と一緒にダンジョンに潜る。魔物は、封印すると仲間になる
-- 雰囲気は**明るく、かわいらしく、少し不思議**。こわい・グロテスクな表現はしない
+- 雰囲気は**神話的で、少し不思議**。魔物ごとの背景（2.1）によって、**神獣**（神々しく頼もしい）と**闇の獣**（少し怖く、凄みがある）の2つに描き分ける（2026-11-07 に決めた。前は「明るく、かわいらしく、こわくしない」だった）
+- グロテスクな表現（血・傷口・内臓など）はしない
 - 色は**明るい寒色**が中心（空色・水色・ミント・薄紫）。差し色に金色
 - 他の作品のキャラクターに似せない。指示の中に、他の作品の名前やキャラクター名を入れない
+
+### 2.1 絵の2つの方向と、魔物ごとの背景
+魔物ひとつひとつに背景（ひとことの物語）を付け、その背景から絵の方向を決める。背景はゲームのつよさの画面にも出す（src/game/monsters.ts の lore）。
+
+| 方向 | 合う魔物 | 見た目 | 見本 |
+|---|---|---|---|
+| **神獣**（案4） | 守り神、古いもの、神秘的なもの、召喚士を助けるもの | 白・空色・深い青に金の飾り。流れる毛並み、金の兜や紋章。静かで鋭い金の目。凛とした立ち姿 | design/art-direction/ref_divine_todoroki.webp |
+| **闇の獣**（案3を案4に寄せたもの） | 狩るもの、毒や闇を使うもの、強敵・ボス | 暗い青灰の体に、淡い空色のたてがみと金の渦の模様。にらむ金の目、牙と爪。威圧感はあるが、グロテスクにはしない | design/art-direction/ref_dark_softened.webp |
+
+- どちらも、下の「3. 絵の決まり」の輪郭線・塗り・背景の色などは同じ。神獣と闇の獣が並んでも、同じゲームの絵に見えるようにする
+- 金の差し色は、どちらにも入れる（闇の獣は少なめ）
+- 頭身：ちびキャラにはしない。弱い魔物は小さく丸めに、強い魔物ほど体が大きく、目つきが鋭くなる
+- 今の20体の絵は、前の決まり（ちびキャラ）のまま。描き直すときに、この方向で作る
+
+| 魔物 | 背景（つよさの画面に出す） | 方向 |
+|---|---|---|
+| イヅツチ | 雷雲から生まれ落ちた小さな猫、初代の召喚士とともに歩む相棒 | 神獣 |
+| チュッピ | 地下水の音を聞き分ける小さな鼠、迷宮の抜け道を誰よりも知る | 神獣 |
+| ベロッグ | 苔むした泉の番をする蛙、長い舌で近づく者を確かめる | 神獣 |
+| パタリ | 闇に溶けて群れ飛ぶ蝙蝠、羽音だけを残して血の匂いを追う | 闇の獣 |
+| ポコタケ | 洞窟の奥で淡く光る茸、その胞子は夢と現の境をぼかす | 神獣 |
+| シュルル | 岩の隙間に潜む毒蛇、音もなく近づき牙を突き立てる | 闇の獣 |
+| ガルフ | 風を切って疾走する黒狼、闇夜に紛れ獲物を狙う | 闇の獣 |
+| カブラム | 鋼の殻をまとう大蠍、迷宮の通路を縄張りとして譲らない | 闇の獣 |
+| モヤリ | 迷宮で果てた者の未練が霧となったもの、壁をすり抜け生者を誘う | 闇の獣 |
+| ヒダマリ | 地の底に陽だまりを運ぶ火蜥蜴、古の召喚士はその炎を借りたという | 神獣 |
+| ゴロム | 古の祭壇を守り続ける石の巨人、主を失ってなお務めを忘れない | 神獣 |
+| ネムリガ | 月明かりの鱗粉をまとう蛾、その羽ばたきは深い眠りを招く | 神獣 |
+| クイムシ | 魔力を喰らって肥える芋虫、召喚士の力を好んでかじる | 闇の獣 |
+| アミグモ | 通路に見えない糸を張る蜘蛛、かかった獲物は二度と逃さない | 闇の獣 |
+| チスイ | 暗がりから忍び寄る吸血の羽虫、奪った血で己の傷を癒す | 闇の獣 |
+| ツブマル | 崩れた遺跡の石を背負う大蝸牛、千年かけて迷宮を巡る | 神獣 |
+| フワクラ | 地底湖に漂う光のくらげ、裂かれても静かに元の姿へ戻る | 神獣 |
+| ヌラリカ | 冷たい水底に潜む大烏賊、触手を伸ばして獲物を引きずり込む | 闇の獣 |
+| キリガニ | 氷の甲羅を持つ大蟹、二つの鋏は凍てつく岩さえ断ち切る | 闇の獣 |
+| ドスイノ | 怒りのままに突き進む大猪、その牙は鉄の扉さえ貫く | 闇の獣 |
+| ツララグマ | 氷穴の最奥に君臨する白熊、背の氷柱は挑んだ者たちの墓標 | 闇の獣 |
+| トドロキ（イヅツチの進化、まだない） | （進化を作るときに決める） | 神獣 |
+
+- 背景は「〇〇な□□、〜する」のように、読点で区切った2つの句にする（36字まで。つよさの画面で2〜3行に収まる）
+- 新しい魔物を足すときは、先に背景を書き、そこから方向を決めてから絵を頼む
+
+### 2.2 方向ごとの指示文（案。見本の絵を添えて使う）
+**神獣**
+```
+Majestic mythical beast fantasy game art, original character design. Same style as the attached reference image.
+Subject: [魔物の説明]. Background story: [背景を英語で].
+Noble, dignified posture, calm sharp golden eyes. Ornamental gold accents (crest, armor pieces or patterns) that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Colors: white, sky blue, deep royal blue and rich gold (keep the creature's natural colors where needed).
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+**闇の獣**
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same style as the attached reference image.
+Subject: [魔物の説明]. Background story: [背景を英語で].
+Intimidating posture, piercing narrowed golden eyes, visible fangs or claws where they suit the creature. Slate blue-gray body with pale sky-blue highlights and a few gold swirl markings.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Colors: slate blue, steel gray, dark indigo, pale sky blue, with small gold accents.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
 
 ## 3. 絵の決まり（すべての絵で共通）
 

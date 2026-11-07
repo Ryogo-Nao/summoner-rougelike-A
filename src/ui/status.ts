@@ -43,6 +43,11 @@ export function statusView(
   portrait.append(artElement(card.species.id, card.species.emoji, 'status-art'));
 
   const title = nameTitle(card, onRename);
+  // 魔物の背景。名前の下に、細い金の線ではさんで出す
+  const lore = document.createElement('p');
+  lore.className = 'status-lore';
+  // 読点のところで改行して、句の途中で折り返さないようにする
+  lore.textContent = card.species.lore.replace('、', '、\n');
 
   const { name, up, down } = PERSONALITIES[card.personality];
   const next = allyExpToNext(card.exp);
@@ -90,7 +95,7 @@ export function statusView(
     dd.textContent = value;
     table.append(dt, dd);
   }
-  root.append(portrait, title, table);
+  root.append(portrait, title, lore, table);
   return root;
 }
 

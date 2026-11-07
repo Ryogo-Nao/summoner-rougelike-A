@@ -13,6 +13,7 @@ export const IZUTSUCHI: Species = {
   id: 'izutsuchi',
   name: 'イヅツチ',
   emoji: '🐈',
+  lore: '雷雲から生まれ落ちた小さな猫、初代の召喚士とともに歩む相棒',
   hp: 20,
   atk: 5,
   def: 3,
