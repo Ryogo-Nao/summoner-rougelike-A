@@ -46,7 +46,7 @@ export function renderCharactersDoc(): string {
     '<!-- このファイルは scripts/characters.ts が作る。直接書き換えず、src/game/characters.ts を直して `npm run characters` を動かす -->',
     '',
     '魔物・相棒・これから出すキャラクターの、背景と絵の決まりの一覧。背景はゲームのつよさの画面に出る。',
-    '絵の方向（神獣・闇の獣）の決まりは docs/art-guide.md 2章。',
+    '絵の方向（神獣・魔獣）の決まりは docs/art-guide.md 2章。',
     '',
     '- 直すところ：src/game/characters.ts（名前・方向・背景・見た目・絵の進み具合）',
     '- 直したら：`npm run characters` でこのファイルを作り直す（作り直し忘れは `npm test` で見つかる）',

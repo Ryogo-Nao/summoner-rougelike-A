@@ -6,7 +6,7 @@
  * このファイルは何も import しない（scripts/characters.ts から Node でそのまま読むため）
  */
 
-/** 絵の方向（docs/art-guide.md 2.1）。divine は神獣、dark は闇の獣 */
+/** 絵の方向（docs/art-guide.md 2.1）。divine は神獣、dark は魔獣 */
 export type ArtPole = 'divine' | 'dark';
 
 /** 絵の進み具合。none は絵がない（絵文字）、old は前の絵柄（ちびキャラ）の絵、draft は新しい方向の見本の絵があるがゲームに入れていない、done は新しい方向の絵がゲームに入っている */
@@ -30,7 +30,7 @@ export interface CharacterInfo {
   note?: string;
 }
 
-export const POLE_LABEL: Record<ArtPole, string> = { divine: '神獣', dark: '闇の獣' };
+export const POLE_LABEL: Record<ArtPole, string> = { divine: '神獣', dark: '魔獣' };
 export const ART_STATUS_LABEL: Record<ArtStatus, string> = {
   none: '絵なし（絵文字）',
   old: '前の絵柄（ちびキャラ）',
