@@ -1,6 +1,6 @@
 import { elementText } from '../game/elements';
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartner, type Card } from '../game/cards';
-import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemName, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemEffect, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
@@ -213,7 +213,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
       art: itemArt(item.kind),
       name: itemName(item),
       tag: state.isEquipped(item) ? '装備中' : items.length > 1 ? `×${items.length}` : undefined,
-      sub: itemDesc(item),
+      sub: itemEffect(item),
       wrap: true,
       onSelect: () => openItemSheet(state, sheet, item, after),
     };
@@ -330,7 +330,7 @@ function choiceRows(
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: label(item),
-      sub: itemDesc(item),
+      sub: itemEffect(item),
       className: on ? 'chosen' : undefined,
       onSelect: toggle,
       button: { label: on ? '✓' : '選ぶ', disabled: !on && chosen.size >= limit, onClick: toggle },
@@ -466,7 +466,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: label(item),
-      sub: itemDesc(item),
+      sub: itemEffect(item),
       button: { label: '選ぶ', onClick: () => openPotSheet(state, sheet, pot, after, back, item) },
     }));
     sheet.open('錬金釜：1つ目の装備', rows, {
@@ -506,7 +506,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
-    sub: itemDesc(item),
+    sub: itemEffect(item),
     button: {
       label: '入れ替える',
       onClick: () => {

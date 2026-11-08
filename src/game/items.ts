@@ -108,8 +108,10 @@ export interface ItemDef {
   /** 名前の読み。名前順に並べるときに使う */
   kana: string;
   emoji: string;
-  /** バッグの一覧に出す説明 */
+  /** 道具を開いたときの詳しい説明（使い方も書く） */
   desc: string;
+  /** 一覧の行に出す、効果だけの短い文（使い方は書かない）。なければ desc */
+  effect?: string;
   /** 食べると増える満腹度 */
   food?: number;
   /** 回復するHPの幅 */
@@ -155,32 +157,32 @@ export interface ItemDef {
 export const ITEMS: Record<ItemKind, ItemDef> = {
   bread: { kana: 'ぱん', name: 'パン', emoji: '🍞', desc: '満腹度+50', food: 50, value: 30 },
   bigBread: { kana: 'おおきなぱん', name: '大きなパン', emoji: '🥖', desc: '満腹度+100', food: 100, value: 70 },
-  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: 'HP+25〜35\n投げると当たった相手を回復', heal: [25, 35], value: 20 },
-  bigHerb: { kana: 'じょうやくそう', name: '上薬草', emoji: '🍀', desc: 'HP+80〜120\n投げると当たった相手を回復', heal: [80, 120], value: 80 },
-  antidote: { kana: 'どくけしそう', name: '毒消し草', emoji: '🥬', desc: '毒を治す\n投げると当たった相手の毒を治す', cure: 'poison', value: 20 },
-  kitsuke: { kana: 'きつけそう', name: 'キツケソウ', emoji: '🌼', desc: '混乱を治す\n投げると当たった相手の混乱を治す', cure: 'confusion', value: 20 },
+  herb: { kana: 'やくそう', name: '薬草', emoji: '🌿', desc: 'HP+25〜35\n投げると当たった相手を回復', effect: 'HP+25〜35', heal: [25, 35], value: 20 },
+  bigHerb: { kana: 'じょうやくそう', name: '上薬草', emoji: '🍀', desc: 'HP+80〜120\n投げると当たった相手を回復', effect: 'HP+80〜120', heal: [80, 120], value: 80 },
+  antidote: { kana: 'どくけしそう', name: '毒消し草', emoji: '🥬', desc: '毒を治す\n投げると当たった相手の毒を治す', effect: '毒を治す', cure: 'poison', value: 20 },
+  kitsuke: { kana: 'きつけそう', name: 'キツケソウ', emoji: '🌼', desc: '混乱を治す\n投げると当たった相手の混乱を治す', effect: '混乱を治す', cure: 'confusion', value: 20 },
   water: { kana: 'まりょくのみず', name: '魔力の水', emoji: '💧', desc: 'MP+15', mp: 15, value: 40 },
-  blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい', value: 30 },
-  arrow: { kana: 'ふつうのや', name: 'ふつうの矢', emoji: '🪶', desc: '向いている方向に撃つ\n通常攻撃の1.1倍のダメージ', arrow: 1.1, value: 2 },
-  ironArrow: { kana: 'てつのや', name: '鉄の矢', emoji: '🏹', desc: '向いている方向に撃つ\n通常攻撃の1.3倍のダメージ', arrow: 1.3, value: 4 },
-  sealRevive: { kana: 'ふっかつのしるし', name: '復活の印', emoji: '📜', desc: '瀕死の仲間を1人\nHP半分で戻す', seal: 'revive', value: 300 },
-  sealSummon: { kana: 'しょうかんのしるし', name: '召喚の印', emoji: '📜', desc: '仲間を1人\nMPを使わずに召喚する', seal: 'summon', value: 150 },
-  sealEscape: { kana: 'てんそうのしるし', name: '転送の印', emoji: '📜', desc: 'ダンジョンから脱出する\n道具も仲間も失わない', seal: 'escape', value: 120 },
-  sealReveal: { kana: 'せんりのしるし', name: '千里の印', emoji: '📜', desc: 'この階の地図と\n階段・道具・敵の場所がわかる', seal: 'reveal', value: 100 },
-  sealPoison: { kana: 'どくのしるし', name: '毒の印', emoji: '📜', desc: '部屋の敵をすべて毒にする\n1体ごとに10％で外れる', seal: 'poison', miss: 0.1, value: 80 },
-  sealConfuse: { kana: 'こんらんのしるし', name: '混乱の印', emoji: '📜', desc: '部屋の敵をすべて混乱させる\n1体ごとに10％で外れる', seal: 'confuse', miss: 0.1, value: 80 },
-  sealPin: { kana: 'こうちょくのしるし', name: '硬直の印', emoji: '📜', desc: '部屋の敵をすべてはりつける\n1体ごとに10％で外れる', seal: 'pin', miss: 0.1, value: 80 },
-  sealSleep: { kana: 'こんすいのしるし', name: '昏睡の印', emoji: '📜', desc: '部屋の敵をすべて眠らせる\n1体ごとに10％で外れる', seal: 'sleep', miss: 0.1, value: 80 },
-  sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', seal: 'doom', miss: 0.3, value: 250 },
-  starSleep: { kana: 'すいみんのほし', name: '睡眠の星', emoji: '⭐', desc: '食べると眠る\n投げると相手が眠る', food: 5, star: 'sleep', value: 60 },
-  starConfuse: { kana: 'こんらんのほし', name: '混乱の星', emoji: '⭐', desc: '食べると混乱する\n投げると相手が混乱', food: 5, star: 'confuse', value: 60 },
-  starPoison: { kana: 'どくのほし', name: '毒の星', emoji: '⭐', desc: '食べると毒になる\n投げると相手が毒に', food: 5, star: 'poison', value: 60 },
-  starBurst: { kana: 'さくれつのほし', name: '炸裂の星', emoji: '⭐', desc: '食べると前が爆発\n投げると20ダメージ', food: 5, star: 'burst', value: 100 },
-  starRage: { kana: 'げっこうのほし', name: '激昂の星', emoji: '⭐', desc: '10ターン攻撃2倍\n食べる・投げるで効く', food: 5, star: 'rage', value: 100 },
-  starFort: { kana: 'ようさいのほし', name: '要塞の星', emoji: '⭐', desc: '受けるダメージ60％減\n食べる・投げるで効く', food: 5, star: 'fort', value: 100 },
-  starHoly: { kana: 'せいなるほし', name: '聖なる星', emoji: '⭐', desc: '階段の部屋へ移る\n食べる・投げるで効く', food: 5, star: 'holy', value: 120 },
-  starHeal: { kana: 'いやしのほし', name: '癒しの星', emoji: '⭐', desc: '状態異常がすべて治る\n食べる・投げるで効く', food: 5, star: 'heal', value: 80 },
-  starMana: { kana: 'まりょくのほし', name: '魔力の星', emoji: '⭐', desc: '10ターンMPが回復\n食べると効く', food: 5, star: 'mana', value: 80 },
+  blank: { kana: 'はくしかーど', name: '白紙カード', emoji: '🃏', desc: '投げて魔物を封印する\n弱っている魔物ほど封印しやすい', effect: '魔物を封印する（弱っているほど成功しやすい）', value: 30 },
+  arrow: { kana: 'ふつうのや', name: 'ふつうの矢', emoji: '🪶', desc: '向いている方向に撃つ\n通常攻撃の1.1倍のダメージ', effect: '通常攻撃の1.1倍のダメージ', arrow: 1.1, value: 2 },
+  ironArrow: { kana: 'てつのや', name: '鉄の矢', emoji: '🏹', desc: '向いている方向に撃つ\n通常攻撃の1.3倍のダメージ', effect: '通常攻撃の1.3倍のダメージ', arrow: 1.3, value: 4 },
+  sealRevive: { kana: 'ふっかつのしるし', name: '復活の印', emoji: '📜', desc: '瀕死の仲間を1人\nHP半分で戻す', effect: '瀕死の仲間1人をHP半分で戻す', seal: 'revive', value: 300 },
+  sealSummon: { kana: 'しょうかんのしるし', name: '召喚の印', emoji: '📜', desc: '仲間を1人\nMPを使わずに召喚する', effect: '仲間1人をMPを使わずに召喚', seal: 'summon', value: 150 },
+  sealEscape: { kana: 'てんそうのしるし', name: '転送の印', emoji: '📜', desc: 'ダンジョンから脱出する\n道具も仲間も失わない', effect: 'ダンジョンから脱出（道具も仲間も失わない）', seal: 'escape', value: 120 },
+  sealReveal: { kana: 'せんりのしるし', name: '千里の印', emoji: '📜', desc: 'この階の地図と\n階段・道具・敵の場所がわかる', effect: 'この階の地図・階段・道具・敵がわかる', seal: 'reveal', value: 100 },
+  sealPoison: { kana: 'どくのしるし', name: '毒の印', emoji: '📜', desc: '部屋の敵をすべて毒にする\n1体ごとに10％で外れる', effect: '部屋の敵すべてを毒にする（10％で外れる）', seal: 'poison', miss: 0.1, value: 80 },
+  sealConfuse: { kana: 'こんらんのしるし', name: '混乱の印', emoji: '📜', desc: '部屋の敵をすべて混乱させる\n1体ごとに10％で外れる', effect: '部屋の敵すべてを混乱させる（10％で外れる）', seal: 'confuse', miss: 0.1, value: 80 },
+  sealPin: { kana: 'こうちょくのしるし', name: '硬直の印', emoji: '📜', desc: '部屋の敵をすべてはりつける\n1体ごとに10％で外れる', effect: '部屋の敵すべてをはりつける（10％で外れる）', seal: 'pin', miss: 0.1, value: 80 },
+  sealSleep: { kana: 'こんすいのしるし', name: '昏睡の印', emoji: '📜', desc: '部屋の敵をすべて眠らせる\n1体ごとに10％で外れる', effect: '部屋の敵すべてを眠らせる（10％で外れる）', seal: 'sleep', miss: 0.1, value: 80 },
+  sealDoom: { kana: 'はめつのしるし', name: '破滅の印', emoji: '📜', desc: '部屋の敵をすべてたおす\n1体ごとに30％で外れる', effect: '部屋の敵すべてをたおす（30％で外れる）', seal: 'doom', miss: 0.3, value: 250 },
+  starSleep: { kana: 'すいみんのほし', name: '睡眠の星', emoji: '⭐', desc: '食べると眠る\n投げると相手が眠る', effect: '眠らせる', food: 5, star: 'sleep', value: 60 },
+  starConfuse: { kana: 'こんらんのほし', name: '混乱の星', emoji: '⭐', desc: '食べると混乱する\n投げると相手が混乱', effect: '混乱させる', food: 5, star: 'confuse', value: 60 },
+  starPoison: { kana: 'どくのほし', name: '毒の星', emoji: '⭐', desc: '食べると毒になる\n投げると相手が毒に', effect: '毒にする', food: 5, star: 'poison', value: 60 },
+  starBurst: { kana: 'さくれつのほし', name: '炸裂の星', emoji: '⭐', desc: '食べると前が爆発\n投げると20ダメージ', effect: '爆発する（20ダメージ）', food: 5, star: 'burst', value: 100 },
+  starRage: { kana: 'げっこうのほし', name: '激昂の星', emoji: '⭐', desc: '10ターン攻撃2倍\n食べる・投げるで効く', effect: '10ターン攻撃2倍', food: 5, star: 'rage', value: 100 },
+  starFort: { kana: 'ようさいのほし', name: '要塞の星', emoji: '⭐', desc: '受けるダメージ60％減\n食べる・投げるで効く', effect: '受けるダメージ60％減', food: 5, star: 'fort', value: 100 },
+  starHoly: { kana: 'せいなるほし', name: '聖なる星', emoji: '⭐', desc: '階段の部屋へ移る\n食べる・投げるで効く', effect: '階段の部屋へ移る', food: 5, star: 'holy', value: 120 },
+  starHeal: { kana: 'いやしのほし', name: '癒しの星', emoji: '⭐', desc: '状態異常がすべて治る\n食べる・投げるで効く', effect: '状態異常がすべて治る', food: 5, star: 'heal', value: 80 },
+  starMana: { kana: 'まりょくのほし', name: '魔力の星', emoji: '⭐', desc: '10ターンMPが回復\n食べると効く', effect: '10ターンMPが回復', food: 5, star: 'mana', value: 80 },
   // 魔導書を読むと魔法を覚える（ずっと使える）。覚えている魔法なら、このダンジョンの間だけ＋値が上がる
   tomeFire: { kana: 'ひのまどうしょ', name: '火の魔導書', emoji: '📙', desc: 'ヒボシを強くする', spell: 'fire', value: 800 },
   tomeIce: { kana: 'こおりのまどうしょ', name: '氷の魔導書', emoji: '📔', desc: 'イテホシを覚える・強くする', spell: 'ice', value: 800 },
@@ -191,8 +193,8 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   tomeGuard: { kana: 'まもりのまどうしょ', name: '守りの魔導書', emoji: '📘', desc: 'マモリホシを覚える・強くする', spell: 'guard', value: 800 },
   tomeMagic: { kana: 'まこうのまどうしょ', name: '魔攻の魔導書', emoji: '📒', desc: 'イノリホシを覚える・強くする', spell: 'magic', value: 800 },
   tomeWard: { kana: 'まぼうのまどうしょ', name: '魔防の魔導書', emoji: '📓', desc: 'カゴホシを覚える・強くする', spell: 'ward', value: 800 },
-  fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', book: 'fusion', value: 3000 },
-  rebirthBook: { kana: 'てんせいのしょ', name: '転生の書', emoji: '📙', desc: '拠点の［配合］で\nイヅツチを転生させる', book: 'rebirth', value: 3000 },
+  fusionBook: { kana: 'はいごうのしょ', name: '配合の書', emoji: '📗', desc: '拠点の［配合］で\n仲間2体を合わせる', effect: '仲間2体を配合する', book: 'fusion', value: 3000 },
+  rebirthBook: { kana: 'てんせいのしょ', name: '転生の書', emoji: '📙', desc: '拠点の［配合］で\nイヅツチを転生させる', effect: 'イヅツチを転生させる', book: 'rebirth', value: 3000 },
   pouch: { kana: 'ふつうのふくろ', name: 'ふつうの袋', emoji: '👝', desc: '道具を2〜4個しまえる', pouch: { capacity: [2, 4] }, value: 100 },
   finePouch: { kana: 'こうきゅうなふくろ', name: '高級な袋', emoji: '👜', desc: '道具を5〜7個しまえる', pouch: { capacity: [5, 7] }, value: 300 },
   holyPouch: {
@@ -200,10 +202,11 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
     name: '聖なる袋',
     emoji: '👛',
     desc: '道具を2〜3個しまえる\n力つきても中の道具は失わない\n力つきると30％でふつうの袋に戻る',
+    effect: '道具を2〜3個しまえる　力つきても中の道具は残る（30％でふつうの袋に戻る）',
     pouch: { capacity: [2, 3], holy: true },
     value: 600,
   },
-  pot: { kana: 'れんきんがま', name: '錬金釜', emoji: '⚱️', desc: '同じ名前の装備2つを合わせて\n強くする（大きいほうの＋に＋1）', value: 300 },
+  pot: { kana: 'れんきんがま', name: '錬金釜', emoji: '⚱️', desc: '同じ名前の装備2つを合わせて\n強くする（大きいほうの＋に＋1）', effect: '同じ名前の装備2つを合わせて＋1', value: 300 },
   club: { kana: 'こんぼう', name: 'こん棒', emoji: '🏏', desc: '攻撃力+2', slot: 'weapon', bonus: 2, value: 50 },
   bronzeSword: { kana: 'どうのけん', name: '銅の剣', emoji: '🗡️', desc: '攻撃力+4', slot: 'weapon', bonus: 4, value: 150 },
   ironSword: { kana: 'てつのけん', name: '鉄の剣', emoji: '⚔️', desc: '攻撃力+7', slot: 'weapon', bonus: 7, value: 400 },
@@ -225,12 +228,12 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   windShield: { kana: 'しっぷうのたて', name: '疾風の盾', emoji: '🛡️', desc: '防御力+5　🌪️風', slot: 'shield', bonus: 5, element: 'wind', value: 280 },
   lightShield: { kana: 'ひかりのたて', name: '光の盾', emoji: '🛡️', desc: '防御力+6　🌟光', slot: 'shield', bonus: 6, element: 'light', value: 380 },
   darkShield: { kana: 'やみのたて', name: '闇の盾', emoji: '🛡️', desc: '防御力+6　🌑闇', slot: 'shield', bonus: 6, element: 'dark', value: 380 },
-  fireStaff: { kana: 'ほのおのつえ', name: '炎の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🔥火\nヒボシ・大火球の威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'fire', element: 'fire', value: 300 },
-  iceStaff: { kana: 'こおりのつえ', name: '氷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　💧水\n装備中はイテホシが使える\nイテホシの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'ice', element: 'water', value: 300 },
-  windStaff: { kana: 'かぜのつえ', name: '風の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🌪️風\n装備中はホシキリが使える\nホシキリの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'wind', element: 'wind', value: 300 },
-  thunderStaff: { kana: 'かみなりのつえ', name: '雷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　⚡雷\n装備中はホシナリが使える\nホシナリの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'thunder', element: 'thunder', value: 300 },
-  earthStaff: { kana: 'つちのつえ', name: '土の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🪨土\n装備中はホシヨビが使える\nホシヨビの威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'earth', element: 'earth', value: 300 },
-  rune: { kana: 'るーん', name: 'ルーン', emoji: '💠', desc: '拾うと持っているルーンが増える', rune: true, value: 0 },
+  fireStaff: { kana: 'ほのおのつえ', name: '炎の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🔥火\nヒボシ・大火球の威力×1.25', effect: '魔攻+3　攻撃力+1　🔥火　ヒボシ・大火球の威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'fire', element: 'fire', value: 300 },
+  iceStaff: { kana: 'こおりのつえ', name: '氷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　💧水\n装備中はイテホシが使える\nイテホシの威力×1.25', effect: '魔攻+3　攻撃力+1　💧水　イテホシが使え、威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'ice', element: 'water', value: 300 },
+  windStaff: { kana: 'かぜのつえ', name: '風の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🌪️風\n装備中はホシキリが使える\nホシキリの威力×1.25', effect: '魔攻+3　攻撃力+1　🌪️風　ホシキリが使え、威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'wind', element: 'wind', value: 300 },
+  thunderStaff: { kana: 'かみなりのつえ', name: '雷の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　⚡雷\n装備中はホシナリが使える\nホシナリの威力×1.25', effect: '魔攻+3　攻撃力+1　⚡雷　ホシナリが使え、威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'thunder', element: 'thunder', value: 300 },
+  earthStaff: { kana: 'つちのつえ', name: '土の杖', emoji: '🪄', desc: '魔攻+3　攻撃力+1　🪨土\n装備中はホシヨビが使える\nホシヨビの威力×1.25', effect: '魔攻+3　攻撃力+1　🪨土　ホシヨビが使え、威力×1.25', slot: 'weapon', bonus: 1, magic: 3, staff: 'earth', element: 'earth', value: 300 },
+  rune: { kana: 'るーん', name: 'ルーン', emoji: '💠', desc: '拾うと持っているルーンが増える', effect: '持っているルーンが増える', rune: true, value: 0 },
 };
 
 export interface Item {
@@ -270,10 +273,22 @@ export const equipMagic = (item: Item) => (ITEMS[item.kind].magic ? (ITEMS[item.
 
 /** 道具の説明。＋のある装備は、＋を足した数で出す（錬金釜で強くしても正しい数になる） */
 export function itemDesc(item: Item): string {
+  return withPlus(item, ITEMS[item.kind].desc);
+}
+
+/** 一覧の行に出す、道具の効果（使い方は書かない）。＋のある装備は、＋を足した数で出す */
+export function itemEffect(item: Item): string {
+  return withPlus(item, kindEffect(item.kind));
+}
+
+/** 種類ごとの効果（商店の品など、＋のない道具） */
+export const kindEffect = (kind: ItemKind) => ITEMS[kind].effect ?? ITEMS[kind].desc;
+
+function withPlus(item: Item, text: string): string {
   const def = ITEMS[item.kind];
-  if (!def.slot || !item.plus) return def.desc;
-  if (def.magic) return def.desc.replace(`魔攻+${def.magic}`, `魔攻+${equipMagic(item)}`);
-  return def.desc.replace(/^(攻撃力|防御力)\+\d+/, `$1+${equipBonus(item)}`);
+  if (!def.slot || !item.plus) return text;
+  if (def.magic) return text.replace(`魔攻+${def.magic}`, `魔攻+${equipMagic(item)}`);
+  return text.replace(/^(攻撃力|防御力)\+\d+/, `$1+${equipBonus(item)}`);
 }
 
 /** 杖と同じ属性の魔法の威力の倍率 */

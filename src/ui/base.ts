@@ -20,7 +20,7 @@ import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
-import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, itemCategory, itemEffect, itemName, kindEffect, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
 import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
@@ -781,7 +781,7 @@ export class BaseScreen {
       art: itemArt(item.kind),
       name,
       tag,
-      sub: itemDesc(item),
+      sub: itemEffect(item),
       wrap: true,
       button: { label, disabled, onClick: () => this.change(onClick) },
       onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
@@ -906,7 +906,7 @@ export class BaseScreen {
         art: itemArt(kind),
         name: ITEMS[kind].name,
         tag: `💠${buyPrice(kind)}`,
-        sub: ITEMS[kind].desc,
+        sub: kindEffect(kind),
         wrap: true,
         on: n > 0,
         className: blocked ? 'blocked' : undefined,
