@@ -101,8 +101,8 @@ export class BaseScreen {
   private sellCount = new Map<string, number>();
   /** 商店で最後にしたこと（「薬草を買った」など） */
   private shopNote = '';
-  /** 買う数（品ごと）と、買った物の送り先 */
-  private buyCount = new Map<ItemKind, number>();
+  /** 買う数（棚の1つずつ。キーは棚の並びの位置。どれも0か1）と、買った物の送り先 */
+  private buyCount = new Map<number, number>();
   private buyTo: Place = 'bag';
   /** 打ち込んだ数が多すぎた行。その行に「n個まで…」を赤で出す */
   private countError: string | null = null;
@@ -555,7 +555,9 @@ export class BaseScreen {
       this.dungeonView = null;
       this.render();
     });
+    // ［やめる］も［挑む］と同じ楕円の宝石で、色は赤（注意）
     const cancel = document.createElement('button');
+    cancel.className = 'danger';
     cancel.textContent = 'やめる';
     cancel.addEventListener('click', () => this.leave(() => (this.dungeonView = null)));
     buttons.append(go, cancel);
@@ -975,16 +977,21 @@ export class BaseScreen {
     this.shopNote = '';
   }
 
-  /** 買う品の一覧。それぞれ、ルーン・送り先の空き・棚の数から、あと何個まで買えるかを出す */
+  /**
+   * 買う品の一覧。棚の品を1つずつ1行に出す（薬草とパンは2つずつ並ぶので2行）。どの行も［＋］は1までで、
+   * ルーン・送り先の空き・ほかの行で選んだ分から、買えない行は暗くする
+   */
   private buyRows(p: Profile, head: HTMLElement): HTMLElement[] {
     const to = this.buyTo === 'bag' ? p.bag : p.warehouse;
     const room = (this.buyTo === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT) - to.length;
-    // 種類順（道具の表の順）に並べる
+    // 棚の1つずつに番号（棚の並びの位置）を付け、種類順（道具の表の順）に並べる
     const order = Object.keys(ITEMS);
-    const kinds = [...new Set(p.shopStock)].sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    const picked = kinds.filter((k) => (this.buyCount.get(k) ?? 0) > 0);
-    const count = picked.reduce((n, k) => n + this.buyCount.get(k)!, 0);
-    const total = picked.reduce((n, k) => n + buyPrice(k) * this.buyCount.get(k)!, 0);
+    const shelf = p.shopStock
+      .map((kind, slot) => ({ kind, slot }))
+      .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.slot - b.slot);
+    const picked = shelf.filter((s) => (this.buyCount.get(s.slot) ?? 0) > 0);
+    const count = picked.length;
+    const total = picked.reduce((n, s) => n + buyPrice(s.kind), 0);
     head.append(
       placeTabs(
         this.buyTo,
@@ -1004,35 +1011,33 @@ export class BaseScreen {
       delta: -total,
       run: () =>
         this.change(() => {
-          for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
+          for (const s of picked) buy(p, s.kind, this.buyTo);
           this.shopNote = `${count}個を買って ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
           this.buyCount.clear();
           this.countError = null;
         }),
     };
-    return kinds.map((kind) => {
-      const n = this.buyCount.get(kind) ?? 0;
-      // ほかの品で選んだ分を引いて、この品をあと何個まで買えるか
+    if (shelf.length === 0) return [note('棚は空（ダンジョンから戻ると並べ直す）')];
+    return shelf.map(({ kind, slot }) => {
+      const n = this.buyCount.get(slot) ?? 0;
+      // ほかの行で選んだ分を引いて、この行を買えるか（どの行も1つまで）
       const otherRunes = total - buyPrice(kind) * n;
       const otherCount = count - n;
-      const shelf = p.shopStock.filter((k) => k === kind).length;
-      const max = Math.max(0, Math.min(shelf, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
-      const key = `buy:${kind}`;
+      const max = Math.max(0, Math.min(1, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
+      const key = `buy:${slot}`;
       // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
-      // 棚にある数（1つ、薬草とパンは2つ）までしか［＋］を押せない。打ち込んだ数が多すぎたときは、今買える数を値段の横に赤で出す
       const error = this.countError === key;
-      const rest = error ? ` ${max}個まで` : '';
       return renderLine({
         icon: ITEMS[kind].emoji,
         art: itemArt(kind),
         name: ITEMS[kind].name,
-        tag: `💠${buyPrice(kind)}${rest}`,
+        tag: `💠${buyPrice(kind)}${error ? ` ${max}個まで` : ''}`,
         tagError: error,
         sub: kindEffect(kind),
         on: n > 0,
         className: blocked ? 'blocked' : undefined,
-        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)),
+        right: this.stepper(key, n, max, (v) => this.buyCount.set(slot, v)),
         onSelect: () => this.enter(() => (this.itemView = { kind })),
       });
     });

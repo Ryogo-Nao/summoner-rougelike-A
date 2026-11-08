@@ -3250,3 +3250,7 @@ body.fan-open::before {
 .stepper button:disabled::before {
   opacity: 0.45;
 }
+/* 確かめの窓の並び（あきらめる・ダンジョンの詳しい画面）では、赤い宝石も空色と同じ高さにする */
+.dialog-buttons button.danger {
+  height: 50px;
+}

@@ -88,8 +88,12 @@ test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => 
   const herb = rows.findIndex((t) => t.startsWith('薬草'));
   const bread = rows.findIndex((t) => t.startsWith('パン'));
   expect(bread).toBeLessThan(herb);
+  // 薬草は2つ並び、1行ずつ1つまで
+  const herbs = page.locator('#base-body .line-row', { hasText: '薬草' });
+  await expect(herbs).toHaveCount(2);
   const runes = await page.locator('#base-runes').innerText();
-  await page.locator('#base-body .line-row', { hasText: '薬草' }).locator('button', { hasText: '＋' }).click();
+  await herbs.first().locator('button', { hasText: '＋' }).click();
+  await expect(herbs.first().locator('button', { hasText: '＋' })).toBeDisabled();
   await page.locator('#base-depart').click();
   await expect(page.locator('#base-runes')).not.toHaveText(runes);
   // 持ち物は種類順
