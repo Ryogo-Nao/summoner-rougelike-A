@@ -17,7 +17,9 @@ function traits(species: Species, partner: boolean): string {
   if (partner) list.push('いかずち（2マス先に雷）');
   if (species.twoHits) list.push('1ターンに2回攻撃');
   if (species.reach) list.push(`${species.reachName ?? '舌'}で${species.reach}マス先まで攻撃`);
-  if (species.erratic) list.push('ふらふらと飛ぶ');
+  // ふらふら・鈍足は敵のときだけの弱み。仲間には出さない（balance.md 4.6）
+  if (species.mighty) list.push('攻撃力が1.5倍');
+  if (species.sturdy) list.push('受けるダメージが半分');
   if (species.phasing) list.push('壁をすり抜ける');
   if (species.special === 'spore') list.push('胞子で混乱させる');
   if (species.special === 'venom') list.push('攻撃で毒にする');
@@ -68,7 +70,7 @@ export function statusView(
     ...(card.fusions
       ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])
       : []),
-    ['速さ', SPEED_LABEL[card.species.speed]],
+    ['速さ', SPEED_LABEL[card.species.speed === 'slow' ? 'normal' : card.species.speed]],
   ];
   const rows: [string, string][] = [
     ['性格', up && down ? `${name}（${STAT_LABEL[up]}↑ ${STAT_LABEL[down]}↓）` : name],

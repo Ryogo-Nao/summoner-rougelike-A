@@ -29,7 +29,7 @@ import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } f
 import { generateFloor, randomFreePointIn } from './dungeon';
 import { dungeonById, monstersForFloor, randomItem, randomRune, type Dungeon } from './dungeons';
 import { GameMap, Tile, type Room } from './map';
-import { SPECIES, createMonster, monsterExp, type Monster, type Species } from './monsters';
+import { SPECIES, createMonster, monsterExp, type Monster, type Species, mightyAtk, sturdyDamage } from './monsters';
 import {
   ARROW_STACK,
   BAG_LIMIT,
@@ -988,7 +988,7 @@ export class GameState {
 
   /** 仲間の攻撃力。力の魔法がかかっていれば上がる（味方全体にかかる） */
   private allyAttack(a: Ally): number {
-    const atk = raged(a.card.atk, a.ailments);
+    const atk = mightyAtk(a.card.species, raged(a.card.atk, a.ailments));
     return this.player.powerTurns > 0 ? Math.round(atk * rankRate(this.rankOf('power'))) : atk;
   }
 
@@ -1716,7 +1716,7 @@ export class GameState {
    * rate は属性の倍率（raw にはもうかけてある）。よく効いた・効きにくいを出すのに使う。与えたダメージを返す
    */
   private damageMonster(m: Monster, raw: number, by: Ally | null, how: string, rate = 1): number {
-    const dmg = fortified(raw, m.ailments);
+    const dmg = sturdyDamage(m.species, fortified(raw, m.ailments));
     m.hp -= dmg;
     this.wake(m.ailments);
     m.dormant = false;
@@ -2652,7 +2652,7 @@ export class GameState {
       return;
     }
     const rate = elementRate(m.species.element, this.playerElement());
-    const dmg = this.hurtPlayer(m, rollDamage(this.rng, raged(m.atk, m.ailments), this.defensePower(), rate), how, false, rate);
+    const dmg = this.hurtPlayer(m, rollDamage(this.rng, mightyAtk(m.species, raged(m.atk, m.ailments)), this.defensePower(), rate), how, false, rate);
     this.drain(m.species, m, dmg, m.species.name);
     if (!this.dead) this.afflict(m.species, p.ailments, 'あなた', 'player', p.pos);
   }
@@ -2695,15 +2695,16 @@ export class GameState {
       return;
     }
     const rate = elementRate(m.species.element, a.card.species.element);
-    const dmg = fortified(this.guarded(rollDamage(this.rng, raged(m.atk, m.ailments), a.card.def, rate)), a.ailments);
+    const dmg = fortified(this.guarded(rollDamage(this.rng, mightyAtk(m.species, raged(m.atk, m.ailments)), a.card.def, rate)), a.ailments);
     if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃', rate)) return;
     this.drain(m.species, m, dmg, m.species.name);
     this.afflict(m.species, a.ailments, name, 'ally', a.pos);
   }
 
   /** 魔物が仲間にダメージを与える。how はログに出す攻撃の名前、rate は属性の倍率。瀕死になって召喚が解けたら false */
-  private hurtAlly(m: Monster, a: Ally, dmg: number, how: string, rate = 1): boolean {
+  private hurtAlly(m: Monster, a: Ally, raw: number, how: string, rate = 1): boolean {
     const name = cardName(a.card);
+    const dmg = sturdyDamage(a.card.species, raw);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の${how} → ${name}に${dmg}ダメージ${effectNote(rate)}`);
@@ -2748,7 +2749,7 @@ export class GameState {
       .filter((m) => this.canHitAdjacent(species, a.pos, m.pos))
       .sort((x, y) => x.hp - y.hp);
     if (adjacent.length > 0) {
-      if (species.erratic && this.rng.chance(0.5)) return;
+      // ふらふら（erratic）は敵のときだけの弱み。仲間になると外れる（balance.md 4.6）
       let target = adjacent[0];
       if (confused) {
         // まわり8方向からでたらめに選ぶ。そこに魔物がいれば当たり、いなければ空振り

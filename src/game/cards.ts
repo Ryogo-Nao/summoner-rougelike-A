@@ -178,8 +178,15 @@ function growthSteps(pace: GrowthPace, level: number): number {
  * （Lv1の値 ＋ 1レベルの伸び × 成長の型 × 成長の早さ） × 性格 ＋ 足し算の補正
  */
 export function cardStats(species: Species, level: number, personality: PersonalityId = 'sunao', bonus?: Stats, fusions = 0): Stats {
-  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus, growthRate(fusions));
+  const drawback = hasDrawback(species) ? DRAWBACK_GROWTH : 1;
+  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus, growthRate(fusions) * drawback);
 }
+
+/**
+ * 弱み（鈍足・ふらふら）のある種族か（balance.md 4.6）。仲間になると弱みは外れ、能力の伸びが DRAWBACK_GROWTH 倍になる
+ */
+export const hasDrawback = (species: Species) => species.speed === 'slow' || species.erratic === true;
+export const DRAWBACK_GROWTH = 1.2;
 
 /**
  * 敵の魔物の、あるレベルでの能力（balance.md 4.5）。Lv1は表の値そのままで、

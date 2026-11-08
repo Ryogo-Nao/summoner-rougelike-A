@@ -43,7 +43,7 @@ describe('F-85 属性', () => {
 
   it('ヒボシ（火）は、風の魔物によく効き、水の魔物には効きにくい。数字にもログにも出す', () => {
     const cases = [
-      { id: 'patari', min: 16, max: 20, note: '（よく効いた）', effect: 'strong' },
+      { id: 'nemuriga', min: 16, max: 20, note: '（よく効いた）', effect: 'strong' },
       { id: 'nurarika', min: 7, max: 9, note: '（効きにくい）', effect: 'weak' },
       { id: 'chuppi', min: 11, max: 13, note: '', effect: undefined },
     ];
