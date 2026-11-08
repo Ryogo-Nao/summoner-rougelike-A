@@ -67,7 +67,7 @@ test('F-63 冒険の準備で、上の顔を押すと連れていく仲間から
 test('F-64 配合の画面で仲間を押すと、つよさが出て、戻れる', async ({ page }) => {
   await openWithProfile(page, profileWith(4));
   await nav(page, '配合');
-  await page.locator('#base-body .sheet-row.ally .name').first().click();
+  await page.locator('#base-body .line-row.ally .name').first().click();
   await expect(page.locator('.status-view')).toBeVisible();
   await expect(page.locator('#base-depart')).toHaveText('戻る');
   await page.locator('#base-depart').click();
@@ -78,19 +78,19 @@ test('F-64 配合の画面で仲間を押すと、つよさが出て、戻れる
 test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => {
   await openWithProfile(page, profileWith(1));
   await nav(page, '商店');
-  const rows = await page.locator('#base-body .sheet-row .name').allInnerTexts();
+  const rows = await page.locator('#base-body .line-row .name').allInnerTexts();
   expect(rows.length).toBeGreaterThan(2);
   // 薬草（草）はパン（食べ物）のあと、装備より前
   const herb = rows.findIndex((t) => t.startsWith('薬草'));
   const bread = rows.findIndex((t) => t.startsWith('パン'));
   expect(bread).toBeLessThan(herb);
   const runes = await page.locator('#base-runes').innerText();
-  await page.locator('#base-body .sheet-row', { hasText: '薬草' }).locator('button', { hasText: '＋' }).click();
+  await page.locator('#base-body .line-row', { hasText: '薬草' }).locator('button', { hasText: '＋' }).click();
   await page.locator('#base-depart').click();
   await expect(page.locator('#base-runes')).not.toHaveText(runes);
   // 持ち物は種類順
   await nav(page, '冒険');
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
-  const bag = await page.locator('#base-body .search-list .sheet-row .name').allInnerTexts();
+  const bag = await page.locator('#base-body .search-list .name').allInnerTexts();
   expect(bag[0]).toMatch(/^パン/);
 });

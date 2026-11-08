@@ -855,7 +855,7 @@ button {
   gap: 3px;
 }
 /* まん中の数。押すと、じかに打ち込める */
-.sheet-row .stepper .stepper-num {
+:is(.sheet-row, .line-row) .stepper .stepper-num {
   min-width: 40px;
   width: 40px;
   height: 38px;
@@ -876,11 +876,11 @@ button {
   outline: none;
 }
 /* 打ち込んだ数が多すぎたとき */
-.sheet-row .sub.count-error {
+:is(.sheet-row, .line-row) .sub.count-error {
   color: var(--coral);
   font-weight: bold;
 }
-.sheet-row .stepper button {
+:is(.sheet-row, .line-row) .stepper button {
   min-width: 34px;
   width: 34px;
   height: 38px;
@@ -1424,12 +1424,12 @@ button {
   width: 40px;
   height: 40px;
 }
-#base-body.shop .sheet-row .stepper button:not(.stepper-num) {
+#base-body.shop :is(.sheet-row, .line-row) .stepper button:not(.stepper-num) {
   min-width: 32px;
   width: 32px;
   height: 36px;
 }
-#base-body.shop .sheet-row .stepper .stepper-num {
+#base-body.shop :is(.sheet-row, .line-row) .stepper .stepper-num {
   min-width: 34px;
   width: 34px;
   height: 36px;
@@ -1447,7 +1447,7 @@ button {
   padding: 0 4px;
 }
 /* 買えない品の［－］数［＋］は、行と一緒に暗くする */
-.sheet-row.blocked .stepper {
+:is(.sheet-row, .line-row).blocked .stepper {
   opacity: 0.75;
 }
 
@@ -2151,8 +2151,8 @@ body:has(#base:not([hidden])) {
   display: none;
 }
 /* ⑥ 小さなボタン：紺の板に金の縁（行の［出発］［倉庫へ送る］、［－］［＋］） */
-:is(#base-body.navy, #sheet-body) .sheet-row > button:not(.check),
-:is(#base-body.navy, #sheet-body) .sheet-row .stepper button:not(.stepper-num) {
+:is(#base-body.navy, #sheet-body) :is(.sheet-row, .line-row) > button:not(.check),
+:is(#base-body.navy, #sheet-body) :is(.sheet-row, .line-row) .stepper button:not(.stepper-num) {
   border-style: solid;
   border-width: 8px;
   border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
@@ -2162,8 +2162,8 @@ body:has(#base:not([hidden])) {
   color: #ffe596;
   text-shadow: 0 1px 1px #000;
 }
-:is(#base-body.navy, #sheet-body) .sheet-row > button:not(.check):disabled,
-:is(#base-body.navy, #sheet-body) .sheet-row .stepper button:not(.stepper-num):disabled {
+:is(#base-body.navy, #sheet-body) :is(.sheet-row, .line-row) > button:not(.check):disabled,
+:is(#base-body.navy, #sheet-body) :is(.sheet-row, .line-row) .stepper button:not(.stepper-num):disabled {
   border-image-source: url('./ui-art/btn-small.png');
   color: #b9bfd0;
   filter: grayscale(0.7) brightness(0.8);
@@ -2321,7 +2321,7 @@ body:has(#base:not([hidden])) {
   opacity: 1;
 }
 /* 商店：［－］［＋］のあいだの数は、紙の札に合う薄い紙の箱 */
-:is(#base-body.navy, #sheet-body) .sheet-row .stepper .stepper-num {
+:is(#base-body.navy, #sheet-body) :is(.sheet-row, .line-row) .stepper .stepper-num {
   border: 1px solid #a8834a;
   border-radius: 4px;
   background: #fffaf0;
@@ -2678,7 +2678,7 @@ body {
 }
 .line-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 44px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 46px;
@@ -2714,8 +2714,14 @@ body {
   height: 100%;
   object-fit: cover;
 }
-.line-face .face-emoji {
+.line-face .face-emoji,
+.line-face.emoji {
   font-size: 22px;
+}
+.line-face.item img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 .line-top {
   display: flex;
@@ -2732,7 +2738,7 @@ body {
   font-size: 15px;
   font-weight: 700;
 }
-.line-lv {
+.line-tag {
   flex: none;
   color: #7a5414;
   font-size: 13px;
@@ -2745,6 +2751,46 @@ body {
   white-space: nowrap;
   color: #6b5236;
   font-size: 12px;
+}
+/* 道具の説明は2行まで */
+.line-row .sub.wrap {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+/* 押すと開く行の「›」 */
+.line-go {
+  width: 20px;
+  color: #a8834a;
+  font-size: 22px;
+  text-align: center;
+}
+.line-row.dim,
+.line-row.blocked {
+  opacity: 0.5;
+}
+.line-row.blocked {
+  cursor: default;
+}
+/* 行の小さなボタン（［倉庫へ送る］［出発］など）。見た目は紺と金の共通の部品の⑥ */
+.line-row > button:not(.check) {
+  min-width: 0;
+  height: 38px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.line-row .stepper button:not(.stepper-num) {
+  min-width: 32px;
+  width: 32px;
+  height: 36px;
+}
+.line-row .stepper .stepper-num {
+  min-width: 34px;
+  width: 34px;
+  height: 36px;
 }
 /* 右の丸い印。絵は小さめ、押せる広さは 44px */
 .line-row button.check {

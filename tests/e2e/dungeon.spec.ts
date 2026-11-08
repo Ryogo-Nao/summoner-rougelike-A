@@ -39,7 +39,7 @@ test('F-67・F-70・F-71・F-72 ダンジョンに入り、動く・攻撃する
     await press(page, '#btn-bag');
     await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
   }).toPass({ timeout: 10_000 });
-  const rows = await page.locator('#sheet-body .sheet-row .name').allInnerTexts();
+  const rows = await page.locator('#sheet-body .line-row .name').allInnerTexts();
   expect(rows[0]).toMatch(/^パン/);
   expect(rows[1]).toMatch(/^薬草/);
   expect(await brokenText(page)).toEqual([]);

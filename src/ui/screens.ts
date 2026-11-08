@@ -3,7 +3,7 @@ import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartne
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
-import { Sheet, wideButton, type SheetRow, type SheetTitle } from './sheet';
+import { Sheet, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
 import { itemArt } from '../render/art';
@@ -192,16 +192,32 @@ export const SPELL_ICONS: Record<SpellId, string> = {
   bigFire: '☄️',
 };
 
-/** バッグの一覧。選ぶと、そのアイテムでできること（使う・投げる・置く）を出す */
+/**
+ * バッグの一覧。行を押すと、そのアイテムでできること（使う・投げる・置く）を出す。
+ * 同じ道具は「薬草 ×2」と1行にまとめる（拠点の持ち物・商店と同じ）。装備しているもの、＋の違う装備、中身のある袋、矢の束は分ける
+ */
 export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const p = state.player;
-  const rows: SheetRow[] = state.sorted(state.bag).map((item) => ({
-    icon: ITEMS[item.kind].emoji,
-    art: itemArt(item.kind),
-    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
-    sub: itemDesc(item),
-    button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
-  }));
+  const groups = new Map<string, Item[]>();
+  for (const item of state.sorted(state.bag)) {
+    const alone = state.isEquipped(item) || (item.contents?.length ?? 0) > 0 || item.count !== undefined;
+    const key = alone ? `#${item.id}` : `${item.kind}:${item.plus ?? 0}:${item.capacity ?? 0}`;
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else groups.set(key, [item]);
+  }
+  const rows: SheetRow[] = [...groups.values()].map((items) => {
+    const item = items[0];
+    return {
+      icon: ITEMS[item.kind].emoji,
+      art: itemArt(item.kind),
+      name: itemName(item),
+      tag: state.isEquipped(item) ? '装備中' : items.length > 1 ? `×${items.length}` : undefined,
+      sub: itemDesc(item),
+      wrap: true,
+      onSelect: () => openItemSheet(state, sheet, item, after),
+    };
+  });
   const buffs = [
     p.powerTurns > 0 ? `力${p.powerTurns}T` : '',
     p.guardTurns > 0 ? `守り${p.guardTurns}T` : '',
@@ -213,19 +229,15 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
   ]
     .filter((b) => b)
     .join('　');
-  const sort = document.createElement('div');
-  sort.className = 'sheet-pair';
-  sort.append(
-    wideButton('種類順に並べる', false, () => {
-      state.sortBag('kind');
-      openBagSheet(state, sheet, after);
-    }),
-    wideButton('名前順に並べる', false, () => {
-      state.sortBag('name');
+  // 並べ替えは拠点と同じ形のボタン。押すと種類順・名前順から選び、その場で並べ直す
+  const sort = listTools(
+    selectButton('並べ替え', ['種類順', '名前順'], -1, (i) => {
+      state.sortBag(i === 0 ? 'kind' : 'name');
       openBagSheet(state, sheet, after);
     }),
   );
   sheet.open(`バッグ ${state.bag.length}/${BAG_LIMIT}`, rows, {
+    lines: true,
     note: `攻撃力${state.attackPower()}　防御力${state.defensePower()}　魔攻${state.magicPower()}　魔防${state.magicDefense()}\n属性：攻撃 ${elementText(state.weaponElement())}　守り ${elementText(state.playerElement())}${buffs ? `\n${buffs}` : ''}`,
     header: sort,
   });

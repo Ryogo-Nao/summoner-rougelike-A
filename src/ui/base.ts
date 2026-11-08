@@ -23,9 +23,9 @@ import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
-import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect, statLines } from './screens';
+import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
 import type { Settings } from './settings';
-import { renderRow, wideButton, type SheetRow } from './sheet';
+import { lineList, listTools, renderLine, renderRow, selectButton, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement, itemArt } from '../render/art';
 
@@ -414,7 +414,7 @@ export class BaseScreen {
     }
     const st = state;
     const list = document.createElement('div');
-    list.className = 'search-list';
+    list.className = 'search-list line-list';
     const draw = () => {
       const q = searchKey(st.query);
       const hits = q ? items.filter((item) => searchKey(text(item)).includes(q)) : items;
@@ -520,7 +520,7 @@ export class BaseScreen {
     party.append(text, faces);
     const list = this.searchList('cards', p.cards, cardSearchText, '種族・ニックネーム', (card) => {
       const taking = p.hand.includes(card.id);
-      return allyLine(card, {
+      return allyRow(card, {
         on: taking,
         label: taking ? '残す' : '連れていく',
         disabled: !taking && hand.length >= HAND_LIMIT,
@@ -532,7 +532,6 @@ export class BaseScreen {
         onSelect: () => this.enter(() => (this.viewing = card)),
       });
     });
-    list.list.classList.add('line-list');
     head.append(party, listTools(list.search, this.cardSortSelect(p)));
     return [head, list.list];
   }
@@ -609,37 +608,35 @@ export class BaseScreen {
         ),
       );
     }
+    // 配合で決めるのに要るもの：性格（子の性格の確率）と、配合・転生の回数（伸び）
+    const fusionSub = (card: Card) =>
+      `${PERSONALITIES[card.personality].name}　${rebirthMode && isPartner(card) ? '転生' : '配合'}${card.fusions ?? 0}回　${elementText(card.species.element)}`;
     if (rebirthMode && partner) {
-      out.push(
-        renderRow({
-          icon: cardIcon(partner),
-          art: partner.species.id,
-          name: cardName(partner),
-          sub: `Lv${partner.level}　HP${partner.maxHp}　転生${partner.fusions ?? 0}回　${elementText(partner.species.element)}\n${statLines(partner)}\n${PERSONALITIES[partner.personality].name}`,
-          className: 'ally taking',
-          onSelect: () => this.enter(() => (this.viewing = partner)),
-        }),
-      );
+      out.push(lineList([allyRow(partner, { on: true, sub: fusionSub(partner), onSelect: () => this.enter(() => (this.viewing = partner)) })]));
     }
     const choices = p.cards.filter(canBeParent);
     if (choices.length === 0) out.push(note(`Lv${FUSION_MIN_LEVEL}以上の仲間がいない`));
-    for (const card of choices) {
-      const on = this.parents.includes(card);
+    else
       out.push(
-        allyRow(card, {
-          on,
-          label: on ? 'やめる' : '選ぶ',
-          disabled: !on && this.parents.length >= need,
-          onToggle: () => {
-            this.parents = on ? this.parents.filter((c) => c !== card) : [...this.parents, card];
-            this.childFrom = 0;
-            this.fusionNote = '';
-            this.render(true);
-          },
-          onSelect: () => this.enter(() => (this.viewing = card)),
-        }),
+        lineList(
+          choices.map((card) => {
+            const on = this.parents.includes(card);
+            return allyRow(card, {
+              on,
+              label: on ? 'やめる' : '選ぶ',
+              disabled: !on && this.parents.length >= need,
+              sub: fusionSub(card),
+              onToggle: () => {
+                this.parents = on ? this.parents.filter((c) => c !== card) : [...this.parents, card];
+                this.childFrom = 0;
+                this.fusionNote = '';
+                this.render(true);
+              },
+              onSelect: () => this.enter(() => (this.viewing = card)),
+            });
+          }),
+        ),
       );
-    }
     return out;
   }
 
@@ -735,6 +732,10 @@ export class BaseScreen {
     const full = bag ? p.warehouse.length >= WAREHOUSE_LIMIT : p.bag.length >= BAG_LIMIT;
     const head = document.createElement('div');
     head.className = 'base-sort';
+    const sort = this.sortSelect((by) => {
+      if (bag) p.bag = sortStock(p.bag, by);
+      else p.warehouse = sortStock(p.warehouse, by);
+    });
     head.append(
       placeTabs(
         this.itemPlace,
@@ -744,40 +745,44 @@ export class BaseScreen {
           this.render();
         },
       ),
-      this.sortSelect((by) => {
-        if (bag) p.bag = sortStock(p.bag, by);
-        else p.warehouse = sortStock(p.warehouse, by);
-      }),
     );
     // 選んでいる並べ方で出す（あとから入れた道具も、その並びに入る）
     const groups = groupItems(sortStock(from, this.itemSort));
-    if (groups.length === 0) return [head, note(bag ? 'バッグは空' : '倉庫は空')];
+    if (groups.length === 0) {
+      head.append(listTools(sort));
+      return [head, note(bag ? 'バッグは空' : '倉庫は空')];
+    }
     const list = this.searchList(
       this.itemPlace,
       groups,
       (g) => `${g.name} ${ITEMS[g.items[0].kind].kana} ${itemCategory(g.items[0].kind)}`,
-      '名前・種類（印・星など）で探す',
+      '名前・種類',
       (g) => {
         const first = g.items[0];
         // 矢は本数を足して出す
-        const name = ITEMS[first.kind].arrow
-          ? `${ITEMS[first.kind].name}（${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本）`
-          : `${g.name}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`;
-        return this.itemRow(first, bag ? '倉庫へ送る' : 'バッグへ入れる', full, () => move(first, from, to), name);
+        const tag = ITEMS[first.kind].arrow
+          ? `${g.items.reduce((n, i) => n + (i.count ?? 0), 0)}本`
+          : g.items.length > 1
+            ? `×${g.items.length}`
+            : undefined;
+        const name = ITEMS[first.kind].arrow ? ITEMS[first.kind].name : g.name;
+        return this.itemRow(first, bag ? '倉庫へ送る' : 'バッグへ入れる', full, () => move(first, from, to), name, tag);
       },
     );
-    head.append(list.search);
+    head.append(listTools(list.search, sort));
     return [head, list.list];
   }
 
-  private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item)): HTMLElement {
+  private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item), tag?: string): HTMLElement {
     const pouch = ITEMS[item.kind].pouch !== undefined;
     // 袋は押すと中を見られる
-    return renderRow({
+    return renderLine({
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name,
+      tag,
       sub: itemDesc(item),
+      wrap: true,
       button: { label, disabled, onClick: () => this.change(onClick) },
       onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
     });
@@ -788,18 +793,21 @@ export class BaseScreen {
     const contents = pouch.contents ?? [];
     const room = contents.length < (pouch.capacity ?? 0);
     const holy = ITEMS[pouch.kind].pouch?.holy ? '\n力つきても中の道具は失わない' : '';
+    const inside = sortItems(contents, 'kind').map((item) =>
+      this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => {
+        pouch.contents = contents.filter((i) => i !== item);
+        p.bag.push(item);
+      }),
+    );
+    // バッグの道具は、持ち物と同じく同じ道具を1行にまとめる（［しまう］は1つずつ）
+    const outside = groupItems(sortItems(p.bag, 'kind').filter((i) => i !== pouch && !ITEMS[i.kind].pouch)).map((g) =>
+      this.itemRow(g.items[0], 'しまう', !room, () => move(g.items[0], p.bag, contents), g.name, g.items.length > 1 ? `×${g.items.length}` : undefined),
+    );
     return [
       withArt(note(`${itemName(pouch)}${holy}`, 'base-section'), inlineArt(itemArt(pouch.kind), ITEMS[pouch.kind].emoji)),
-      ...sortItems(contents, 'kind').map((item) =>
-        this.itemRow(item, 'バッグへ', p.bag.length >= BAG_LIMIT, () => {
-          pouch.contents = contents.filter((i) => i !== item);
-          p.bag.push(item);
-        }),
-      ),
+      inside.length > 0 ? lineList(inside) : note('袋は空'),
       note('バッグからしまう', 'base-section'),
-      ...sortItems(p.bag, 'kind')
-        .filter((i) => i !== pouch && !ITEMS[i.kind].pouch)
-        .map((item) => this.itemRow(item, 'しまう', !room, () => move(item, p.bag, contents))),
+      outside.length > 0 ? lineList(outside) : note('しまえる道具がない'),
     ];
   }
 
@@ -836,7 +844,9 @@ export class BaseScreen {
     }
     head.append(modes);
     const done = this.shopNote ? [note(this.shopNote, 'done-note')] : [];
-    return [head, ...done, ...(this.shopMode === 'buy' ? this.buyRows(p, head) : this.sellRows(p, head))];
+    const rows = this.shopMode === 'buy' ? this.buyRows(p, head) : this.sellRows(p, head);
+    const list = rows.length > 0 && rows.every((r) => r.classList.contains('line-row')) ? [lineList(rows)] : rows;
+    return [head, ...done, ...list];
   }
 
   /** 選んでいる数と、知らせを消す */
@@ -891,12 +901,15 @@ export class BaseScreen {
       const key = `buy:${kind}`;
       // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
-      const row = renderRow({
+      const row = renderLine({
         icon: ITEMS[kind].emoji,
         art: itemArt(kind),
-        name: `${ITEMS[kind].name} 💠${buyPrice(kind)}`,
+        name: ITEMS[kind].name,
+        tag: `💠${buyPrice(kind)}`,
         sub: ITEMS[kind].desc,
-        className: blocked ? 'blocked' : n > 0 ? 'chosen' : undefined,
+        wrap: true,
+        on: n > 0,
+        className: blocked ? 'blocked' : undefined,
       });
       // 数に限りのある品（入れ替わる品）だけ、棚にある数を出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
       if (this.countError === key) countLine(row, `${max}個まで買える`, true);
@@ -942,12 +955,14 @@ export class BaseScreen {
       const max = g.items.length;
       const why = ITEMS[first.kind].pouch && (first.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
       const key = `sell:${g.key}`;
-      const row = renderRow({
+      const row = renderLine({
         icon: ITEMS[first.kind].emoji,
         art: itemArt(first.kind),
-        name: `${g.name}${max > 1 ? `　×${max}` : ''}`,
+        name: g.name,
+        tag: max > 1 ? `×${max}` : undefined,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
-        className: !ok ? 'blocked' : n > 0 ? 'chosen' : undefined,
+        on: n > 0,
+        className: !ok ? 'blocked' : undefined,
         button: ok ? undefined : { label: '売れない', disabled: true, onClick: () => {} },
       });
       if (ok) countLine(row, `${max}個まで売れる`, this.countError === key);
@@ -1137,107 +1152,33 @@ function countLine(row: HTMLElement, text: string, error: boolean): void {
 }
 
 /**
- * 仲間の1行。説明は2行（Lv・HP・MP／攻撃・防御・性格）にそろえる。
- * onToggle があれば右に丸い印を置き、印を押すと onToggle。行を押すと onSelect
+ * 仲間の1行（1行の形）。名前と Lv を大きく、その下に sub（なければ HP と属性）を小さく出す。
+ * onToggle があれば右に丸い印を置き、印を押すと onToggle。行を押すと onSelect（つよさ）
  */
 function allyRow(
   card: Card,
-  opts: { on: boolean; label?: string; disabled?: boolean; onToggle?: () => void; onSelect?: () => void },
+  opts: { on: boolean; label?: string; disabled?: boolean; onToggle?: () => void; onSelect?: () => void; sub?: string },
 ): HTMLElement {
-  const row = renderRow({
+  let right: HTMLElement | undefined;
+  if (opts.onToggle) {
+    const check = document.createElement('button');
+    check.className = opts.on ? 'check on' : 'check';
+    check.setAttribute('aria-label', opts.label ?? '');
+    check.disabled = opts.disabled ?? false;
+    check.addEventListener('click', opts.onToggle);
+    right = check;
+  }
+  return renderLine({
     icon: cardIcon(card),
-    art: card.species.id,
+    face: card.species.id,
     name: cardName(card),
-    sub: `Lv${card.level}　HP${card.maxHp}　MP${card.species.cost}　${elementText(card.species.element)}\n${statLines(card)}\n${PERSONALITIES[card.personality].name}`,
-    className: opts.on ? 'ally taking' : 'ally',
+    tag: `Lv${card.level}`,
+    sub: opts.sub ?? `HP${card.maxHp}　${elementText(card.species.element)}`,
+    on: opts.on,
+    className: 'ally',
+    right,
     onSelect: opts.onSelect,
   });
-  if (!opts.onToggle) return row;
-  const check = document.createElement('button');
-  check.className = opts.on ? 'check on' : 'check';
-  check.setAttribute('aria-label', opts.label ?? '');
-  check.disabled = opts.disabled ?? false;
-  check.addEventListener('click', opts.onToggle);
-  row.append(check);
-  return row;
-}
-
-/**
- * 一覧の1行（UIレビュー①②）。飾りの札にせず、紙の上を細い線で区切った行にする。
- * 左に顔、まん中に名前と Lv（大きく）、その下に HP と属性（小さく）。右の丸い印で連れていく・残すを切り替える。行を押すとつよさ
- */
-function allyLine(
-  card: Card,
-  opts: { on: boolean; label: string; disabled: boolean; onToggle: () => void; onSelect: () => void },
-): HTMLElement {
-  const row = document.createElement('div');
-  row.className = opts.on ? 'line-row taking' : 'line-row';
-  const face = document.createElement('span');
-  face.className = 'line-face';
-  face.append(faceElement(card.species.id, cardIcon(card)));
-  const top = document.createElement('div');
-  top.className = 'line-top';
-  const name = document.createElement('span');
-  name.className = 'name';
-  name.textContent = cardName(card);
-  const lv = document.createElement('span');
-  lv.className = 'line-lv';
-  lv.textContent = `Lv${card.level}`;
-  top.append(name, lv);
-  const sub = document.createElement('div');
-  sub.className = 'sub';
-  sub.textContent = `HP${card.maxHp}　${elementText(card.species.element)}`;
-  const text = document.createElement('div');
-  text.className = 'line-text';
-  text.append(top, sub);
-  const check = document.createElement('button');
-  check.className = opts.on ? 'check on' : 'check';
-  check.setAttribute('aria-label', opts.label);
-  check.disabled = opts.disabled;
-  check.addEventListener('click', opts.onToggle);
-  row.append(face, text, check);
-  row.addEventListener('click', (e) => {
-    if (!(e.target instanceof Element && e.target.closest('button'))) opts.onSelect();
-  });
-  return row;
-}
-
-/** 検索の欄と並べ替えのボタンを1行に並べる */
-function listTools(search: HTMLElement, sort: HTMLElement): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'list-tools';
-  box.append(search, sort);
-  return box;
-}
-
-/**
- * 「⇅ 種類順 ▾」の形の並べ替えのボタン。押すと options から選べる（iPhone では下に選ぶ輪が出る）。
- * current が -1 のときは、どれも選んでいない（選ぶと onPick）
- */
-function selectButton(text: string, options: string[], current: number, onPick: (index: number) => void): HTMLElement {
-  const box = document.createElement('label');
-  box.className = 'sort-select';
-  const label = document.createElement('span');
-  label.textContent = `⇅ ${text}`;
-  const select = document.createElement('select');
-  select.setAttribute('aria-label', '並べ替え');
-  if (current < 0) {
-    const none = document.createElement('option');
-    none.textContent = '並べ替え';
-    none.disabled = true;
-    none.selected = true;
-    select.append(none);
-  }
-  options.forEach((t, i) => {
-    const o = document.createElement('option');
-    o.value = String(i);
-    o.textContent = t;
-    o.selected = i === current;
-    select.append(o);
-  });
-  select.addEventListener('change', () => onPick(Number(select.value)));
-  box.append(label, select);
-  return box;
 }
 
 /** 検索で比べる形。全角・半角をそろえ、ひらがなはカタカナに、英字は小文字にする */
