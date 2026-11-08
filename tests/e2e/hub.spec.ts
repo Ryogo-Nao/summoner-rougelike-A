@@ -1,6 +1,6 @@
 // 拠点の画面（F-60）と、見た目の決まり（N-01・N-02・N-08・N-10）、起動の速さ（P-07）
 import { expect, test } from '@playwright/test';
-import { brokenText, collectErrors, nav, openWithProfile, overflow, profileWith } from './helpers';
+import { brokenText, collectErrors, nav, openPrep, openWithProfile, overflow, profileWith } from './helpers';
 
 const TABS: [string, string][] = [
   ['冒険', '冒険の準備'],
@@ -8,14 +8,14 @@ const TABS: [string, string][] = [
   ['配合', '配合'],
   ['商店', '商店'],
   ['その他', 'その他'],
-  ['拠点', '召喚士'],
+  ['拠点', '拠点'],
 ];
 
 test('P-07 ページを開いてから拠点が出るまで3秒以内', async ({ page }) => {
   const start = Date.now();
   await page.goto('/');
   await expect(page.locator('#base')).toBeVisible();
-  await expect(page.locator('#base-title')).toContainText('召喚士');
+  await expect(page.locator('#base-title')).toContainText('拠点');
   const ms = Date.now() - start;
   console.log(`[性能] 拠点が出るまで ${ms}ms`);
   expect(ms).toBeLessThan(3000);
@@ -30,7 +30,7 @@ test('F-60・N-02・N-10 下のタブで画面を移れて、エラーや壊れ�
     expect(await brokenText(page), label).toEqual([]);
   }
   // 冒険の準備の持ち物、商店の売る、その他の設定も開く
-  await nav(page, '冒険');
+  await openPrep(page);
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
   await nav(page, '商店');
   await page.locator('#base-body button', { hasText: '売る' }).click();
@@ -48,7 +48,7 @@ for (const width of [375, 390, 430]) {
       await nav(page, label);
       expect(await overflow(page), `${label}（${width}px）`).toEqual([]);
     }
-    await nav(page, '冒険');
+    await openPrep(page);
     await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
     expect(await overflow(page), `持ち物（${width}px）`).toEqual([]);
   });

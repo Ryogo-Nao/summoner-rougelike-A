@@ -226,7 +226,7 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | 拠点トップ：メニューの札 | src/ui-art/menu.png | 木の縁に真ちゅうの金具。slice 56（表示は 18px） |
 | 知らせ：NEW のリボン | src/ui-art/ribbon.png | 札とタブの右上の角に掛ける |
 | 拠点の背景：村の一枚絵 | src/ui-art/village.jpg（768×1376） | 縦長。画面いっぱいに敷く（cover）。真ん中の広場に主人公を重ねる |
-| 拠点トップ：冒険の準備の看板・［GO!］ | src/ui-art/signboard.png（鎖ごと 704×487、板は下の 302）・go.png（羽の付いた玉） | 看板は伸ばさず、下の端にそろえて出す。見える鎖の長さは高さに合わせて変える。文字は絵ではなく、上に重ねる。［GO!］のまわりの緑がかった光は抜き、光は CSS で付ける |
+| 拠点トップ：冒険の準備の看板 | src/ui-art/signboard.png（鎖ごと 704×487、板は下の 302）。羽の付いた［GO!］の玉（go.png）は 2026-11-08 にやめた | 看板は伸ばさず、下の端にそろえて出す。見える鎖の長さは高さに合わせて変える。文字は絵ではなく、上に重ねる。［GO!］のまわりの緑がかった光は抜き、光は CSS で付ける |
 | 下のタブ：帯・枠 | src/ui-art/tabbar.png・tab-off.png（選んでいない）・tab-sel.png（選んでいる） | 帯は slice 40 30 20 |
 | 見出し：名前の札 | src/ui-art/topplate.png | 紺の板に金の縁。slice 26 |
 | 見出し：ルーンの札 | src/ui-art/runeplate.png | 左右がひし形の金の飾り。札の大きさに合わせて伸ばす |
@@ -250,7 +250,6 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | ファイル | 字体 | 使うところ |
 |---|---|---|
 | hub-fantasy.woff2 | しっぽり明朝 B1（ExtraBold） | 看板の「冒険の準備」 |
-| hub-display.woff2 | Dela Gothic One | ［GO!］ |
 | hub-antique.woff2 | Zen Antique | ［商店］［記録］［配合］（色は明るい黄色から金） |
 | hub-ui.woff2 | Zen Kaku Gothic New（Black） | 見出しの名前とルーン・名札・Lv・下のタブ・知らせの「！」 |
 

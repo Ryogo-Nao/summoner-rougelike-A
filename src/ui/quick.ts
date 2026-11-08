@@ -74,6 +74,8 @@ export function setupQuick(button: HTMLElement, handlers: QuickHandlers): void {
       }),
     );
     fan.hidden = false;
+    // 扇を出している間は、まわり（マップ・ログ）を少し暗くする
+    document.body.classList.add('fan-open');
   };
 
   const close = () => {
@@ -83,6 +85,7 @@ export function setupQuick(button: HTMLElement, handlers: QuickHandlers): void {
     open = false;
     hover = null;
     fan.hidden = true;
+    document.body.classList.remove('fan-open');
     button.classList.remove('pressed');
   };
 

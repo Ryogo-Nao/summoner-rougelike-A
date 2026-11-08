@@ -1,6 +1,6 @@
 // 拠点の一覧（F-61〜F-66）と、文字を打つ欄の大きさ（N-07）
 import { expect, test } from '@playwright/test';
-import { collectErrors, nav, openWithProfile, profileWith } from './helpers';
+import { collectErrors, nav, openPrep, openWithProfile, profileWith } from './helpers';
 
 const names = (page: import('@playwright/test').Page) => page.locator('#base-body .search-list .name').allInnerTexts();
 
@@ -10,7 +10,7 @@ test('F-61 仲間の一覧はページに分けずスクロールする。冒険
   await nav(page, '仲間');
   expect((await names(page)).length).toBe(25);
   await expect(page.locator('.pager')).toHaveCount(0);
-  await nav(page, '冒険');
+  await openPrep(page);
   expect((await names(page)).length).toBe(25);
   const seen = await page.evaluate(() => {
     const body = document.getElementById('base-body')!.getBoundingClientRect();
@@ -36,7 +36,7 @@ test('F-62 検索：ひらがな・ニックネーム・道具の種類で探せ
   await box.fill('ずずず');
   await expect(page.locator('.search-list')).toContainText('見つからない');
   // 道具：倉庫で「いん」と打つと印が出る
-  await nav(page, '冒険');
+  await openPrep(page);
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
   await page.locator('.place-tabs button', { hasText: '倉庫' }).click();
   await page.locator('.list-search input').fill('いん');
@@ -57,7 +57,7 @@ test('N-07 検索の欄の字は16px 以上', async ({ page }) => {
 
 test('F-63 冒険の準備で、上の顔を押すと連れていく仲間から外れる', async ({ page }) => {
   await openWithProfile(page, profileWith(5, { hand: [1, 2, 3, 4] }));
-  await nav(page, '冒険');
+  await openPrep(page);
   await expect(page.locator('.party-count')).toHaveText('4 / 5');
   await page.locator('.party-faces .face.tap').nth(1).click();
   await expect(page.locator('.party-count')).toHaveText('3 / 5');
@@ -89,7 +89,7 @@ test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => 
   await page.locator('#base-depart').click();
   await expect(page.locator('#base-runes')).not.toHaveText(runes);
   // 持ち物は種類順
-  await nav(page, '冒険');
+  await openPrep(page);
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
   const bag = await page.locator('#base-body .search-list .name').allInnerTexts();
   expect(bag[0]).toMatch(/^パン/);
@@ -98,7 +98,7 @@ test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => 
 test('F-88 道具の行はどれも同じ高さ。行を押すと説明が出て、戻れる', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 664 });
   await openWithProfile(page, profileWith(1));
-  await nav(page, '冒険');
+  await openPrep(page);
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
   await page.locator('.place-tabs button', { hasText: '倉庫' }).click();
   const heights = () =>
@@ -112,4 +112,27 @@ test('F-88 道具の行はどれも同じ高さ。行を押すと説明が出て
   // 商店も同じ高さ。値段の横に残りの数
   await nav(page, '商店');
   expect(await heights()).toHaveLength(1);
+});
+
+test('F-90 冒険はダンジョンを選ぶところから。選ぶと仲間の準備へ進み、「‹」で選び直せる。仲間の画面でも連れていく仲間を切り替えられる', async ({ page }) => {
+  await openWithProfile(page, profileWith(3, { hand: [1] }));
+  await expect(page.locator('#base-title')).toHaveText('拠点');
+  await expect(page.locator('.hub-sign-go')).toHaveCount(0);
+  await nav(page, '冒険');
+  await expect(page.locator('#base-tabs')).toBeHidden();
+  await expect(page.locator('#base-depart')).toBeHidden();
+  await page.locator('#base-body .sheet-row', { hasText: 'ささやきの森' }).locator('button', { hasText: '選ぶ' }).click();
+  await expect(page.locator('#base-tabs')).toBeVisible();
+  await expect(page.locator('#base-depart')).toHaveText('ささやきの森へ出発');
+  // ほかのタブへ移って戻っても、選んだダンジョンは覚えている
+  await nav(page, '商店');
+  await nav(page, '冒険');
+  await expect(page.locator('#base-depart')).toHaveText('ささやきの森へ出発');
+  await page.locator('#base-back').click();
+  await expect(page.locator('#base-tabs')).toBeHidden();
+  // 仲間の画面の丸い印で、連れていく・残すを切り替える
+  await nav(page, '仲間');
+  await expect(page.locator('#base-body .allies-count')).toContainText('連れていく 1/5');
+  await page.locator('#base-body button.check:not(.on)').first().click();
+  await expect(page.locator('#base-body .allies-count')).toContainText('連れていく 2/5');
 });

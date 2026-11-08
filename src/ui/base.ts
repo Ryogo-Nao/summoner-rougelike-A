@@ -38,8 +38,9 @@ type OtherMode = 'records' | 'settings';
 /** 道具を置く場所 */
 type Place = 'bag' | 'warehouse';
 
-/** 見出し（拠点のトップは「初代 召喚士」） */
-const VIEW_TITLE: Record<Exclude<View, 'hub'>, string> = {
+/** 見出し（左上の札）。どの画面も画面の名前。「初代 召喚士」はトップのまん中の名札に出す */
+const VIEW_TITLE: Record<View, string> = {
+  hub: '拠点',
   prep: '冒険の準備',
   allies: '仲間',
   fusion: '配合',
@@ -69,7 +70,7 @@ export class BaseScreen {
   private readonly root = document.getElementById('base')!;
   private readonly body = document.getElementById('base-body')!;
   private readonly depart = document.getElementById('base-depart')!;
-  private readonly tabs = [...document.querySelectorAll<HTMLButtonElement>('#base-tabs button')];
+  private readonly tabs = [...document.querySelectorAll<HTMLButtonElement>('#base-tabs button[data-tab]')];
   private readonly tabBar = document.getElementById('base-tabs')!;
   private readonly title = document.getElementById('base-title')!;
   /** 下のタブのボタン（画面ごと） */
@@ -86,8 +87,11 @@ export class BaseScreen {
   private viewing: Card | null = null;
   /** 中を見ている袋（バッグか倉庫にある）。null なら一覧を出す */
   private pouch: Item | null = null;
-  /** ダンジョンを選んでいるところ */
-  private choosing = false;
+  /**
+   * 冒険で挑むダンジョン。冒険はダンジョンを選ぶところから始め（null）、選ぶと仲間と持ち物の準備へ進む。
+   * 拠点にいる間は覚えておき、ダンジョンから戻ったら選び直す
+   */
+  private dungeonId: string | null = null;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
   private sellFrom: Place = 'bag';
@@ -130,16 +134,22 @@ export class BaseScreen {
     this.dialog = dialog;
     this.settings = settings;
     this.onSettings = onSettings;
-    // 下のボタン。冒険の準備の一覧では［ダンジョンに向かう］、つよさ・袋の中・ダンジョンの一覧では［戻る］。
-    // 商店では［購入する］［売却する］
+    // 下のボタン。冒険の準備では［〇〇へ出発］、つよさ・袋の中・道具の説明では［戻る］。商店では［n個を買う］［n個を売る］
     this.depart.addEventListener('click', () => {
       if (!this.profile) return;
       if (this.itemView) this.leave(() => (this.itemView = null));
       else if (this.view === 'shop') this.shopAction?.run();
       else if (this.viewing) this.leave(() => (this.viewing = null));
       else if (this.pouch) this.leave(() => (this.pouch = null));
-      else if (this.choosing) this.leave(() => (this.choosing = false));
-      else this.enter(() => (this.choosing = true));
+      else if (this.dungeonId) this.onDepart(this.dungeonId);
+    });
+    // 冒険の準備の「‹」：ダンジョンを選び直す
+    document.getElementById('base-back')!.addEventListener('click', () => {
+      this.dungeonId = null;
+      this.viewing = null;
+      this.itemView = null;
+      this.pouch = null;
+      this.render();
     });
     for (const button of this.tabs) {
       button.addEventListener('click', () => {
@@ -147,7 +157,6 @@ export class BaseScreen {
         this.viewing = null;
         this.itemView = null;
         this.pouch = null;
-        this.choosing = false;
         this.render();
       });
     }
@@ -183,7 +192,6 @@ export class BaseScreen {
     this.viewing = null;
     this.itemView = null;
     this.pouch = null;
-    this.choosing = false;
     this.clearShop();
     this.parents = [];
     this.fusionNote = '';
@@ -194,6 +202,7 @@ export class BaseScreen {
   /** 戻ってきたときの知らせ（失ったものなど）は、終わりの知らせの窓で出すので、拠点には出さない */
   open(profile: Profile): void {
     this.profile = profile;
+    this.dungeonId = null;
     this.root.hidden = false;
     setBarColor(BAR_BASE);
     this.go('hub');
@@ -252,12 +261,14 @@ export class BaseScreen {
       const mark = this.badgeOf(p, view);
       if (mark) b.append(mark);
     }
-    const prep = this.view === 'prep';
-    const inside = this.viewing !== null || this.pouch !== null || this.choosing || this.itemView !== null;
-    this.title.textContent = this.view === 'hub' ? `${generationName(p.generation)} 召喚士` : VIEW_TITLE[this.view];
+    // 冒険は、ダンジョンを選んでから（choosing）仲間と持ち物の準備（prep）へ
+    const choosing = this.view === 'prep' && this.dungeonId === null;
+    const prep = this.view === 'prep' && !choosing;
+    const inside = this.viewing !== null || this.pouch !== null || this.itemView !== null;
+    this.title.textContent = VIEW_TITLE[this.view];
     this.tabBar.hidden = !prep;
-    // 下のボタン：冒険では［ダンジョンに向かう］［戻る］、商店では［購入する］［売却する］、仲間と配合ではつよさを見ているときの［戻る］
-    this.depart.hidden = !prep && this.view !== 'shop' && !((this.view === 'allies' || this.view === 'fusion') && inside);
+    // 下のボタン：冒険の準備では［〇〇へ出発］か［戻る］、商店では［n個を買う］［n個を売る］、ほかの画面ではつよさ・説明を見ているときの［戻る］
+    this.depart.hidden = !prep && this.view !== 'shop' && !inside;
     this.root.classList.toggle('on-hub', this.view === 'hub');
     this.body.classList.toggle('hub', this.view === 'hub');
     this.body.classList.toggle('navy', NAVY_VIEWS.includes(this.view));
@@ -281,7 +292,7 @@ export class BaseScreen {
       );
     } else if (this.view === 'fusion') {
       children.push(...this.fusionRows(p));
-    } else if (this.choosing) {
+    } else if (choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.pouch) {
       children.push(...this.pouchRows(p, this.pouch));
@@ -294,7 +305,7 @@ export class BaseScreen {
     document.getElementById('base-runes')!.replaceChildren(uiImage('ui_rune', 'rune-gem'), `${p.runes}`);
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
-    this.depart.textContent = inside ? '戻る' : 'ダンジョンに向かう';
+    this.depart.textContent = inside ? '戻る' : this.dungeonId ? `${dungeonById(this.dungeonId).name}へ出発` : '';
     this.depart.classList.toggle('back', inside);
     (this.depart as HTMLButtonElement).disabled = false;
     if (this.view === 'shop' && this.shopAction && !this.itemView) {
@@ -338,8 +349,7 @@ export class BaseScreen {
     stage.className = 'hub-stage';
     stage.append(artElement('player', '🧙', 'hub-art'));
     hero.append(stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
-    // 鎖で吊るした［冒険の準備］の看板。板のどこを押しても冒険の準備へ（［GO!］は飾り）。
-    // 文字と［GO!］は板の中で上下のまん中にそろえる
+    // 鎖で吊るした［冒険の準備］の看板。板のどこを押しても冒険へ（ダンジョンを選ぶところから）
     const sign = document.createElement('div');
     sign.className = 'hub-sign';
     const plate = document.createElement('button');
@@ -347,13 +357,7 @@ export class BaseScreen {
     const signTitle = document.createElement('span');
     signTitle.className = 'hub-sign-title gold-text';
     signTitle.textContent = '冒険の準備';
-    const go = document.createElement('span');
-    go.className = 'hub-sign-go';
-    const goText = document.createElement('span');
-    goText.className = 'go-text';
-    goText.textContent = 'GO!';
-    go.append(goText);
-    plate.append(signTitle, go);
+    plate.append(signTitle);
     plate.addEventListener('click', () => this.go('prep'));
     sign.append(plate);
     /** icon は public/art/ui_hub_<icon>.png */
@@ -392,9 +396,20 @@ export class BaseScreen {
   private alliesRows(p: Profile): HTMLElement[] {
     const head = document.createElement('div');
     head.className = 'base-sort';
-    const list = this.searchList('allies', p.cards, cardSearchText, '種族・ニックネーム', (card) =>
-      allyRow(card, { on: p.hand.includes(card.id), onSelect: () => this.enter(() => (this.viewing = card)) }),
-    );
+    const list = this.searchList('allies', p.cards, cardSearchText, '種族・ニックネーム', (card) => {
+      const taking = p.hand.includes(card.id);
+      return allyRow(card, {
+        on: taking,
+        label: taking ? '残す' : '連れていく',
+        disabled: !taking && p.hand.length >= HAND_LIMIT,
+        onToggle: () =>
+          this.change(() => {
+            if (taking) p.hand = p.hand.filter((id) => id !== card.id);
+            else p.hand.push(card.id);
+          }),
+        onSelect: () => this.enter(() => (this.viewing = card)),
+      });
+    });
     head.append(
       listTools(list.search, this.cardSortSelect(p)),
       note(`仲間 ${p.cards.length}体　連れていく ${p.hand.length}/${HAND_LIMIT}`, 'allies-count'),
@@ -473,20 +488,24 @@ export class BaseScreen {
     return [head, ...rows.map(renderRow), note('遊び方', 'base-section'), note(HOW_TO_PLAY)];
   }
 
-  /** ダンジョンを選ぶ。踏破していないダンジョンの次は、鍵がかかっている */
+  /**
+   * 冒険の始め：挑むダンジョンを選ぶ（H-05）。［選ぶ］で、仲間と持ち物の準備へ進む。
+   * 印は、踏破済み🏆・挑める⚔️・まだ挑めない🔒。踏破していないダンジョンの次は、鍵がかかっている
+   */
   private dungeonRows(p: Profile): HTMLElement[] {
     const rows: SheetRow[] = DUNGEONS.map((d) => {
       const open = isUnlocked(d, p.cleared);
       const done = p.cleared.includes(d.id);
       return {
-        icon: open ? (done ? '🏆' : '🚪') : '🔒',
+        icon: open ? (done ? '🏆' : '⚔️') : '🔒',
         name: d.name,
         sub: open ? (done ? `踏破済み\n${d.desc}` : d.desc) : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
         dim: !open,
-        button: { label: '出発', disabled: !open, onClick: () => this.onDepart(d.id) },
+        className: done ? 'cleared' : undefined,
+        button: { label: '選ぶ', disabled: !open, onClick: () => this.enter(() => (this.dungeonId = d.id)) },
       };
     });
-    return [note('挑むダンジョン', 'base-section'), ...rows.map(renderRow)];
+    return [note('挑むダンジョンを選ぶ', 'base-section'), ...rows.map(renderRow)];
   }
 
   /**

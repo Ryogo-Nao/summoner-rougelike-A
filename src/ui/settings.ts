@@ -10,6 +10,8 @@ export interface Settings {
   effectSpeed: EffectSpeed;
   /** 主人公の正面のマスを金の枠で強調するか（向きの矢印はいつも出す） */
   facingTile: boolean;
+  /** ［攻撃］の長押しの知らせを、もう出したか（初めてのダンジョンで一度だけ出す） */
+  quickHintSeen?: boolean;
 }
 
 const KEY = 'summoner-settings';

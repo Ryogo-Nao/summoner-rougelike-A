@@ -61,6 +61,12 @@ function startRun(dungeonId: string): void {
   useState(new GameState(nextSeed(), loadoutOf(profile), dungeonId));
   state.addLog(`${state.dungeon.name}に入った`);
   if (state.allies.length > 0) state.addLog(`${state.allies.map((a) => cardName(a.card)).join('・')}も一緒に入った`);
+  // ［攻撃］の長押しで道具の扇が出ることは、知らないと気づけないので、初めてのダンジョンで一度だけ知らせる
+  if (!settings.quickHintSeen) {
+    state.addLog('［攻撃］を長押しすると、登録した道具を使える');
+    settings.quickHintSeen = true;
+    saveSettings(settings);
+  }
   ending = null;
   saveRun(state);
   base.close();
