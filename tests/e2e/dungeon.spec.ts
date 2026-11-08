@@ -88,21 +88,19 @@ test('P-08 ダンジョンの描画で、止まるフレーム（50ms 以上）�
   expect(result.janky).toBeLessThan(0.05);
 });
 
-test('F-75 メニューの「演出の速さ」を押すと ふつう → 速い → 最小 → ふつう と変わり、保存される', async ({ page }) => {
+test('F-75 メニューの「演出の速さ」は ふつう・速い・最小 を横に並べて選べ、保存される', async ({ page }) => {
   await openWithProfile(page, profileWith(1));
   await startDungeon(page);
   await expect(async () => {
     await press(page, '#btn-menu');
     await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
   }).toPass({ timeout: 10_000 });
-  const row = page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' });
-  const button = row.locator('button');
-  await expect(button).toHaveText('ふつう');
-  for (const next of ['速い', '最小', 'ふつう']) {
-    await button.click();
-    await expect(page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' }).locator('button')).toHaveText(next);
+  const option = (label: string) => page.locator('#sheet-body .setting-row', { hasText: '演出の速さ' }).locator('button', { hasText: label });
+  await expect(option('ふつう')).toHaveAttribute('aria-pressed', 'true');
+  for (const next of ['最小', 'ふつう', '速い']) {
+    await option(next).click();
+    await expect(option(next)).toHaveAttribute('aria-pressed', 'true');
   }
-  await page.locator('#sheet-body .sheet-row', { hasText: '演出の速さ' }).locator('button').click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('summoner-settings') ?? '{}').effectSpeed);
   expect(saved).toBe('fast');
 });
@@ -125,7 +123,7 @@ test('F-79 ［見通し］を押すとオンになり、もう一度押すとオ
   expect(errors).toEqual([]);
 });
 
-test('F-83 メニューの「正面のマスの枠」を押すと オン → オフ に変わり、保存される', async ({ page }) => {
+test('F-83 メニューの「正面のマスの枠」のスイッチを押すと オン → オフ に変わり、保存される', async ({ page }) => {
   const errors = collectErrors(page);
   await openWithProfile(page, profileWith(1));
   await startDungeon(page);
@@ -133,10 +131,10 @@ test('F-83 メニューの「正面のマスの枠」を押すと オン → オ
     await press(page, '#btn-menu');
     await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
   }).toPass({ timeout: 10_000 });
-  const button = () => page.locator('#sheet-body .sheet-row', { hasText: '正面のマスの枠' }).locator('button');
-  await expect(button()).toHaveText('オン');
+  const button = () => page.locator('#sheet-body .setting-row', { hasText: '正面のマスの枠' }).locator('button.switch');
+  await expect(button()).toHaveAttribute('aria-checked', 'true');
   await button().click();
-  await expect(button()).toHaveText('オフ');
+  await expect(button()).toHaveAttribute('aria-checked', 'false');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('summoner-settings') ?? '{}').facingTile);
   expect(saved).toBe(false);
   expect(errors).toEqual([]);

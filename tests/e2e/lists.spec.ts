@@ -66,7 +66,11 @@ test('F-63 冒険の準備で、上の顔を押すと連れていく仲間から
 
 test('F-64 配合の画面で仲間を押すと、つよさが出て、戻れる', async ({ page }) => {
   await openWithProfile(page, profileWith(4));
-  await nav(page, '配合');
+  // 配合は仲間のタブの中
+  await nav(page, '仲間');
+  await page.locator('#base-body .ally-modes button', { hasText: '配合' }).click();
+  await expect(page.locator('#base-title')).toHaveText('配合');
+  await expect(page.locator('#base-nav button.on')).toHaveText(/仲間/);
   await page.locator('#base-body .line-row.ally .name').first().click();
   await expect(page.locator('.status-view')).toBeVisible();
   await expect(page.locator('#base-depart')).toHaveText('戻る');

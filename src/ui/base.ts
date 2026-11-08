@@ -55,8 +55,8 @@ const NAVY_VIEWS: View[] = ['prep', 'allies', 'fusion', 'shop', 'other'];
 const NAV: { view: View; label: string; icon: string }[] = [
   { view: 'hub', label: '拠点', icon: 'ui_tab_home' },
   { view: 'prep', label: '冒険', icon: 'ui_hub_adventure' },
+  // 配合は仲間のタブの中（上の［一覧］［配合］［転生］で切り替える）。下のタブは5つ
   { view: 'allies', label: '仲間', icon: 'ui_tab_allies' },
-  { view: 'fusion', label: '配合', icon: 'ui_hub_fusion' },
   { view: 'shop', label: '商店', icon: 'ui_hub_shop' },
   { view: 'other', label: 'その他', icon: 'ui_tab_other' },
 ];
@@ -117,7 +117,7 @@ export class BaseScreen {
   private parents: Card[] = [];
   private childFrom = 0;
   /** 商店で、下のボタンを押したときにすること（まとめて買う・売る） */
-  private shopAction: { label: string; disabled: boolean; run: () => void } | null = null;
+  private shopAction: { label: string; disabled: boolean; delta: number; run: () => void } | null = null;
   /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
   private fusionNote = '';
   /** 説明を見ている道具（持ち物・袋・商店の行を押したとき）。商店の品は item がない */
@@ -256,9 +256,10 @@ export class BaseScreen {
     const scroll = this.body.scrollTop;
     for (const b of this.tabs) b.classList.toggle('active', b.dataset.tab === this.tab);
     for (const [view, b] of this.navButtons) {
-      b.classList.toggle('on', view === this.view);
+      // 配合は仲間のタブの中なので、配合の画面でも［仲間］を選んでいる見た目にし、配合の「NEW」も［仲間］に付ける
+      b.classList.toggle('on', view === this.view || (view === 'allies' && this.view === 'fusion'));
       b.querySelector('.badge')?.remove();
-      const mark = this.badgeOf(p, view);
+      const mark = view === 'allies' ? (this.badgeOf(p, 'fusion') ?? this.badgeOf(p, 'allies')) : this.badgeOf(p, view);
       if (mark) b.append(mark);
     }
     // 冒険は、ダンジョンを選んでから（choosing）仲間と持ち物の準備（prep）へ
@@ -302,7 +303,11 @@ export class BaseScreen {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
       else children.push(...this.itemListRows(p));
     }
-    document.getElementById('base-runes')!.replaceChildren(uiImage('ui_rune', 'rune-gem'), `${p.runes}`);
+    // 商店で数を選んでいるときは、買った（売った）あとのルーンも「5000 → 4980」と出す
+    const delta = this.view === 'shop' && !this.itemView ? (this.shopAction?.delta ?? 0) : 0;
+    document
+      .getElementById('base-runes')!
+      .replaceChildren(uiImage('ui_rune', 'rune-gem'), delta !== 0 ? `${p.runes} → ${p.runes + delta}` : `${p.runes}`);
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     this.depart.textContent = inside ? '戻る' : this.dungeonId ? `${dungeonById(this.dungeonId).name}へ出発` : '';
@@ -411,6 +416,7 @@ export class BaseScreen {
       });
     });
     head.append(
+      this.allyModes(p, 'list'),
       listTools(list.search, this.cardSortSelect(p)),
       note(`仲間 ${p.cards.length}体　連れていく ${p.hand.length}/${HAND_LIMIT}`, 'allies-count'),
     );
@@ -485,7 +491,7 @@ export class BaseScreen {
       this.onSettings();
       this.render(true);
     });
-    return [head, ...rows.map(renderRow), note('遊び方', 'base-section'), note(HOW_TO_PLAY)];
+    return [head, lineList(rows), note('遊び方', 'base-section'), note(HOW_TO_PLAY)];
   }
 
   /**
@@ -563,6 +569,37 @@ export class BaseScreen {
   }
 
   /**
+   * 仲間のタブの上の切り替え［一覧］［配合］［転生］。配合できるようになったら［配合］に「NEW」を付ける
+   */
+  private allyModes(p: Profile, current: 'list' | 'fusion' | 'rebirth'): HTMLElement {
+    const modes = document.createElement('div');
+    modes.className = 'sort-keys shop-modes ally-modes';
+    for (const [mode, label] of [['list', '一覧'], ['fusion', '配合'], ['rebirth', '転生']] as const) {
+      const b = wideButton(label, false, () => {
+        if (mode === current) return;
+        if (mode === 'list') {
+          this.go('allies');
+          return;
+        }
+        this.fusionMode = mode;
+        if (this.view === 'fusion') {
+          this.parents = [];
+          this.childFrom = 0;
+          this.fusionNote = '';
+          this.render();
+        } else this.go('fusion');
+      });
+      if (mode === current) b.classList.add('on');
+      if (mode === 'fusion') {
+        const mark = this.badgeOf(p, 'fusion');
+        if (mark) b.append(mark);
+      }
+      modes.append(b);
+    }
+    return modes;
+  }
+
+  /**
    * 仲間の並べ替えのボタン。「⇅ レベル↓ ▾」のように今の並べ方を出し、押すと選ぶ輪が出る（iPhone）。
    * 並べ替えると仲間の並びそのものが変わる。まだ並べ替えていないときは「⇅ 並べ替え」
    */
@@ -594,19 +631,7 @@ export class BaseScreen {
     this.parents = this.parents.filter((c) => p.cards.includes(c) && canBeParent(c));
     const head = document.createElement('div');
     head.className = 'base-sort';
-    const modes = document.createElement('div');
-    modes.className = 'sort-keys shop-modes';
-    for (const [mode, label] of [['fusion', '配合'], ['rebirth', '転生']] as const) {
-      const b = wideButton(label, false, () => {
-        this.fusionMode = mode;
-        this.parents = [];
-        this.childFrom = 0;
-        this.fusionNote = '';
-        this.render();
-      });
-      if (this.fusionMode === mode) b.classList.add('on');
-      modes.append(b);
-    }
+    const modes = this.allyModes(p, this.fusionMode);
     // 1回に使う数と、持っている数。書とルーンは絵で出す
     const cost = note('', 'fusion-cost');
     cost.append(
@@ -927,6 +952,7 @@ export class BaseScreen {
     this.shopAction = {
       label: count > 0 ? `${count}個を買う　💠${total}` : '買う品を選ぶ',
       disabled: count === 0,
+      delta: -total,
       run: () =>
         this.change(() => {
           for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
@@ -983,6 +1009,7 @@ export class BaseScreen {
     this.shopAction = {
       label: picked.length > 0 ? `${picked.length}個を売る　💠${total}` : '売る品を選ぶ',
       disabled: picked.length === 0,
+      delta: total,
       run: () =>
         this.change(() => {
           const got = sell(p, picked);
@@ -1086,7 +1113,7 @@ export class BaseScreen {
     const dungeonRows = DUNGEONS.filter((d) => r.dungeons[d.id] || isUnlocked(d, p.cleared)).map((d) => {
       const rec = r.dungeons[d.id];
       return renderRow({
-        icon: p.cleared.includes(d.id) ? '🏆' : '🚪',
+        icon: p.cleared.includes(d.id) ? '🏆' : '⚔️',
         name: d.name,
         sub: rec
           ? `挑戦${rec.tries}回　踏破${rec.cleared}　離脱${rec.escaped}\n力つきた${rec.failed}　あきらめた${rec.gaveUp}\n最高到達 B${rec.bestFloor}F／全${d.floors}階`

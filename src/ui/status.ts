@@ -53,23 +53,24 @@ export function statusView(
 
   const { name, up, down } = PERSONALITIES[card.personality];
   const next = allyExpToNext(card.exp);
-  const rows: [string, string][] = [
-    ['種族', card.species.name],
-    ['属性', elementText(card.species.element)],
-    ['レベル', `Lv${card.level}`],
-    ...(card.fusions
-      ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])
-      : []),
-    // 拠点ではHPは減らないので、最大HPだけを出す
+  // 能力値は2列に並べる。拠点ではHPは減らないので、最大HPだけを出す
+  const stats: [string, string][] = [
     ['HP', inDungeon ? `${card.hp}/${card.maxHp}` : `${card.maxHp}`],
+    ['召喚MP', `${card.species.cost}`],
     ['攻撃力', `${card.atk}`],
     ['防御力', `${card.def}`],
     ['魔攻', `${card.matk}`],
     ['魔防', `${card.mdef}`],
+  ];
+  const basics: [string, string][] = [
     ['経験値', next === null ? `${Math.floor(card.exp)}（最大レベル）` : `${Math.floor(card.exp)}（次のLvまで${Math.ceil(next)}）`],
-    ['性格', up && down ? `${name}（${STAT_LABEL[up]}↑ ${STAT_LABEL[down]}↓）` : name],
-    ['召喚MP', `${card.species.cost}`],
+    ...(card.fusions
+      ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])
+      : []),
     ['速さ', SPEED_LABEL[card.species.speed]],
+  ];
+  const rows: [string, string][] = [
+    ['性格', up && down ? `${name}（${STAT_LABEL[up]}↑ ${STAT_LABEL[down]}↓）` : name],
     ['特技', traits(card.species, isPartner(card))],
     ['状態', STATUS_LABEL[card.status]],
   ];
@@ -91,8 +92,34 @@ export function statusView(
   if (isPartner(card)) rows.push(['入手', '最初からの相棒']);
   else if (inDungeon) rows.push(['入手', card.obtainedHere ? 'このダンジョンで仲間にした' : '持ってきた']);
 
+  // 上に小さな絵と、名前・Lv・種族・属性。その下に背景、能力値（2列）、育ち、性格と特技のまとまり
+  const head = document.createElement('div');
+  head.className = 'status-head';
+  const headText = document.createElement('div');
+  headText.className = 'status-head-text';
+  const meta = document.createElement('p');
+  meta.className = 'status-meta';
+  meta.textContent = `Lv${card.level}　${card.species.name}　${elementText(card.species.element)}`;
+  headText.append(title, meta);
+  head.append(portrait, headText);
+  root.append(
+    head,
+    lore,
+    section('能力値', stats, true),
+    section('育ち', basics),
+    section('性格と特技', rows),
+  );
+  return root;
+}
+
+/** 見出しの付いた表。two なら2列に並べる */
+function section(heading: string, rows: [string, string][], two = false): HTMLElement {
+  const box = document.createElement('section');
+  box.className = 'status-section';
+  const h = document.createElement('h3');
+  h.textContent = heading;
   const table = document.createElement('dl');
-  table.className = 'status-table';
+  table.className = two ? 'status-table two' : 'status-table';
   for (const [label, value] of rows) {
     const dt = document.createElement('dt');
     dt.textContent = label;
@@ -100,8 +127,8 @@ export function statusView(
     dd.textContent = value;
     table.append(dt, dd);
   }
-  root.append(portrait, title, lore, table);
-  return root;
+  box.append(h, table);
+  return box;
 }
 
 /**

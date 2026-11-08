@@ -5,7 +5,6 @@ import { brokenText, collectErrors, nav, openPrep, openWithProfile, overflow, pr
 const TABS: [string, string][] = [
   ['冒険', '冒険の準備'],
   ['仲間', '仲間'],
-  ['配合', '配合'],
   ['商店', '商店'],
   ['その他', 'その他'],
   ['拠点', '拠点'],

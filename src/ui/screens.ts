@@ -3,7 +3,7 @@ import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartne
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemEffect, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
-import { Sheet, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
+import { Sheet, lineList, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
 import type { Settings } from './settings';
 import { statusView } from './status';
 import { itemArt } from '../render/art';
@@ -584,71 +584,117 @@ function statChange(
 const EFFECT_SPEED_SUB: Record<EffectSpeed, string> = {
   normal: '画面を押すと早送り',
   fast: 'ふつうの半分の長さ',
-  min: '動きなし\n数字だけ短く出す',
+  min: '動きなし　数字だけ短く出す',
 };
-const NEXT_SPEED: Record<EffectSpeed, EffectSpeed> = { normal: 'fast', fast: 'min', min: 'normal' };
 
 /** 遊び方の短い説明。ダンジョンのメニューと、拠点のその他に出す */
 export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると\n入れ替わるか押すかを選べる';
 
 /**
- * 設定の行（ダンジョンのメニューと、拠点のその他で同じものを出す）。
- * 押すと settings を切り替えて onChange を呼ぶ（保存とダンジョンへの反映は onChange でする）
+ * 設定の1行（UIレビュー：押すたびに切り替わるボタンをやめる）。
+ * オン・オフは切り替えスイッチ、選ぶものは「左｜右」のような横並びのボタンで、ほかに何が選べるかが見える
  */
-export function settingRows(settings: Settings, onChange: () => void): SheetRow[] {
-  const toggle = (f: () => void) => () => {
+function settingRow(
+  icon: string,
+  name: string,
+  sub: string,
+  control: { switch: boolean; set: (on: boolean) => void } | { options: [string, string][]; value: string; set: (v: string) => void },
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'setting-row';
+  const ic = document.createElement('span');
+  ic.className = 'setting-icon';
+  ic.textContent = icon;
+  const text = document.createElement('div');
+  text.className = 'setting-text';
+  const n = document.createElement('div');
+  n.className = 'name';
+  n.textContent = name;
+  const s = document.createElement('div');
+  s.className = 'sub';
+  s.textContent = sub;
+  text.append(n, s);
+  row.append(ic, text);
+  if ('switch' in control) {
+    const sw = document.createElement('button');
+    sw.className = control.switch ? 'switch on' : 'switch';
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-checked', String(control.switch));
+    sw.setAttribute('aria-label', name);
+    sw.addEventListener('click', () => control.set(!control.switch));
+    row.append(sw);
+  } else {
+    row.classList.add('choice');
+    const seg = document.createElement('div');
+    seg.className = 'segmented';
+    seg.setAttribute('role', 'radiogroup');
+    seg.setAttribute('aria-label', name);
+    for (const [value, label] of control.options) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      const on = value === control.value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+      b.addEventListener('click', () => {
+        if (!on) control.set(value);
+      });
+      seg.append(b);
+    }
+    row.append(seg);
+  }
+  return row;
+}
+
+/**
+ * 設定の行（ダンジョンのメニューと、拠点のその他で同じものを出す）。
+ * 変えると settings を書き換えて onChange を呼ぶ（保存とダンジョンへの反映は onChange でする）
+ */
+export function settingRows(settings: Settings, onChange: () => void): HTMLElement[] {
+  const change = (f: () => void) => {
     f();
     onChange();
   };
   return [
-    {
-      icon: '↻',
-      name: 'タップで振り向く',
-      sub: settings.turnFirst ? '1回目で向く\n2回目で進む' : 'すぐ進む',
-      button: { label: settings.turnFirst ? 'オン' : 'オフ', onClick: toggle(() => (settings.turnFirst = !settings.turnFirst)) },
-    },
-    {
-      icon: '🔁',
-      name: '仲間へ進むと',
-      sub: settings.allyMove === 'swap' ? '仲間と入れ替わる' : '仲間を1マス押し出す\n押せないときは入れ替わる',
-      button: {
-        label: settings.allyMove === 'swap' ? '入れ替わる' : '押す',
-        onClick: toggle(() => (settings.allyMove = settings.allyMove === 'swap' ? 'push' : 'swap')),
-      },
-    },
-    {
-      icon: '➤',
-      name: '正面のマスの枠',
-      sub: settings.facingTile ? '向いている先の1マスを\n金の枠で強調する' : '枠は出さない\n（向きの矢印は出る）',
-      button: { label: settings.facingTile ? 'オン' : 'オフ', onClick: toggle(() => (settings.facingTile = !settings.facingTile)) },
-    },
-    {
-      icon: '✨',
-      name: '演出の速さ',
-      sub: EFFECT_SPEED_SUB[settings.effectSpeed],
-      button: {
-        label: EFFECT_SPEED_LABEL[settings.effectSpeed],
-        onClick: toggle(() => (settings.effectSpeed = NEXT_SPEED[settings.effectSpeed])),
-      },
-    },
-    {
-      icon: '🎮',
-      name: 'パッドの位置',
-      sub: settings.padSide === 'left' ? '左にパッド\n右にボタン' : '右にパッド\n左にボタン',
-      button: {
-        label: settings.padSide === 'left' ? '左' : '右',
-        onClick: toggle(() => (settings.padSide = settings.padSide === 'left' ? 'right' : 'left')),
-      },
-    },
+    settingRow('↻', 'タップで振り向く', settings.turnFirst ? '1回目で向き、2回目で進む' : 'すぐ進む', {
+      switch: settings.turnFirst,
+      set: (on: boolean) => change(() => (settings.turnFirst = on)),
+    }),
+    settingRow('🔁', '仲間へ進むと', settings.allyMove === 'swap' ? '仲間と入れ替わる' : '1マス押し出す（押せなければ入れ替わる）', {
+      options: [
+        ['swap', '入れ替わる'],
+        ['push', '押す'],
+      ],
+      value: settings.allyMove,
+      set: (v: string) => change(() => (settings.allyMove = v as Settings['allyMove'])),
+    }),
+    settingRow('➤', '正面のマスの枠', settings.facingTile ? '正面の1マスを金の枠で強調' : '枠は出さない（向きの矢印は出る）', {
+      switch: settings.facingTile,
+      set: (on: boolean) => change(() => (settings.facingTile = on)),
+    }),
+    settingRow('✨', '演出の速さ', EFFECT_SPEED_SUB[settings.effectSpeed], {
+      options: (['normal', 'fast', 'min'] as EffectSpeed[]).map((v) => [v, EFFECT_SPEED_LABEL[v]]),
+      value: settings.effectSpeed,
+      set: (v: string) => change(() => (settings.effectSpeed = v as EffectSpeed)),
+    }),
+    settingRow('🎮', 'パッドの位置', settings.padSide === 'left' ? '左にパッド、右にボタン' : '右にパッド、左にボタン', {
+      options: [
+        ['left', '左'],
+        ['right', '右'],
+      ],
+      value: settings.padSide,
+      set: (v: string) => change(() => (settings.padSide = v as Settings['padSide'])),
+    }),
   ];
 }
 
 /** メニュー。設定を切り替えると、その場で一覧を開き直して今の状態を見せる */
 export function openMenuSheet(sheet: Sheet, settings: Settings, onChange: () => void, onGiveUp: () => void): void {
-  const rows = settingRows(settings, () => {
-    onChange();
-    openMenuSheet(sheet, settings, onChange, onGiveUp);
-  });
+  const settingsList = lineList(
+    settingRows(settings, () => {
+      onChange();
+      openMenuSheet(sheet, settings, onChange, onGiveUp);
+    }),
+  );
   const footer = document.createElement('div');
   footer.className = 'danger-zone';
   const giveUp = wideButton('ダンジョンをあきらめる', false, () => {
@@ -660,7 +706,9 @@ export function openMenuSheet(sheet: Sheet, settings: Settings, onChange: () => 
   howTo.className = 'sheet-note how-to';
   howTo.textContent = `遊び方\n${HOW_TO_PLAY}`;
   footer.append(giveUp, howTo);
-  sheet.open('メニュー', rows, { footer });
+  const body = document.createElement('div');
+  body.append(settingsList, footer);
+  sheet.open('メニュー', [], { footer: body });
 }
 
 const ORDER_DESC: Record<AllyOrder, string> = {

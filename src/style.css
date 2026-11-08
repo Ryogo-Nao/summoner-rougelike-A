@@ -774,7 +774,7 @@ button {
 /* タブは細い線の札を並べ、選んでいるものを紺にする */
 #base-tabs {
   display: grid;
-  grid-template-columns: 40px repeat(2, 1fr);
+  grid-template-columns: 44px repeat(2, 1fr);
   gap: 6px;
 }
 #base-tabs button {
@@ -2987,4 +2987,182 @@ body.fan-open::before {
     animation: none;
     transform: scaleX(1);
   }
+}
+
+/*
+ * ==== 設定（UIレビュー：押すたびに切り替わるボタンをやめる）====
+ * オン・オフは切り替えスイッチ。選ぶものは横並びのボタンで、今の選択を紺に金の字で出す。1枚の紙を細い線で区切った行
+ */
+.setting-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(122, 90, 50, 0.22);
+  font-family: var(--gothic);
+}
+.setting-row:first-child {
+  border-top: none;
+}
+.setting-icon {
+  color: #7a5414;
+  font-size: 20px;
+  text-align: center;
+}
+.setting-row .name {
+  color: #3a2410;
+  font-size: 15px;
+  font-weight: 700;
+}
+.setting-row .sub {
+  color: #6b5236;
+  font-size: 12px;
+}
+/* 選ぶものは、ボタンを名前の下に横いっぱいに並べる */
+.setting-row.choice .segmented {
+  grid-column: 2 / 4;
+}
+.switch {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #a8834a;
+  border-radius: 999px;
+  background: #cfc3ab;
+  box-shadow: inset 0 1px 3px rgba(60, 40, 20, 0.35);
+  transition: background 0.15s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fffaf0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s;
+}
+.switch.on {
+  background: linear-gradient(180deg, #e7bd5a, #b8862f);
+}
+.switch.on::after {
+  transform: translateX(20px);
+}
+/* 押せる広さを 44px にする */
+.switch::before {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+.segmented {
+  display: flex;
+  border: 1px solid #a8834a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.segmented button {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 4px;
+  border: none;
+  border-left: 1px solid rgba(168, 131, 74, 0.6);
+  border-radius: 0;
+  background: #f6ecd6;
+  box-shadow: none;
+  color: #6b5236;
+  font-family: var(--gothic);
+  font-size: 14px;
+  font-weight: 700;
+}
+.segmented button:first-child {
+  border-left: none;
+}
+.segmented button.on {
+  background: #1a2747;
+  color: #ffe596;
+}
+
+/* 仲間のタブの上の［一覧］［配合］［転生］ */
+.sort-keys.shop-modes.ally-modes {
+  grid-template-columns: repeat(3, 1fr);
+}
+.ally-modes .sheet-wide {
+  position: relative;
+  overflow: visible;
+}
+
+/*
+ * ==== 仲間のつよさ（UIレビュー：まとまりで区切り、絵を小さく、能力値を2列に）====
+ */
+.status-head {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.status-head .status-portrait {
+  height: 88px;
+}
+.status-head .status-portrait .status-art {
+  width: 80px;
+  height: 80px;
+}
+.status-head .status-title {
+  justify-content: flex-start;
+  margin: 0;
+  min-height: 44px;
+  text-align: left;
+}
+.status-meta {
+  margin: 0;
+  color: #6b5236;
+  font-family: var(--gothic);
+  font-size: 13px;
+  font-weight: 700;
+}
+.status-section h3 {
+  margin: 10px 0 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(184, 140, 60, 0.55);
+  color: #7a5414;
+  font-family: var(--gothic);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.status-table.two {
+  grid-template-columns: auto 1fr auto 1fr;
+}
+.status-table.two dt {
+  white-space: nowrap;
+}
+.status-table dd {
+  font-family: var(--gothic);
+  font-variant-numeric: tabular-nums;
+}
+/* 名前の横の［✎］：押せる広さは 44px */
+.status-title button.rename {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+.status-title button.rename::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+/* ［－］［＋］：押せる広さを上下に広げる */
+.stepper button {
+  position: relative;
+}
+.stepper button:not(.stepper-num)::after {
+  content: '';
+  position: absolute;
+  inset: -6px -3px;
 }
