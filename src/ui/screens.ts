@@ -582,7 +582,7 @@ function statChange(
 
 /** 演出の速さの説明と、押したときの次の速さ */
 const EFFECT_SPEED_SUB: Record<EffectSpeed, string> = {
-  normal: '画面を押すと早送り',
+  normal: 'ふつうの長さで見せる',
   fast: 'ふつうの半分の長さ',
   min: '動きなし　数字だけ短く出す',
 };

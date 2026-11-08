@@ -220,12 +220,9 @@ function redraw(): void {
   updateHud();
 }
 
-/** 画面を押して早送りしているときの速さの倍率と、動けず自動でターンが進むときの倍率 */
-const SKIP_RATE = 4;
+/** 動けず自動でターンが進むときの、演出の速さの倍率 */
 const HELPLESS_RATE = 2;
 let playing = false;
-/** 場面の再生中に画面を押したら、その行動の残りを早送りする */
-let skipping = false;
 // 絵を読み込み終えたら描き直す。場面の再生中は、終わったあとに描き直される
 preloadArt();
 // 歩く動きと、立っているときの息づかいのために、マップを描き続ける。
@@ -247,7 +244,7 @@ onArtLoaded(() => {
 
 /**
  * この行動で起きた場面を、起きた順に1つずつ見せる（段の長さは effects.ts、速さは設定）。見せ終わったら done を呼ぶ。
- * 合計が長すぎるときは全体を速め、画面を押すと残りを早送りする
+ * 合計が長すぎるときは全体を速める
  */
 function playScenes(done: () => void): void {
   const scenes = state.takeScenes();
@@ -259,13 +256,12 @@ function playScenes(done: () => void): void {
     return;
   }
   playing = true;
-  skipping = false;
   const base = Math.max(1, total / TURN_CAP_MS) * (state.helpless ? HELPLESS_RATE : 1);
   let index = 0;
   let elapsed = 0;
   let last = performance.now();
   const frame = (now: number) => {
-    elapsed += (now - last) * base * (skipping ? SKIP_RATE : 1);
+    elapsed += (now - last) * base;
     last = now;
     // 終わった場面をとばす（長さ0の場面もここでとぶ）
     while (index < scenes.length && elapsed >= totalOf(timings[index])) {
@@ -274,7 +270,6 @@ function playScenes(done: () => void): void {
     }
     if (index >= scenes.length) {
       playing = false;
-      skipping = false;
       done();
       return;
     }
@@ -291,14 +286,6 @@ function playScenes(done: () => void): void {
   };
   requestAnimationFrame(frame);
 }
-// 場面の再生中に画面のどこかを押すと、早送りする（ボタンやマップの操作はそのまま、再生中は受け付けない）
-document.addEventListener(
-  'pointerdown',
-  () => {
-    if (playing) skipping = true;
-  },
-  true,
-);
 
 function askDescend(): void {
   dialog.open('階段を降りる？', '降りる', 'やめる', () => {

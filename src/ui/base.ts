@@ -92,6 +92,8 @@ export class BaseScreen {
    * 拠点にいる間は覚えておき、ダンジョンから戻ったら選び直す
    */
   private dungeonId: string | null = null;
+  /** ダンジョンの一覧で押した、詳しく見ているダンジョン（［挑む］で dungeonId になる） */
+  private dungeonView: string | null = null;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
   private sellFrom: Place = 'bag';
@@ -146,6 +148,7 @@ export class BaseScreen {
     // 冒険の準備の「‹」：ダンジョンを選び直す
     document.getElementById('base-back')!.addEventListener('click', () => {
       this.dungeonId = null;
+      this.dungeonView = null;
       this.viewing = null;
       this.itemView = null;
       this.pouch = null;
@@ -203,6 +206,7 @@ export class BaseScreen {
   open(profile: Profile): void {
     this.profile = profile;
     this.dungeonId = null;
+    this.dungeonView = null;
     this.root.hidden = false;
     setBarColor(BAR_BASE);
     this.go('hub');
@@ -293,6 +297,8 @@ export class BaseScreen {
       );
     } else if (this.view === 'fusion') {
       children.push(...this.fusionRows(p));
+    } else if (choosing && this.dungeonView) {
+      children.push(this.dungeonDetail(p, this.dungeonView));
     } else if (choosing) {
       children.push(...this.dungeonRows(p));
     } else if (this.pouch) {
@@ -387,7 +393,11 @@ export class BaseScreen {
     const menus = document.createElement('div');
     menus.className = 'hub-menus';
     menus.append(item('shop', 'shop', '商店', true), item('other', 'records', '記録', false, 'records'), item('fusion', 'fusion', '配合'));
-    return [hero, sign, menus];
+    // 主人公・仲間と、鎖で吊るした看板は1つのかたまり。かたまりの上・札との間・札の下の余白を同じにする
+    const upper = document.createElement('div');
+    upper.className = 'hub-upper';
+    upper.append(hero, sign);
+    return [upper, menus];
   }
 
   /** 下のタブとトップのメニューに付ける知らせ。配合できるようになったら「NEW」、仲間が加わった・品が入れ替わったら赤い丸 */
@@ -495,23 +505,61 @@ export class BaseScreen {
   }
 
   /**
-   * 冒険の始め：挑むダンジョンを選ぶ（H-05）。［選ぶ］で、仲間と持ち物の準備へ進む。
+   * 冒険の始め：挑むダンジョンを選ぶ（H-05）。一覧は名前・踏破したか・階の数だけ。押すと詳しい画面へ。
    * 印は、踏破済み🏆・挑める⚔️・まだ挑めない🔒。踏破していないダンジョンの次は、鍵がかかっている
    */
   private dungeonRows(p: Profile): HTMLElement[] {
-    const rows: SheetRow[] = DUNGEONS.map((d) => {
+    const rows = DUNGEONS.map((d) => {
       const open = isUnlocked(d, p.cleared);
       const done = p.cleared.includes(d.id);
-      return {
+      return renderLine({
         icon: open ? (done ? '🏆' : '⚔️') : '🔒',
         name: d.name,
-        sub: open ? (done ? `踏破済み\n${d.desc}` : d.desc) : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
+        tag: `全${d.floors}階`,
+        sub: open ? (done ? '踏破済み' : '未踏破') : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
         dim: !open,
-        className: done ? 'cleared' : undefined,
-        button: { label: '選ぶ', disabled: !open, onClick: () => this.enter(() => (this.dungeonId = d.id)) },
-      };
+        className: 'dungeon',
+        onSelect: open ? () => this.enter(() => (this.dungeonView = d.id)) : undefined,
+      });
     });
-    return [note('挑むダンジョンを選ぶ', 'base-section'), ...rows.map(renderRow)];
+    return [note('挑むダンジョンを選ぶ', 'base-section'), lineList(rows)];
+  }
+
+  /** ダンジョンの詳しい画面。説明と記録を出し、［挑む］で仲間と持ち物の準備へ、［戻る］で一覧へ */
+  private dungeonDetail(p: Profile, id: string): HTMLElement {
+    const d = dungeonById(id);
+    const done = p.cleared.includes(d.id);
+    const rec = p.records.dungeons[d.id];
+    const box = document.createElement('div');
+    box.className = 'item-detail dungeon-detail';
+    const art = document.createElement('span');
+    art.className = 'item-detail-art';
+    art.textContent = done ? '🏆' : '⚔️';
+    const name = document.createElement('p');
+    name.className = 'item-detail-name';
+    name.textContent = d.name;
+    const desc = document.createElement('p');
+    desc.className = 'item-detail-desc';
+    desc.textContent = `${done ? '踏破済み' : '未踏破'}\n${d.desc}`;
+    box.append(art, name, desc);
+    if (rec) {
+      const record = document.createElement('p');
+      record.className = 'item-detail-desc dungeon-record';
+      record.textContent = `挑戦${rec.tries}回　踏破${rec.cleared}回　最高 B${rec.bestFloor}F`;
+      box.append(record);
+    }
+    const buttons = document.createElement('div');
+    buttons.className = 'sheet-pair';
+    const back = wideButton('戻る', false, () => this.leave(() => (this.dungeonView = null)));
+    const go = wideButton('挑む', false, () => {
+      this.dungeonId = d.id;
+      this.dungeonView = null;
+      this.render();
+    });
+    go.classList.add('main');
+    buttons.append(back, go);
+    box.append(buttons);
+    return box;
   }
 
   /**
@@ -971,9 +1019,10 @@ export class BaseScreen {
       const key = `buy:${kind}`;
       // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
-      // 数に限りのある品（入れ替わる品）だけ、棚にある数を値段の横に出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
+      // 数に限りのある品（入れ替わる品）は、棚にある数を数の箱に「0/1」と出す（名前と値段を切らないように）。
+      // 打ち込んだ数が多すぎたときは、今買える数を値段の横に赤で出す
       const error = this.countError === key;
-      const rest = error ? ` ${max}個まで` : shelf !== Infinity ? ` 残り${shelf}` : '';
+      const rest = error ? ` ${max}個まで` : '';
       return renderLine({
         icon: ITEMS[kind].emoji,
         art: itemArt(kind),
@@ -983,7 +1032,7 @@ export class BaseScreen {
         sub: kindEffect(kind),
         on: n > 0,
         className: blocked ? 'blocked' : undefined,
-        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)),
+        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v), shelf === Infinity ? undefined : shelf),
         onSelect: () => this.enter(() => (this.itemView = { kind })),
       });
     });
@@ -1047,9 +1096,10 @@ export class BaseScreen {
 
   /**
    * 数を選ぶ［－］数［＋］。数を押すと、じかに打ち込める。
-   * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す
+   * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す。
+   * stock があれば、数の箱に「選んだ数/棚にある数」を出す
    */
-  private stepper(key: string, value: number, max: number, set: (v: number) => void): HTMLElement {
+  private stepper(key: string, value: number, max: number, set: (v: number) => void, stock?: number): HTMLElement {
     const apply = (v: number) => {
       this.countError = null;
       set(Math.max(0, Math.min(max, v)));
@@ -1058,12 +1108,14 @@ export class BaseScreen {
     const box = document.createElement('div');
     box.className = 'stepper';
     const minus = document.createElement('button');
+    minus.className = 'step-minus';
+    minus.setAttribute('aria-label', '減らす');
     minus.textContent = '－';
     minus.disabled = value <= 0;
     minus.addEventListener('click', () => apply(value - 1));
     const num = document.createElement('button');
-    num.className = 'stepper-num';
-    num.textContent = `${value}`;
+    num.className = stock === undefined ? 'stepper-num' : 'stepper-num stock';
+    num.textContent = stock === undefined ? `${value}` : `${value}/${stock}`;
     num.addEventListener('click', () => {
       const input = document.createElement('input');
       input.className = 'stepper-num';
@@ -1092,6 +1144,8 @@ export class BaseScreen {
       input.select();
     });
     const plus = document.createElement('button');
+    plus.className = 'step-plus';
+    plus.setAttribute('aria-label', '増やす');
     plus.textContent = '＋';
     plus.disabled = value >= max;
     plus.addEventListener('click', () => apply(value + 1));

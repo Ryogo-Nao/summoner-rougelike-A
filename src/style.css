@@ -1571,7 +1571,7 @@ body:has(#base:not([hidden])) {
 /* 下のタブ：木の帯に、四角い枠のアイコンと名前を6つ並べる */
 #base-nav {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   margin: 0 -8px;
   padding: 2px 2px calc(env(safe-area-inset-bottom) + 2px);
   border-style: solid;
@@ -1675,10 +1675,11 @@ body:has(#base:not([hidden])) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* 主人公から看板までのかたまりと札の、上・間・下の余白を同じにする */
+  justify-content: space-evenly;
   gap: 0;
   margin: 0;
-  padding: 0 6px 6px;
+  padding: 0 6px;
   border: none;
   border-image: none;
   background: none;
@@ -1807,10 +1808,10 @@ body:has(#base:not([hidden])) {
 .hub-sign {
   position: relative;
   z-index: 1;
-  flex: 1 1 0;
+  flex: none;
   width: var(--sign-w);
-  min-height: calc(var(--sign-w) * 0.43 + 18px);
-  max-height: calc(var(--sign-w) * 0.43 + 64px);
+  /* 鎖は短く決めた長さにし、余った高さはかたまりの上下と札との間で同じに分ける */
+  height: calc(var(--sign-w) * 0.43 + 30px);
   margin: -6px auto 0;
   background: url('./ui-art/signboard.png') center bottom / 100% auto no-repeat;
 }
@@ -1823,7 +1824,8 @@ body:has(#base:not([hidden])) {
   height: calc(var(--sign-w) * 0.43);
   display: flex;
   align-items: center;
-  padding: 3.6% 1% 0 16%;
+  /* 文字は板のまん中にそろえる（左右の余白を同じにする） */
+  padding: 3.6% 16% 0;
   border: none;
   background: none;
 }
@@ -1843,7 +1845,7 @@ body:has(#base:not([hidden])) {
   grid-template-columns: 1fr 1fr;
   gap: min(8px, 1.2cqh) 8px;
   width: var(--sign-w);
-  margin: min(10px, 1.5cqh) auto 0;
+  margin: 0 auto;
 }
 .hub-item {
   position: relative;
@@ -3196,4 +3198,63 @@ body.fan-open::before {
 }
 .status-row {
   padding-right: 8px;
+}
+
+/* 拠点のトップ：主人公・仲間・看板のかたまり */
+.hub-upper {
+  display: flex;
+  flex-direction: column;
+}
+/* ［商店］は札のまん中に名前を置く（右の » の幅だけ左へ戻す） */
+.hub-item.wide .hub-title {
+  padding-left: 18px;
+  text-align: center;
+}
+
+/* ダンジョンの詳しい画面：説明と記録、下に［戻る］［挑む］ */
+.dungeon-detail .sheet-pair {
+  margin-top: 14px;
+}
+.dungeon-detail .dungeon-record {
+  margin-top: 8px;
+  color: #6b5236;
+  font-size: 13px;
+}
+#base-body.navy .dungeon-detail .sheet-wide:not(.main) {
+  height: 54px;
+  border-width: 8px;
+  border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
+  color: #ffe596;
+}
+
+/* ［－］［＋］は字ではなく線で描く（字体によって記号の位置がずれるため）。字は読み上げ用に残して見えなくする */
+.stepper button.step-minus,
+.stepper button.step-plus {
+  font-size: 0;
+  color: transparent;
+}
+.stepper button.step-minus::before,
+.stepper button.step-plus::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(#ffe596, #ffe596) center / 100% 3px no-repeat;
+  pointer-events: none;
+}
+.stepper button.step-plus::before {
+  background:
+    linear-gradient(#ffe596, #ffe596) center / 100% 3px no-repeat,
+    linear-gradient(#ffe596, #ffe596) center / 3px 100% no-repeat;
+}
+.stepper button:disabled::before {
+  opacity: 0.45;
+}
+/* 商店の数に限りのある品は、数の箱に「0/1」と棚にある数も出す */
+.stepper .stepper-num.stock {
+  font-size: 14px;
+  letter-spacing: -0.02em;
 }

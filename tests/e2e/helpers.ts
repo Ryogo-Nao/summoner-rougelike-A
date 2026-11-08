@@ -97,10 +97,12 @@ export async function brokenText(page: Page): Promise<string[]> {
 }
 
 /** ダンジョンを選んで出発する（index は上から何番目のダンジョンか） */
-/** 冒険を開き、ダンジョンを選んで、仲間と持ち物の準備へ進む（冒険はダンジョンを選ぶところから始まる） */
+/** 冒険を開き、ダンジョンを選んで［挑む］を押し、仲間と持ち物の準備へ進む（冒険はダンジョンを選ぶところから始まる） */
 export async function openPrep(page: Page, index = 0): Promise<void> {
   await nav(page, '冒険');
-  await page.locator('#base-body button', { hasText: '選ぶ' }).nth(index).click();
+  // 一覧でダンジョンを押すと詳しい画面が出て、［挑む］で準備へ
+  await page.locator('#base-body .line-row.dungeon').nth(index).click();
+  await page.locator('#base-body button', { hasText: '挑む' }).click();
   await expect(page.locator('#base-tabs')).toBeVisible();
 }
 

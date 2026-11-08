@@ -125,7 +125,16 @@ test('F-90 冒険はダンジョンを選ぶところから。選ぶと仲間の
   await nav(page, '冒険');
   await expect(page.locator('#base-tabs')).toBeHidden();
   await expect(page.locator('#base-depart')).toBeHidden();
-  await page.locator('#base-body .sheet-row', { hasText: 'ささやきの森' }).locator('button', { hasText: '選ぶ' }).click();
+  // 一覧は名前・踏破したか・階の数。押すと詳しい画面が出て、［戻る］で一覧、［挑む］で準備へ
+  const forest = page.locator('#base-body .line-row.dungeon', { hasText: 'ささやきの森' });
+  await expect(forest).toContainText('全15階');
+  await expect(forest).toContainText('踏破済み');
+  await forest.click();
+  await expect(page.locator('.dungeon-detail')).toContainText('魔物はLv3');
+  await page.locator('.dungeon-detail button', { hasText: '戻る' }).click();
+  await expect(page.locator('.dungeon-detail')).toHaveCount(0);
+  await forest.click();
+  await page.locator('.dungeon-detail button', { hasText: '挑む' }).click();
   await expect(page.locator('#base-tabs')).toBeVisible();
   await expect(page.locator('#base-depart')).toHaveText('ささやきの森へ出発');
   // ほかのタブへ移って戻っても、選んだダンジョンは覚えている
