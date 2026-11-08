@@ -4,6 +4,7 @@ import { elementText } from '../game/elements';
 import { characterInfo } from '../game/characters';
 import type { Species } from '../game/monsters';
 import { artElement } from '../render/art';
+import { setRichText } from './icons';
 
 /** 速さの呼び名（balance.md 3.3） */
 const SPEED_LABEL: Record<Species['speed'], string> = { normal: '普通', fast: '倍速', slow: '鈍足' };
@@ -99,7 +100,7 @@ export function statusView(
   headText.className = 'status-head-text';
   const meta = document.createElement('p');
   meta.className = 'status-meta';
-  meta.textContent = `Lv${card.level}　${card.species.name}　${elementText(card.species.element)}`;
+  setRichText(meta, `Lv${card.level}　${card.species.name}　${elementText(card.species.element)}`);
   headText.append(title, meta);
   head.append(portrait, headText);
   root.append(
@@ -124,7 +125,7 @@ function section(heading: string, rows: [string, string][], two = false): HTMLEl
     const dt = document.createElement('dt');
     dt.textContent = label;
     const dd = document.createElement('dd');
-    dd.textContent = value;
+    setRichText(dd, value);
     table.append(dt, dd);
   }
   box.append(h, table);

@@ -7,6 +7,7 @@ import { Renderer } from './render/renderer';
 import { TURN_CAP_MS, isRepeat, phaseAt, scaledTiming, totalOf } from './render/effects';
 import { faceElement, itemArt, onArtLoaded, preloadArt } from './render/art';
 import { ConfirmDialog } from './ui/dialog';
+import { setRichText } from './ui/icons';
 import { setupPad } from './ui/pad';
 import { setupQuick } from './ui/quick';
 import { ITEMS } from './game/items';
@@ -148,7 +149,7 @@ function updateHud(moment?: HudMoment): void {
   document.getElementById('floor')!.textContent = `B${state.floor}F`;
   document.getElementById('level')!.textContent = `Lv${p.level}`;
   document.getElementById('turn')!.textContent = `${state.turn}T`;
-  document.getElementById('runes')!.textContent = `💠${state.runes}`;
+  setRichText(document.getElementById('runes')!, `💠${state.runes}`);
   // かかっている状態異常と魔法を、残りターンつきで出す
   const effects = [
     p.ailments.confused > 0 ? `🌀${p.ailments.confused}` : '',
@@ -163,7 +164,7 @@ function updateHud(moment?: HudMoment): void {
     p.ailments.fortified > 0 ? `🏰${p.ailments.fortified}` : '',
     p.manaTurns > 0 ? `🔮${p.manaTurns}` : '',
   ];
-  document.getElementById('effects')!.textContent = effects.filter(Boolean).join(' ');
+  setRichText(document.getElementById('effects')!, effects.filter(Boolean).join(' '));
   setGauge('.gauge.hp', 'hp-text', hp, p.maxHp, `${hp}/${p.maxHp}`);
   // HPが1割以下のときと、満腹度が0のときは、その段を赤く点滅させる
   setDanger('.gauge.hp', hp <= p.maxHp * 0.1);

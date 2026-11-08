@@ -23,11 +23,12 @@ import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemEffect, itemName, kindEffect, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
-import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
+import { HOW_TO_PLAY, SPELL_ART, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
 import type { Settings } from './settings';
 import { lineList, listTools, renderLine, renderRow, selectButton, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement, itemArt } from '../render/art';
+import { iconImage, setRichText } from './icons';
 
 /** 拠点の画面。下のタブで行き来する */
 type View = 'hub' | 'prep' | 'allies' | 'fusion' | 'shop' | 'other';
@@ -320,7 +321,7 @@ export class BaseScreen {
     this.depart.classList.toggle('back', inside);
     (this.depart as HTMLButtonElement).disabled = false;
     if (this.view === 'shop' && this.shopAction && !this.itemView) {
-      this.depart.textContent = this.shopAction.label;
+      setRichText(this.depart, this.shopAction.label);
       (this.depart as HTMLButtonElement).disabled = this.shopAction.disabled;
     }
   }
@@ -462,7 +463,9 @@ export class BaseScreen {
     box.className = 'list-search';
     const input = document.createElement('input');
     input.type = 'search';
-    input.placeholder = `🔍 ${placeholder}`;
+    input.placeholder = placeholder;
+    // 虫めがねの絵は欄の左に敷く（絵はページから見た場所で読む）
+    input.style.backgroundImage = 'url(art/icon_ui_search.png)';
     input.value = st.query;
     input.enterKeyHint = 'search';
     input.addEventListener('input', () => {
@@ -512,6 +515,7 @@ export class BaseScreen {
       const done = p.cleared.includes(d.id);
       return renderLine({
         icon: open ? (done ? '🏆' : '⚔️') : '🔒',
+        art: open ? (done ? 'icon_ui_cleared' : 'icon_ui_open') : 'icon_ui_locked',
         name: d.name,
         tag: `全${d.floors}階`,
         sub: open ? (done ? '踏破済み' : '未踏破') : `${dungeonById(d.requires ?? '').name}を踏破すると挑める`,
@@ -532,7 +536,7 @@ export class BaseScreen {
     box.className = 'item-detail dungeon-detail';
     const art = document.createElement('span');
     art.className = 'item-detail-art';
-    art.textContent = done ? '🏆' : '⚔️';
+    art.append(iconImage(done ? 'icon_ui_cleared' : 'icon_ui_open', 'detail-icon'));
     const name = document.createElement('p');
     name.className = 'item-detail-name';
     name.textContent = d.name;
@@ -904,7 +908,7 @@ export class BaseScreen {
     name.textContent = item ? itemName(item) : ITEMS[kind].name;
     const desc = document.createElement('p');
     desc.className = 'item-detail-desc';
-    desc.textContent = item ? itemDesc(item) : ITEMS[kind].desc;
+    setRichText(desc, item ? itemDesc(item) : ITEMS[kind].desc);
     box.append(art, name, desc);
     return box;
   }
@@ -1173,6 +1177,7 @@ export class BaseScreen {
       const rec = r.dungeons[d.id];
       return renderRow({
         icon: p.cleared.includes(d.id) ? '🏆' : '⚔️',
+        art: p.cleared.includes(d.id) ? 'icon_ui_cleared' : 'icon_ui_open',
         name: d.name,
         sub: rec
           ? `挑戦${rec.tries}回　踏破${rec.cleared}　離脱${rec.escaped}\n力つきた${rec.failed}　あきらめた${rec.gaveUp}\n最高到達 B${rec.bestFloor}F／全${d.floors}階`
@@ -1215,7 +1220,7 @@ export class BaseScreen {
       { icon: SPELL_ICONS.fire, name: SPELLS.fire.name, sub: `${spellEffect('fire', 0)}　最初から使える` },
       ...[...ATTACK_SPELLS, ...BUFF_SPELLS]
         .filter((id) => p.learned.includes(id))
-        .map((id) => ({ icon: SPELL_ICONS[id], name: SPELLS[id].name, sub: spellEffect(id, 0) })),
+        .map((id) => ({ icon: SPELL_ICONS[id], art: SPELL_ART[id], name: SPELLS[id].name, sub: spellEffect(id, 0) })),
     ];
     return [
       note(`魔導書を読むと覚え、もう一度読むと+${SPELL_MAX_RANK}まで強くなる。強さはそのダンジョンの間だけ`),
@@ -1255,7 +1260,7 @@ function placeTabs(current: Place, labels: Record<Place, string>, onPick: (place
   box.className = 'place-tabs';
   for (const place of ['bag', 'warehouse'] as const) {
     const b = document.createElement('button');
-    b.textContent = labels[place];
+    setRichText(b, labels[place]);
     if (place === current) b.classList.add('on');
     b.addEventListener('click', () => onPick(place));
     box.append(b);
@@ -1371,7 +1376,7 @@ function table(rows: [string, string | HTMLElement[]][]): HTMLElement {
     const dt = document.createElement('dt');
     dt.textContent = k;
     const dd = document.createElement('dd');
-    if (typeof v === 'string') dd.textContent = v;
+    if (typeof v === 'string') setRichText(dd, v);
     else dd.append(...v);
     dl.append(dt, dd);
   }
@@ -1394,7 +1399,7 @@ function move(item: Item, from: Item[], to: Item[]): void {
 function note(text: string, className = 'sheet-note'): HTMLElement {
   const el = document.createElement('p');
   el.className = className === 'sheet-note' ? 'sheet-note' : `sheet-note ${className}`;
-  el.textContent = text;
+  setRichText(el, text);
   return el;
 }
 

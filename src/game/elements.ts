@@ -13,7 +13,7 @@ export const ELEMENT_LABEL: Record<Element, string> = {
   dark: '闇',
 };
 
-/** 属性のしるし。仮の絵文字で、あとで絵に置きかえる。無は出さない */
+/** 属性のしるし。データは絵文字で持ち、画面では絵（public/art/icon_el_*.png。ui/icons.ts）にする。無は出さない */
 export const ELEMENT_ICON: Record<Element, string> = {
   none: '',
   fire: '🔥',

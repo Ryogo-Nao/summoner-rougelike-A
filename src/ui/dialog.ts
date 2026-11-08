@@ -1,3 +1,5 @@
+import { setRichText } from './icons';
+
 /** はい／いいえの確認ダイアログ。開いている間は isOpen() が true */
 export class ConfirmDialog {
   private readonly root = document.getElementById('dialog')!;
@@ -28,7 +30,7 @@ export class ConfirmDialog {
    * danger は取り消せない操作（あきらめる・配合する・別れる）。［はい］を注意の赤にし、［いいえ］を主役の色にする
    */
   open(message: string, yesLabel: string, noLabel: string, onYes: () => void, onNo?: () => void, danger = false): void {
-    this.text.textContent = message;
+    setRichText(this.text, message);
     this.yes.classList.toggle('danger', danger);
     this.no.classList.toggle('main', danger);
     this.yes.textContent = yesLabel;

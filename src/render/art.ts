@@ -27,7 +27,22 @@ const ITEM_ART = new Set([
   'herb', 'bread', 'arrow', 'sealSummon', 'star', 'tomeGuard', 'holyPouch',
   'water', 'blank', 'rune', 'pot', 'fusionBook', 'rebirthBook',
   'club', 'bronzeSword', 'ironSword', 'woodShield', 'leatherShield', 'ironShield',
+  // 属性の剣・盾・杖（2026-11-08 に Gemini で作った）
+  ...['fire', 'ice', 'thunder', 'earth', 'wind', 'light', 'dark'].flatMap((e) => [`${e}Sword`, `${e}Shield`]),
+  'fireStaff', 'iceStaff', 'windStaff', 'thunderStaff', 'earthStaff',
 ]);
+
+/**
+ * 小さなアイコンの絵（public/art/icon_*.png）。属性（el）・魔法と強化（sp）・状態異常（st）・画面の印（ui）。
+ * 文の中の絵文字は ui/icons.ts で、一覧の行の印は id で使う
+ */
+export const ICON_IDS = [
+  ...['fire', 'water', 'thunder', 'earth', 'wind', 'light', 'dark'].map((k) => `icon_el_${k}`),
+  ...['fire', 'ice', 'wind', 'thunder', 'earth', 'power', 'guard', 'magic', 'ward'].map((k) => `icon_sp_${k}`),
+  ...['confused', 'poisoned', 'pinned', 'asleep', 'raged', 'fortified', 'mana'].map((k) => `icon_st_${k}`),
+  ...['cleared', 'open', 'locked', 'bag', 'warehouse', 'turn', 'swap', 'facing', 'speed', 'pad', 'search'].map((k) => `icon_ui_${k}`),
+  'ui_rune',
+];
 
 /** 道具の絵の id（artElement・artImage に渡す）。絵がなければ undefined */
 export function itemArt(kind: string): string | undefined {
@@ -39,10 +54,14 @@ const ART_IDS = new Set([
   'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
   'nemuriga', 'kuimushi', 'amigumo', 'chisui', 'tsubumaru', 'fuwakura', 'nurarika', 'kirigani', 'dosuino', 'tsuraragu',
   ...[...ITEM_ART].map((k) => `item_${k}`),
+  ...ICON_IDS,
 ]);
 
 const fileOf = (id: string) =>
-  id === 'player' ? 'art/player.png' : id.startsWith('item_') ? `art/${id}.png` : `art/monster_${id}.png`;
+  id === 'player' || /^(item|icon|ui)_/.test(id) ? `art/${id}.png` : `art/monster_${id}.png`;
+
+/** 四角い枠に小さめに出す絵（道具とアイコン）。魔物の絵は大きく出す */
+export const isSmallArt = (id: string) => id.startsWith('item_') || id.startsWith('icon_');
 
 /** 顔のアイコンの絵があるもの（全身の絵から scripts/crop-face.ps1 で切り出す） */
 const FACE_IDS = new Set([

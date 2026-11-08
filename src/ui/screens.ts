@@ -4,6 +4,7 @@ import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemEffect, it
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, lineList, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
+import { iconImage } from './icons';
 import type { Settings } from './settings';
 import { statusView } from './status';
 import { itemArt } from '../render/art';
@@ -161,6 +162,7 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
     // 威力は魔攻から決まる。当たる魔物の魔防で減る
     return {
       icon: SPELL_ICONS[id],
+      art: SPELL_ART[id],
       // 覚えていなくて、杖で使えている魔法は「（杖）」を付ける
       name: `${rankedName(spell.name, state.rankOf(id))}${!state.knows(id) && state.staffSpell() === id ? '（杖）' : ''}`,
       sub: spellEffect(id, state.rankOf(id), state.spellPower(id)),
@@ -179,6 +181,21 @@ export function openMagicSheet(state: GameState, sheet: Sheet, after: AfterActio
   sheet.open('魔法', rows, { note: `MP ${p.mp}/${p.maxMp}` });
 }
 
+/** 魔法の絵（public/art/icon_sp_*.png）。大火球はヒボシと同じ絵 */
+export const SPELL_ART: Record<SpellId, string> = {
+  fire: 'icon_sp_fire',
+  ice: 'icon_sp_ice',
+  wind: 'icon_sp_wind',
+  thunder: 'icon_sp_thunder',
+  earth: 'icon_sp_earth',
+  power: 'icon_sp_power',
+  guard: 'icon_sp_guard',
+  magic: 'icon_sp_magic',
+  ward: 'icon_sp_ward',
+  bigFire: 'icon_sp_fire',
+};
+
+/** 絵が読めないときの絵文字 */
 export const SPELL_ICONS: Record<SpellId, string> = {
   fire: '🔥',
   ice: '❄️',
@@ -595,6 +612,7 @@ export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し�
  * オン・オフは切り替えスイッチ、選ぶものは「左｜右」のような横並びのボタンで、ほかに何が選べるかが見える
  */
 function settingRow(
+  /** 印の絵の id（public/art/icon_ui_*.png） */
   icon: string,
   name: string,
   sub: string,
@@ -604,7 +622,7 @@ function settingRow(
   row.className = 'setting-row';
   const ic = document.createElement('span');
   ic.className = 'setting-icon';
-  ic.textContent = icon;
+  ic.append(iconImage(icon));
   const text = document.createElement('div');
   text.className = 'setting-text';
   const n = document.createElement('div');
@@ -655,11 +673,11 @@ export function settingRows(settings: Settings, onChange: () => void): HTMLEleme
     onChange();
   };
   return [
-    settingRow('↻', 'タップで振り向く', settings.turnFirst ? '1回目で向き、2回目で進む' : 'すぐ進む', {
+    settingRow('icon_ui_turn', 'タップで振り向く', settings.turnFirst ? '1回目で向き、2回目で進む' : 'すぐ進む', {
       switch: settings.turnFirst,
       set: (on: boolean) => change(() => (settings.turnFirst = on)),
     }),
-    settingRow('🔁', '仲間へ進むと', settings.allyMove === 'swap' ? '仲間と入れ替わる' : '1マス押し出す（押せなければ入れ替わる）', {
+    settingRow('icon_ui_swap', '仲間へ進むと', settings.allyMove === 'swap' ? '仲間と入れ替わる' : '1マス押し出す（押せなければ入れ替わる）', {
       options: [
         ['swap', '入れ替わる'],
         ['push', '押す'],
@@ -667,16 +685,16 @@ export function settingRows(settings: Settings, onChange: () => void): HTMLEleme
       value: settings.allyMove,
       set: (v: string) => change(() => (settings.allyMove = v as Settings['allyMove'])),
     }),
-    settingRow('➤', '正面のマスの枠', settings.facingTile ? '正面の1マスを金の枠で強調' : '枠は出さない（向きの矢印は出る）', {
+    settingRow('icon_ui_facing', '正面のマスの枠', settings.facingTile ? '正面の1マスを金の枠で強調' : '枠は出さない（向きの矢印は出る）', {
       switch: settings.facingTile,
       set: (on: boolean) => change(() => (settings.facingTile = on)),
     }),
-    settingRow('✨', '演出の速さ', EFFECT_SPEED_SUB[settings.effectSpeed], {
+    settingRow('icon_ui_speed', '演出の速さ', EFFECT_SPEED_SUB[settings.effectSpeed], {
       options: (['normal', 'fast', 'min'] as EffectSpeed[]).map((v) => [v, EFFECT_SPEED_LABEL[v]]),
       value: settings.effectSpeed,
       set: (v: string) => change(() => (settings.effectSpeed = v as EffectSpeed)),
     }),
-    settingRow('🎮', 'パッドの位置', settings.padSide === 'left' ? '左にパッド、右にボタン' : '右にパッド、左にボタン', {
+    settingRow('icon_ui_pad', 'パッドの位置', settings.padSide === 'left' ? '左にパッド、右にボタン' : '右にパッド、左にボタン', {
       options: [
         ['left', '左'],
         ['right', '右'],

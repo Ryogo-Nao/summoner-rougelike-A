@@ -3219,3 +3219,29 @@ body.fan-open::before {
 .hub-title .label-art {
   height: min(30px, 4.8cqh);
 }
+
+/* 文の中の小さな絵（属性・ルーン・状態異常など。ui/icons.ts） */
+.inline-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 0.05em;
+  vertical-align: -0.25em;
+  object-fit: contain;
+}
+/* 設定の行の印 */
+.setting-icon .inline-icon {
+  width: 26px;
+  height: 26px;
+  vertical-align: middle;
+}
+/* ダンジョンの詳しい画面の印 */
+.item-detail-art .detail-icon {
+  width: 52px;
+  height: 52px;
+}
+/* 検索の欄：左に虫めがねの絵 */
+.list-search input {
+  padding-left: 34px;
+  background: #fffaf0 9px center / 20px 20px no-repeat;
+}

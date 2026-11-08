@@ -395,7 +395,7 @@ export const cardToData = (card: Card): CardData => ({ ...card, species: card.sp
 export function isHelplessMonster(m: Monster): boolean {
   return (m.dormant ?? false) || m.ailments.asleep > 0 || m.ailments.pinned > 0;
 }
-/** 状態異常の印。混乱は🌀、毒は☠️。激昂は💢、要塞は🏰（仮の絵文字。あとで絵に差し替える） */
+/** 状態異常の印。混乱は🌀、毒は☠️。激昂は💢、要塞は🏰（データは絵文字。画面では ui/icons.ts で絵にする） */
 export const sickMark = (a: Ailments) =>
   `${a.confused > 0 ? '🌀' : ''}${a.poisoned > 0 ? '☠️' : ''}${a.pinned > 0 ? '📌' : ''}${a.asleep > 0 ? '💤' : ''}${a.raged > 0 ? '💢' : ''}${a.fortified > 0 ? '🏰' : ''}`;
 

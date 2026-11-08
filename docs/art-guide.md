@@ -166,7 +166,9 @@ Recraft では、最初に絵柄（スタイル）を1つ作り、すべての�
 | 星 | item_star（金の星に空色の芯。Gemini で作った） | 9種類の星 |
 | 魔導書 | item_tomeGuard（守りの魔導書） | 力の魔導書・守りの魔導書 |
 | 袋 | item_holyPouch（聖なる袋） | ふつうの袋・高級な袋・聖なる袋 |
-| 1つずつ | それぞれの絵 | 武器・盾、魔力の水・白紙カード・ルーン・錬金釜・配合の書・転生の書 |
+| 1つずつ | それぞれの絵 | 武器・盾・杖（属性の剣・盾・杖も）、魔力の水・白紙カード・ルーン・錬金釜・配合の書・転生の書 |
+
+**属性の剣7本・盾7枚・杖5本**（2026-11-08）は Gemini で作った。今の鉄の剣・鉄の盾の絵を見本に添付し、剣は柄を左下・切っ先を右上、盾は正面から少し斜め。1枚に何本かずつマス目に並べて、緑一色（#00FF00）の背景で描いてもらい、緑を抜いて1つずつ 160×160 の PNG に切り出した。背景の緑と一緒に消えないよう、疾風（風）の装備は緑ではなく白と水色で描く。
 
 下の表の bigBread・bigHerb・antidote・kitsuke・ironArrow・tomePower・pouch・finePouch と、召喚の印のほかの印の絵は、使わなくなったので消した（指示文は残す）。
 
@@ -205,7 +207,20 @@ Transparent background, no text, no shadow, no border.
 | leatherShield | 革の盾 | a leather shield with metal rivets |
 | ironShield | 鉄の盾 | a sturdy iron shield with a blue emblem |
 
-状態異常のアイコン（小さく表示するので、形をはっきり）
+### 7.1 小さなアイコン（2026-11-08。Gemini で作った）
+文の中や一覧の行の印に使う小さな絵。public/art/icon_*.png（96×96）。緑一色の背景にマス目に並べて描いてもらい、緑を抜いて切り出した。形を太くはっきりさせ、文字は入れない。
+
+| 種類 | ファイル | 中身 | 使うところ |
+|---|---|---|---|
+| 属性 | icon_el_fire・water・thunder・earth・wind・light・dark | 炎・しずく・稲妻・岩・つむじ風・輝く星・三日月 | 文の中の「🔥火」など（仲間の行・つよさ・装備の説明・バッグの上） |
+| 魔法と強化 | icon_sp_fire・ice・wind・thunder・earth・power・guard・magic・ward | ヒボシの火の玉・イテホシの氷のつぶて・ホシキリの風の刃・ホシナリの稲妻・ホシヨビの流れ星・力のこぶし・守りの盾・魔攻の紫の宝石・魔防の光の膜の宝石 | 魔法の一覧。大火球はヒボシと同じ絵。力・守り・魔攻・魔防は、上の帯の強化の印にも使う |
+| 状態異常 | icon_st_confused・poisoned・pinned・asleep・raged・fortified・mana | 回る星の渦・紫のしずく・札に刺さったピン・月と雲・怒りの印・石の塔・水晶玉 | 上の帯・マップの魔物の右上・つよさ |
+| 画面の印 | icon_ui_cleared・open・locked・bag・warehouse・turn・swap・facing・speed・pad・search | トロフィー・交差した剣・錠前・リュック・木の箱・丸い矢印・左右の矢印・金の三角・きらめき・コントローラー・虫めがね | 挑むダンジョン・記録・［バッグ］［倉庫］・設定の行・検索の欄 |
+
+- データ（道具の説明・属性の名前など）は絵文字のまま持ち、画面に出すときに src/ui/icons.ts の setRichText で絵に置き換える。ルーンの 💠 も ui_rune.png にする（拠点の右上と同じ絵）
+- 絵が読めないときは、今までどおり絵文字を出す
+
+以前の案（Recraft 用）：状態異常のアイコン（小さく表示するので、形をはっきり）
 | ID | 状態 | 英語の説明 |
 |---|---|---|
 | confused | 混乱 | a swirl symbol with small stars |

@@ -1,4 +1,5 @@
 import { EFFECT_TEXT } from '../game/elements';
+import { iconIds } from '../ui/icons';
 import type { ActorView, GameState, Popup, Scene, SceneAction } from '../game/state';
 import { ITEMS } from '../game/items';
 import { DIR_VECTORS, type Dir } from '../game/dir';
@@ -607,9 +608,15 @@ export class Renderer {
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     }
     if (actor.sick) {
-      // 状態異常の印は右上に小さく出す
-      ctx.font = `${Math.floor(ts * 0.32)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-      ctx.fillText(actor.sick, sx + ts * 0.8, sy + ts * 0.18);
+      // 状態異常の印は右上に小さく出す。絵（icon_st_*）があれば絵で、まだ読めていなければ絵文字で
+      const marks = iconIds(actor.sick).map((id) => artImage(id));
+      if (marks.length > 0 && marks.every((m) => m)) {
+        const size = ts * 0.34;
+        marks.forEach((m, i) => ctx.drawImage(m!, sx + ts * 0.8 - size / 2 - i * size * 0.8, sy + ts * 0.18 - size / 2, size, size));
+      } else {
+        ctx.font = `${Math.floor(ts * 0.32)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+        ctx.fillText(actor.sick, sx + ts * 0.8, sy + ts * 0.18);
+      }
       ctx.font = `${Math.floor(ts * 0.78)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     }
     if (actor.hp) this.drawHpBar(sx, ground, actor.hp.ratio, actor.hp.ally ? COLORS.allyHpBar : COLORS.hpBar);

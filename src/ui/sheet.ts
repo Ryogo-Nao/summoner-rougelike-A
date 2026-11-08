@@ -1,4 +1,5 @@
-import { artElement, faceElement, hasArt } from '../render/art';
+import { artElement, faceElement, hasArt, isSmallArt } from '../render/art';
+import { setRichText } from './icons';
 
 /**
  * 一覧の見出し。文字だけか、文字の前に絵を付けたもの。
@@ -59,8 +60,8 @@ export function renderLine(row: LineRow): HTMLElement {
   face.className = 'line-face';
   if (row.face) face.append(faceElement(row.face, row.icon));
   else if (row.art && hasArt(row.art)) {
-    face.append(artElement(row.art, row.icon, row.art.startsWith('item_') ? 'art item-art' : 'art'));
-    if (row.art.startsWith('item_')) face.classList.add('item');
+    face.append(artElement(row.art, row.icon, isSmallArt(row.art) ? 'art item-art' : 'art'));
+    if (isSmallArt(row.art)) face.classList.add('item');
   } else {
     face.classList.add('emoji');
     face.textContent = row.icon;
@@ -74,7 +75,7 @@ export function renderLine(row: LineRow): HTMLElement {
   if (row.tag) {
     const tag = document.createElement('span');
     tag.className = row.tagError ? 'line-tag error' : 'line-tag';
-    tag.textContent = row.tag;
+    setRichText(tag, row.tag);
     top.append(tag);
   }
   const text = document.createElement('div');
@@ -84,7 +85,7 @@ export function renderLine(row: LineRow): HTMLElement {
     const sub = document.createElement('div');
     sub.className = 'sub';
     // 行の中では改行せず、区切りは空白にする
-    sub.textContent = row.sub.replace(/\n/g, '　');
+    setRichText(sub, row.sub.replace(/\n/g, '　'));
     text.append(sub);
   }
   el.append(face, text);
@@ -222,7 +223,7 @@ export class Sheet {
     if (options.note) {
       const note = document.createElement('p');
       note.className = 'sheet-note';
-      note.textContent = options.note;
+      setRichText(note, options.note);
       children.push(note);
     }
     if (options.header) {
@@ -255,15 +256,15 @@ export function renderRow(row: SheetRow): HTMLElement {
   const icon = document.createElement('span');
   icon.className = 'icon';
   // 道具の絵は四角いので、丸い台からはみ出さないよう小さく出す
-  if (row.art && hasArt(row.art)) icon.append(artElement(row.art, row.icon, row.art.startsWith('item_') ? 'art item-art' : 'art'));
+  if (row.art && hasArt(row.art)) icon.append(artElement(row.art, row.icon, isSmallArt(row.art) ? 'art item-art' : 'art'));
   else icon.textContent = row.icon;
   const text = document.createElement('div');
   const name = document.createElement('div');
   name.className = 'name';
-  name.textContent = row.name;
+  setRichText(name, row.name);
   const sub = document.createElement('div');
   sub.className = 'sub';
-  sub.textContent = row.sub;
+  setRichText(sub, row.sub);
   text.append(name, sub);
   el.append(icon, text);
   const select = row.onSelect;
