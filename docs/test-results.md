@@ -2,6 +2,15 @@
 
 項目は docs/test-plan.md。
 
+## 2026-11-08（v89、UIレビューの段階2：ボタンの4段階と字）
+
+影響のあるテストを動かした。確かめの窓（dialog.ts・main.ts）、あきらめたときに失う数（profile.ts）、ダンジョンの一覧（sheet.ts・screens.ts）、配合（base.ts）、字とボタンの見た目（style.css）を変えたので、あきらめる・魔法・装備のテストと、画面は拠点・一覧・ダンジョンのテスト。
+
+| 種類 | 結果 |
+|---|---|
+| ゲームの決まりのテスト（giveup・spells・equipment） | 17件 すべて通過（F-89 の1件を足した） |
+| 画面のテスト（hub・lists・dungeon、iPhone の WebKit と Chromium） | 38件 すべて通過 |
+
 ## 2026-11-08（v88、道具の行を同じ高さに・説明の画面）
 
 影響のあるテストを動かした。道具の効果の文（items.ts）、一覧の行（sheet.ts・base.ts・screens.ts）を変えたので、装備のテストと、画面は拠点・一覧・ダンジョンのテスト。

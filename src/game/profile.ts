@@ -240,6 +240,13 @@ export interface Losses {
  * 拠点の中身はダンジョンの間は変わらないので、そのまま使う（ダンジョンで手に入れたもの・上がったレベルは残らない）。
  * そのうえで、持っているルーンと、持っていったバッグの道具の半分を失う
  */
+/** あきらめたら失うものの数。道具は持っていった道具の半分（聖なる袋は数えない）、ルーンは持っているルーンの半分 */
+export function giveUpLoss(profile: Profile, state: GameState): { items: number; runes: number; cards: number } {
+  const pool = profile.bag.filter((i) => ITEMS[i.kind].pouch?.holy !== true);
+  const cards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])].filter((c) => c.obtainedHere);
+  return { items: Math.floor(pool.length / 2), runes: Math.ceil(profile.runes / 2), cards: cards.length };
+}
+
 function giveUpToBase(profile: Profile, state: GameState): Losses {
   const found = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])].filter(
     (c) => c.obtainedHere,

@@ -1,4 +1,4 @@
-import { clearRun, loadProfile, loadRunData, loadoutOf, outcomeOf, returnToBase, saveRun } from './game/profile';
+import { clearRun, giveUpLoss, loadProfile, loadRunData, loadoutOf, outcomeOf, returnToBase, saveRun } from './game/profile';
 import { randomSeed } from './game/rng';
 import type { Dir } from './game/dir';
 import { GameState, sickMark, type RunData } from './game/state';
@@ -90,7 +90,7 @@ function endRun(): void {
     ? DUNGEONS.filter((d) => d.requires === state.dungeon.id).map((d) => `\n${d.name}に挑めるようになった`).join('')
     : '';
   const lost = state.gaveUp
-    ? `\n失ったもの：道具${losses.items.length}個　${losses.runesLost}ルーン`
+    ? `\n失ったもの：道具${losses.items.length}個　💠${losses.runesLost}`
     : state.dead
     ? losses.cards.length + losses.items.length > 0
       ? `\n失ったもの：仲間${losses.cards.length}体　道具${losses.items.length}個`
@@ -499,10 +499,21 @@ onButton('btn-menu', () =>
     () => settingsChanged(),
     // あきらめると、ダンジョンに入る前に戻ったうえで、持っているルーンと持っていった道具の半分を失う
     () =>
-      dialog.open('ダンジョンをあきらめる？\nダンジョンに入る前に戻り\n持っているルーンと\n持っていった道具の半分を失う', 'あきらめる', 'やめる', () => {
-        state.giveUp();
-        afterAction();
-      }),
+      {
+        const loss = giveUpLoss(profile, state);
+        const cards = loss.cards > 0 ? `\nここで仲間にした${loss.cards}体` : '';
+        dialog.open(
+          `ダンジョンをあきらめる？\nダンジョンに入る前に戻る\n\n失うもの\n道具${loss.items}個　💠${loss.runes}${cards}`,
+          'あきらめる',
+          'やめる',
+          () => {
+            state.giveUp();
+            afterAction();
+          },
+          undefined,
+          true,
+        );
+      },
   ),
 );
 

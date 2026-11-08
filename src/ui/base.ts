@@ -720,6 +720,8 @@ export class BaseScreen {
           this.parents = [];
           this.childFrom = 0;
         }),
+        undefined,
+        true,
       );
     });
     go.classList.add('main');

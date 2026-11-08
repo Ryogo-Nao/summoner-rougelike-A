@@ -124,8 +124,8 @@ export function openCardSheet(
 export function openStatusSheet(state: GameState, sheet: Sheet, card: Card, back: () => void): void {
   const ally = state.allies.find((a) => a.card === card);
   const footer = document.createElement('div');
-  footer.append(statusView(card, { ally, inDungeon: true }), wideButton('戻る', false, back));
-  sheet.open('つよさ', [], { footer });
+  footer.append(statusView(card, { ally, inDungeon: true }));
+  sheet.open('つよさ', [], { footer, back });
 }
 
 /**
@@ -259,7 +259,7 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
   const preview = state.equipPreview(item);
   if (preview) buttons.append(statChange(preview, '装備すると'));
   const use = useButton(state, sheet, item, after, () => openFloorSheet(state, sheet, after));
-  if (use) buttons.append(use);
+  if (use) buttons.append(mainButton(use));
   // 矢は撃つのと投げるのが同じなので、投げるは出さない
   if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
   const full = !state.canPickUp(item);
@@ -301,9 +301,9 @@ function startUse(state: GameState, sheet: Sheet, item: Item, after: AfterAction
   }
 }
 
-/** 決めるボタン。紺の板にして目立たせる */
+/** 主役のボタン（空色の宝石）。1つの画面に1つだけ。押せないときは主役にしない */
 function mainButton(button: HTMLButtonElement): HTMLButtonElement {
-  button.classList.add('main');
+  if (!button.disabled) button.classList.add('main');
   return button;
 }
 
@@ -354,15 +354,11 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
       }),
     ),
   );
-  const pair = document.createElement('div');
-  pair.className = 'sheet-pair';
-  pair.append(
+  footer.append(
     wideButton(room ? '道具をしまう' : 'いっぱい', !room || state.pouchable(pouch).length === 0, () =>
       openPouchPutSheet(state, sheet, pouch, after),
     ),
-    wideButton('戻る', false, () => openItemSheet(state, sheet, pouch, after)),
   );
-  footer.append(pair);
   const lines = [
     contents.length === 0 ? '中は空' : space <= 0 ? 'バッグがいっぱいで出せない' : `押して選ぶ（あと${space}個まで出せる）`,
     ITEMS[pouch.kind].pouch?.holy ? '力つきても中の道具は失わない' : '',
@@ -370,6 +366,7 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
   sheet.open({ art: itemArt(pouch.kind), icon: ITEMS[pouch.kind].emoji, text: itemName(pouch) }, rows, {
     note: lines.filter(Boolean).join('\n'),
     footer,
+    back: () => openItemSheet(state, sheet, pouch, after),
   });
 }
 
@@ -388,11 +385,11 @@ function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: A
         after();
       }),
     ),
-    wideButton('戻る', false, () => openPouchSheet(state, sheet, pouch, after)),
   );
   sheet.open(`${itemName(pouch)}にしまう`, rows, {
     note: `押して選ぶ（あと${space}個しまえる）\n袋は袋にしまえない`,
     footer,
+    back: () => openPouchSheet(state, sheet, pouch, after),
   });
 }
 
@@ -418,7 +415,7 @@ function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: Af
   });
   sheet.open({ art: itemArt(kind), icon: ITEMS[kind].emoji, text: `${ITEMS[kind].name}を登録` }, rows, {
     note: '［攻撃］を長押しして\n登録した枠の方へ指を滑らせると使える',
-    footer: wideButton('戻る', false, () => openItemSheet(state, sheet, item, after)),
+    back: () => openItemSheet(state, sheet, item, after),
   });
 }
 
@@ -426,7 +423,7 @@ function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: Af
  * ［使う］などのボタン。選ぶものがある道具は、選ぶ画面を出す
  * （復活の印・召喚の印は仲間、錬金釜は装備）。back は選ぶ画面の［戻る］で開き直す画面
  */
-function useButton(state: GameState, sheet: Sheet, item: Item, after: AfterAction, back: () => void): HTMLElement | null {
+function useButton(state: GameState, sheet: Sheet, item: Item, after: AfterAction, back: () => void): HTMLButtonElement | null {
   const label = state.useLabel(item);
   if (!label) return null;
   const problem = state.useProblem(item);
@@ -453,7 +450,7 @@ function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: 
   }));
   sheet.open(`${ITEMS[item.kind].name}を使う仲間`, rows, {
     note: revive ? 'HP半分で戻る' : 'MPを使わずに召喚する',
-    footer: wideButton('戻る', false, back),
+    back,
   });
 }
 
@@ -470,7 +467,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
     }));
     sheet.open('錬金釜：1つ目の装備', rows, {
       note: '同じ名前の装備を2つ合わせる\n大きいほうの＋に＋1（最大+10）',
-      footer: wideButton('戻る', false, back),
+      back,
     });
     return;
   }
@@ -493,7 +490,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
   });
   sheet.open(`錬金釜：${itemName(base)}と合わせる`, rows, {
     note: '合わせた装備は1つになる\n装備しているほうが残る',
-    footer: wideButton('戻る', false, () => openPotSheet(state, sheet, pot, after, back)),
+    back: () => openPotSheet(state, sheet, pot, after, back),
   });
 }
 
@@ -515,10 +512,9 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
       },
     },
   }));
-  const back = wideButton('戻る', false, () => openFloorSheet(state, sheet, after));
   sheet.open({ art: itemArt(floor.kind), icon: ITEMS[floor.kind].emoji, text: `${itemName(floor)}と入れ替える` }, rows, {
     note: '選んだ道具を足元に置いて拾う',
-    footer: back,
+    back: () => openFloorSheet(state, sheet, after),
   });
 }
 
@@ -534,9 +530,13 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
   const preview = state.equipPreview(item);
   if (preview) buttons.append(statChange(preview));
   const use = useButton(state, sheet, item, after, () => openItemSheet(state, sheet, item, after));
-  if (use) buttons.append(use);
-  if (def.pouch) buttons.append(wideButton('中を見る', false, () => openPouchSheet(state, sheet, item, after)));
-  if (!def.arrow) buttons.append(wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item))));
+  if (use) buttons.append(mainButton(use));
+  if (def.pouch) buttons.append(mainButton(wideButton('中を見る', false, () => openPouchSheet(state, sheet, item, after))));
+  if (!def.arrow) {
+    const toss = wideButton('投げる（向いている方向）', false, act(() => state.throwItem(item)));
+    // 白紙カードのように投げるしかない道具は、投げるが主役
+    buttons.append(use || def.pouch ? toss : mainButton(toss));
+  }
   if (state.canRegister(item)) {
     const slot = state.shortcuts.indexOf(item.kind);
     const label = slot >= 0 ? `登録する（${SHORTCUT_LABELS[slot]}に登録中）` : '登録する';
@@ -551,8 +551,11 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
     const dropProblem = state.dropProblem();
     buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
   }
-  buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
-  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: itemName(item) }, [], { note: itemDesc(item), footer: buttons });
+  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: itemName(item) }, [], {
+    note: itemDesc(item),
+    footer: buttons,
+    back: () => openBagSheet(state, sheet, after),
+  });
 }
 
 /** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */
@@ -646,13 +649,18 @@ export function openMenuSheet(sheet: Sheet, settings: Settings, onChange: () => 
     onChange();
     openMenuSheet(sheet, settings, onChange, onGiveUp);
   });
-  sheet.open('メニュー', rows, {
-    note: HOW_TO_PLAY,
-    footer: wideButton('ダンジョンをあきらめる', false, () => {
-      sheet.close();
-      onGiveUp();
-    }),
+  const footer = document.createElement('div');
+  footer.className = 'danger-zone';
+  const giveUp = wideButton('ダンジョンをあきらめる', false, () => {
+    sheet.close();
+    onGiveUp();
   });
+  giveUp.classList.add('danger');
+  const howTo = document.createElement('p');
+  howTo.className = 'sheet-note how-to';
+  howTo.textContent = `遊び方\n${HOW_TO_PLAY}`;
+  footer.append(giveUp, howTo);
+  sheet.open('メニュー', rows, { footer });
 }
 
 const ORDER_DESC: Record<AllyOrder, string> = {
@@ -665,20 +673,26 @@ const ORDER_DESC: Record<AllyOrder, string> = {
 /** 仲間の枠をタップしたとき。指示を選ぶ（ターンは使わない）。カードに戻すこともできる（1ターン） */
 export function openOrderSheet(state: GameState, sheet: Sheet, ally: Ally, after: AfterAction): void {
   const card = ally.card;
-  const rows: SheetRow[] = (Object.keys(ORDER_LABEL) as AllyOrder[]).map((order) => ({
-    icon: ally.order === order ? '▶' : '',
-    name: ORDER_LABEL[order],
-    sub: ORDER_DESC[order],
-    button: {
-      label: ally.order === order ? '指示中' : '選ぶ',
-      disabled: ally.order === order,
-      onClick: () => {
-        state.setOrder(ally, order);
-        sheet.close();
-        after();
-      },
-    },
-  }));
+  // 今の指示は行を金に光らせて「✓ 指示中」と出す。ほかの指示は［選ぶ］
+  const rows: SheetRow[] = (Object.keys(ORDER_LABEL) as AllyOrder[]).map((order) => {
+    const current = ally.order === order;
+    return {
+      icon: current ? '✓' : '',
+      name: current ? `${ORDER_LABEL[order]}（指示中）` : ORDER_LABEL[order],
+      sub: ORDER_DESC[order],
+      className: current ? 'chosen current-order' : undefined,
+      button: current
+        ? undefined
+        : {
+            label: '選ぶ',
+            onClick: () => {
+              state.setOrder(ally, order);
+              sheet.close();
+              after();
+            },
+          },
+    };
+  });
   const footer = document.createElement('div');
   footer.className = 'sheet-pair';
   footer.append(
@@ -723,7 +737,10 @@ export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after:
 export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const pending = state.pendingCard;
   if (!pending) return;
-  const rows: SheetRow[] = [...state.cards, pending].map((card, index) => {
+  const all = [...state.cards, pending];
+  const order = [all.length - 1, ...all.slice(0, -1).map((_, i) => i)];
+  const rows: SheetRow[] = order.map((index) => {
+    const card = all[index];
     const name = card === pending ? `${cardName(card)}（新）` : cardName(card);
     const store = state.canStore(card);
     return {
@@ -731,6 +748,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
       art: card.species.id,
       name: store ? `${name}（持ってきた）` : name,
       sub: cardSub(card),
+      className: card === pending ? 'chosen' : undefined,
       button: store
         ? {
             label: '預ける',
@@ -744,7 +762,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
     };
   });
   sheet.open('仲間がいっぱい', rows, {
-    note: '外す1体を選ぶ\n持ってきた仲間は拠点へ預けられる\nここで仲間にした魔物とは別れる',
+    note: 'いちばん上が新しい仲間。外す1体を選ぶ\n持ってきた仲間は拠点へ預けられる\nここで仲間にした魔物とは別れる',
     closable: false,
   });
 }
@@ -753,14 +771,13 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
 function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number, after: AfterAction): void {
   const buttons = document.createElement('div');
   buttons.className = 'sheet-pair';
-  buttons.append(
-    wideButton('別れる', false, () => {
-      sheet.close();
-      state.partWith(index);
-      after();
-    }),
-    wideButton('戻る', false, () => openSwapSheet(state, sheet, after)),
-  );
+  const part = wideButton('別れる', false, () => {
+    sheet.close();
+    state.partWith(index);
+    after();
+  });
+  part.classList.add('danger');
+  buttons.append(mainButton(wideButton('やめる', false, () => openSwapSheet(state, sheet, after))), part);
   sheet.open(cardTitle(card, `${cardName(card)}と別れる？`), [], {
     note: `${cardSub(card)}\n別れた仲間は戻らない`,
     footer: buttons,

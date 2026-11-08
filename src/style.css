@@ -33,6 +33,8 @@
   --shadow: 0 6px 20px rgba(61, 47, 34, 0.18);
   --font: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', -apple-system, sans-serif;
   --serif: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  /* ボタン・数字・説明の字（UIレビュー⑤） */
+  --gothic: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
 }
 
 * {
@@ -64,13 +66,15 @@ button {
 
 /* 紙の上のボタン。押している間は少し沈む */
 .sheet-row button,
+.line-row button,
 .sheet-wide,
 .sheet-head button,
 .dialog-buttons button {
   border: 1px solid var(--btn-line);
   background: var(--btn);
   color: var(--text);
-  font-family: var(--serif);
+  font-family: var(--gothic);
+  font-weight: 700;
   box-shadow: 0 1px 2px rgba(61, 47, 34, 0.12);
 }
 .sheet-row button:active,
@@ -155,7 +159,8 @@ button {
 .label {
   color: var(--muted);
   font-size: 12px;
-  font-family: var(--serif);
+  font-family: var(--gothic);
+  font-weight: 700;
 }
 .value {
   text-align: right;
@@ -261,7 +266,7 @@ button {
   padding: 0 6px 0 4px;
   border: none;
   background: none;
-  font-family: var(--serif);
+  font-family: var(--gothic);
   font-size: 12px;
   color: var(--muted);
   text-align: left;
@@ -283,7 +288,7 @@ button {
   flex: 1;
 }
 .slot-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--text);
   white-space: nowrap;
@@ -293,7 +298,7 @@ button {
 }
 .ally-slot:not(.filled) .slot-name {
   color: var(--muted);
-  font-family: var(--serif);
+  font-family: var(--gothic);
 }
 /* 仲間の作戦。HPの数字の上に、金の小さな字で出す */
 .slot-order {
@@ -647,7 +652,7 @@ button {
   gap: 6px;
 }
 #buttons button {
-  font-family: var(--serif);
+  font-family: var(--gothic);
   font-size: 15px;
   font-weight: bold;
   letter-spacing: 0.06em;
@@ -684,7 +689,7 @@ button {
   line-height: 1;
 }
 .quick-slot small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .quick-slot.off {
@@ -824,7 +829,7 @@ button {
 }
 /* 持っているルーン */
 .runes {
-  font-family: var(--serif);
+  font-family: var(--gothic);
   font-weight: bold;
   color: #7a5414;
   white-space: nowrap;
@@ -1169,7 +1174,7 @@ button {
   padding: 8px 6px;
   border-top: 1px solid rgba(184, 140, 60, 0.55);
   border-bottom: 1px solid rgba(184, 140, 60, 0.55);
-  font-family: var(--serif);
+  font-family: var(--gothic);
   font-size: 13px;
   line-height: 1.7;
   text-align: center;
@@ -1185,7 +1190,8 @@ button {
 }
 .status-table dt {
   color: var(--muted);
-  font-family: var(--serif);
+  font-family: var(--gothic);
+  font-weight: 700;
 }
 .status-table dd {
   margin: 0;
@@ -1582,7 +1588,7 @@ body:has(#base:not([hidden])) {
   border: none;
   background: none;
   color: #e9d6ad;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   text-shadow: 0 1px 1px #000;
 }
@@ -2013,6 +2019,12 @@ body:has(#base:not([hidden])) {
 }
 #base-nav button.on {
   color: #ffe08a;
+}
+#base-nav button:not(.on) .tab-frame {
+  filter: saturate(0.6) brightness(0.8);
+}
+#base-nav button:not(.on) {
+  color: #cdbf9f;
 }
 
 /*
@@ -2871,4 +2883,83 @@ body {
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-line;
+}
+
+/*
+ * ==== ボタンの4段階（UIレビュー⑥⑦）====
+ * 主役：空色の宝石（.main。1つの画面に1つだけ：出発・買う・装備・使うなど）
+ * ふつう：紺に金の縁（一覧の中の横いっぱいのボタン、行の小さなボタン）
+ * 控えめ：文字だけ（左上の「‹」）
+ * 注意：赤い宝石（.danger。あきらめる・配合する・別れるなど、取り消せない操作）
+ */
+/* ふつう：ダンジョンの一覧の横いっぱいのボタンは、タブの板ではなく紺に金の縁 */
+#sheet-body .sheet-wide:not(.main):not(.danger) {
+  border-width: 8px;
+  border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
+}
+#sheet-body .sheet-wide:not(.main):not(.danger):disabled {
+  border-image-source: url('./ui-art/btn-small.png');
+  filter: grayscale(0.7) brightness(0.75);
+}
+/* 注意：空色の宝石を赤くしたもの */
+:is(#base-body.navy, #sheet-body) .sheet-wide.danger,
+.dialog-buttons button.danger {
+  height: 52px;
+  border-style: solid;
+  border-width: 12px 26px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 12px 26px stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #fff;
+  font-family: var(--gothic);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66;
+  filter: hue-rotate(155deg) saturate(1.3) brightness(0.95);
+}
+/* 確かめの窓：取り消せない操作のときは［やめる］を主役（空色の宝石）にする */
+.dialog-buttons button.main {
+  border-width: 12px 26px;
+  border-image: url('./ui-art/btn-main.png') 40 76 fill / 12px 26px stretch;
+  color: #fff;
+  text-shadow: 1.5px 0 0 #143a66, -1.5px 0 0 #143a66, 0 1.5px 0 #143a66, 0 -1.5px 0 #143a66;
+}
+/* 控えめ：一覧の左上の「‹」。押せる広さは 44px */
+#sheet-back {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  margin: -6px 0 -6px -8px;
+  padding: 0;
+  border: none;
+  border-image: none;
+  background: none;
+  box-shadow: none;
+  color: #ffe596;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+}
+#sheet-back[hidden] {
+  display: none;
+}
+.sheet-head #sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+/* メニュー：［ダンジョンをあきらめる］は線で区切った場所に置き、その下に遊び方 */
+.danger-zone {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(230, 120, 100, 0.45);
+}
+.danger-zone .how-to {
+  margin-top: 12px;
+}
+/* 指示：今の指示の行。ボタンの代わりに印を出す */
+#sheet-body .sheet-row.current-order .icon {
+  color: #2f6b3a;
+  font-size: 22px;
+  font-weight: 900;
 }

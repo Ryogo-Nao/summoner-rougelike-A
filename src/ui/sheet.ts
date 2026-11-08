@@ -164,6 +164,9 @@ export class Sheet {
   private readonly title = document.getElementById('sheet-title')!;
   private readonly body = document.getElementById('sheet-body')!;
   private readonly closeButton = document.getElementById('sheet-close')!;
+  /** 左上の「‹」。押すと一つ前の一覧へ戻る（ボタンの格付けの「控えめ」） */
+  private readonly backButton = document.getElementById('sheet-back')!;
+  private back: (() => void) | null = null;
   private readonly onOpen: () => void;
   private closable = true;
   /** 今開いている一覧の見出しの文字 */
@@ -178,6 +181,7 @@ export class Sheet {
   constructor(onOpen: () => void) {
     this.onOpen = onOpen;
     this.closeButton.addEventListener('click', () => this.close());
+    this.backButton.addEventListener('click', () => this.back?.());
     // 一覧の外側をタップしても閉じる
     this.root.addEventListener('click', (e) => {
       if (e.target === this.root && this.closable) this.close();
@@ -188,7 +192,15 @@ export class Sheet {
   open(
     title: SheetTitle,
     rows: SheetRow[],
-    options: { note?: string; header?: HTMLElement; footer?: HTMLElement; closable?: boolean; lines?: boolean } = {},
+    options: {
+      note?: string;
+      header?: HTMLElement;
+      footer?: HTMLElement;
+      closable?: boolean;
+      lines?: boolean;
+      /** 左上に「‹」を出し、押すとこれを呼ぶ（一つ前の一覧を開き直す） */
+      back?: () => void;
+    } = {},
   ): void {
     if (!this.root.hidden) this.scrolls.set(this.current, this.body.scrollTop);
     this.current = titleText(title);
@@ -204,6 +216,8 @@ export class Sheet {
     }
     this.closable = options.closable ?? true;
     this.closeButton.hidden = !this.closable;
+    this.back = options.back ?? null;
+    this.backButton.hidden = !options.back;
     const children: HTMLElement[] = [];
     if (options.note) {
       const note = document.createElement('p');
