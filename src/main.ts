@@ -205,7 +205,8 @@ function updateHud(moment?: HudMoment): void {
   log.replaceChildren(
     ...state.log
       .filter((entry) => !moment || entry.serial <= moment.logSerial)
-      .slice(-3)
+      // ログはマップの下の端に重ねて2行だけ出す。全部は押すと開く「これまでのログ」で見る
+      .slice(-2)
       .map((entry) => {
       const el = document.createElement('p');
       el.textContent = entry.text;
@@ -592,7 +593,7 @@ const pad = setupPad(document.getElementById('pad')!, {
 });
 
 /** 仲間の枠の上下に空ける隙間（px） */
-const ALLIES_GAP = 8;
+const ALLIES_GAP = 4;
 
 const field = document.getElementById('field')!;
 const allies = document.getElementById('allies')!;

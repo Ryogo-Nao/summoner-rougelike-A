@@ -3166,3 +3166,34 @@ body.fan-open::before {
   position: absolute;
   inset: -6px -3px;
 }
+
+/*
+ * ==== ダンジョンのマップを広げる（UIレビュー：マップが高さの約4分の1）====
+ * ログは2行にしてマップの下の端に重ね（自分の高さぶん上へずらす）、仲間の帯は細くする。
+ * 右上のルーンとターンは、画面の丸い角で欠けないよう少し内側に寄せる
+ */
+#log {
+  /* z-index は付けない（一覧や確かめの窓より上に出ないように）。並びがマップより後なので、マップの上に描かれる */
+  position: relative;
+  height: 44px;
+  margin: -48px 10px 4px;
+  padding: 4px 10px;
+  background: rgba(11, 18, 40, 0.72);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+#log p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ally-slot {
+  height: 44px;
+}
+.ally-slot .face {
+  width: 36px;
+  height: 36px;
+}
+.status-row {
+  padding-right: 8px;
+}
