@@ -1425,13 +1425,13 @@ button {
   height: 40px;
 }
 #base-body.shop :is(.sheet-row, .line-row) .stepper button:not(.stepper-num) {
-  min-width: 32px;
-  width: 32px;
+  min-width: 30px;
+  width: 30px;
   height: 36px;
 }
 #base-body.shop :is(.sheet-row, .line-row) .stepper .stepper-num {
-  min-width: 34px;
-  width: 34px;
+  min-width: 32px;
+  width: 32px;
   height: 36px;
 }
 #base-body.shop .sheet-row .name {
@@ -2739,7 +2739,12 @@ body {
   font-weight: 700;
 }
 .line-tag {
-  flex: none;
+  /* 狭いときは名前より先に縮める */
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #7a5414;
   font-size: 13px;
   font-weight: 700;
@@ -2752,12 +2757,9 @@ body {
   color: #6b5236;
   font-size: 12px;
 }
-/* 道具の説明は2行まで */
-.line-row .sub.wrap {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  white-space: normal;
+/* 打ち込んだ数が多すぎたときの「n個まで」 */
+.line-tag.error {
+  color: var(--coral);
 }
 /* 押すと開く行の「›」 */
 .line-go {
@@ -2783,13 +2785,13 @@ body {
   white-space: nowrap;
 }
 .line-row .stepper button:not(.stepper-num) {
-  min-width: 32px;
-  width: 32px;
+  min-width: 30px;
+  width: 30px;
   height: 36px;
 }
 .line-row .stepper .stepper-num {
-  min-width: 34px;
-  width: 34px;
+  min-width: 32px;
+  width: 32px;
   height: 36px;
 }
 /* 右の丸い印。絵は小さめ、押せる広さは 44px */
@@ -2831,4 +2833,42 @@ body {
   width: 32px;
   height: 32px;
   padding: 3px;
+}
+
+/* 道具の説明（拠点の持ち物・袋・商店で行を押したとき）。明るい紙の札に、絵・名前・使い方まで書いた説明 */
+.item-detail {
+  margin: 10px 0;
+  padding: 14px 12px 16px;
+  border-style: solid;
+  border-width: 8px;
+  border-image: url('./ui-art/menu.png') 56 fill / 16px stretch;
+  text-align: center;
+}
+.item-detail-art {
+  display: inline-grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background: rgba(30, 40, 70, 0.88);
+  box-shadow: 0 0 0 2px #c99a3e;
+  font-size: 40px;
+}
+.item-detail-art img,
+.item-detail-art .inline-art {
+  width: 56px;
+  height: 56px;
+}
+.item-detail-name {
+  margin: 10px 0 6px;
+  color: #3a2410;
+  font-size: 18px;
+  font-weight: 700;
+}
+.item-detail-desc {
+  margin: 0;
+  color: #4a3420;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
 }

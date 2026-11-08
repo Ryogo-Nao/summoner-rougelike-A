@@ -20,7 +20,7 @@ import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
-import { BAG_LIMIT, ITEMS, itemCategory, itemEffect, itemName, kindEffect, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemEffect, itemName, kindEffect, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
 import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
@@ -116,6 +116,8 @@ export class BaseScreen {
   private shopAction: { label: string; disabled: boolean; run: () => void } | null = null;
   /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
   private fusionNote = '';
+  /** 説明を見ている道具（持ち物・袋・商店の行を押したとき）。商店の品は item がない */
+  private itemView: { kind: ItemKind; item?: Item } | null = null;
   /** 一覧ごと（仲間・連れていく仲間・バッグ・倉庫）の、検索の文字 */
   private lists = new Map<string, { query: string }>();
 
@@ -132,7 +134,8 @@ export class BaseScreen {
     // 商店では［購入する］［売却する］
     this.depart.addEventListener('click', () => {
       if (!this.profile) return;
-      if (this.view === 'shop') this.shopAction?.run();
+      if (this.itemView) this.leave(() => (this.itemView = null));
+      else if (this.view === 'shop') this.shopAction?.run();
       else if (this.viewing) this.leave(() => (this.viewing = null));
       else if (this.pouch) this.leave(() => (this.pouch = null));
       else if (this.choosing) this.leave(() => (this.choosing = false));
@@ -142,6 +145,7 @@ export class BaseScreen {
       button.addEventListener('click', () => {
         this.tab = button.dataset.tab as Tab;
         this.viewing = null;
+        this.itemView = null;
         this.pouch = null;
         this.choosing = false;
         this.render();
@@ -177,6 +181,7 @@ export class BaseScreen {
     if (view === 'fusion') p.notices.fusionSeen = canFuseNow(p);
     saveProfile(p);
     this.viewing = null;
+    this.itemView = null;
     this.pouch = null;
     this.choosing = false;
     this.clearShop();
@@ -248,7 +253,7 @@ export class BaseScreen {
       if (mark) b.append(mark);
     }
     const prep = this.view === 'prep';
-    const inside = this.viewing !== null || this.pouch !== null || this.choosing;
+    const inside = this.viewing !== null || this.pouch !== null || this.choosing || this.itemView !== null;
     this.title.textContent = this.view === 'hub' ? `${generationName(p.generation)} 召喚士` : VIEW_TITLE[this.view];
     this.tabBar.hidden = !prep;
     // 下のボタン：冒険では［ダンジョンに向かう］［戻る］、商店では［購入する］［売却する］、仲間と配合ではつよさを見ているときの［戻る］
@@ -260,6 +265,8 @@ export class BaseScreen {
     const children: HTMLElement[] = [];
     if (this.view === 'hub') {
       children.push(...this.hubRows(p));
+    } else if (this.itemView) {
+      children.push(this.itemDetail(this.itemView.kind, this.itemView.item));
     } else if (this.view === 'shop') {
       children.push(...this.shopRows(p));
     } else if (this.view === 'other') {
@@ -290,7 +297,7 @@ export class BaseScreen {
     this.depart.textContent = inside ? '戻る' : 'ダンジョンに向かう';
     this.depart.classList.toggle('back', inside);
     (this.depart as HTMLButtonElement).disabled = false;
-    if (this.view === 'shop' && this.shopAction) {
+    if (this.view === 'shop' && this.shopAction && !this.itemView) {
       this.depart.textContent = this.shopAction.label;
       (this.depart as HTMLButtonElement).disabled = this.shopAction.disabled;
     }
@@ -774,18 +781,34 @@ export class BaseScreen {
   }
 
   private itemRow(item: Item, label: string, disabled: boolean, onClick: () => void, name = itemName(item), tag?: string): HTMLElement {
-    const pouch = ITEMS[item.kind].pouch !== undefined;
-    // 袋は押すと中を見られる
+    const pouch = ITEMS[item.kind].pouch !== undefined && this.pouch !== item;
+    // 押すと説明を見られる。袋は中を見られる
     return renderLine({
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name,
       tag,
       sub: itemEffect(item),
-      wrap: true,
       button: { label, disabled, onClick: () => this.change(onClick) },
-      onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
+      onSelect: () => this.enter(() => (pouch ? (this.pouch = item) : (this.itemView = { kind: item.kind, item }))),
     });
+  }
+
+  /** 道具の説明。絵と名前、使い方まで書いた説明。下の［戻る］で一覧へ */
+  private itemDetail(kind: ItemKind, item?: Item): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'item-detail';
+    const art = document.createElement('span');
+    art.className = 'item-detail-art';
+    art.append(inlineArt(itemArt(kind), ITEMS[kind].emoji));
+    const name = document.createElement('p');
+    name.className = 'item-detail-name';
+    name.textContent = item ? itemName(item) : ITEMS[kind].name;
+    const desc = document.createElement('p');
+    desc.className = 'item-detail-desc';
+    desc.textContent = item ? itemDesc(item) : ITEMS[kind].desc;
+    box.append(art, name, desc);
+    return box;
   }
 
   /** 袋の中。［出す］でバッグへ、バッグの道具は［しまう］で袋へ */
@@ -901,21 +924,21 @@ export class BaseScreen {
       const key = `buy:${kind}`;
       // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
-      const row = renderLine({
+      // 数に限りのある品（入れ替わる品）だけ、棚にある数を値段の横に出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
+      const error = this.countError === key;
+      const rest = error ? ` ${max}個まで` : shelf !== Infinity ? ` 残り${shelf}` : '';
+      return renderLine({
         icon: ITEMS[kind].emoji,
         art: itemArt(kind),
         name: ITEMS[kind].name,
-        tag: `💠${buyPrice(kind)}`,
+        tag: `💠${buyPrice(kind)}${rest}`,
+        tagError: error,
         sub: kindEffect(kind),
-        wrap: true,
         on: n > 0,
         className: blocked ? 'blocked' : undefined,
+        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)),
+        onSelect: () => this.enter(() => (this.itemView = { kind })),
       });
-      // 数に限りのある品（入れ替わる品）だけ、棚にある数を出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
-      if (this.countError === key) countLine(row, `${max}個まで買える`, true);
-      else if (shelf !== Infinity) countLine(row, `${shelf}個まで買える`, false);
-      row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
-      return row;
     });
   }
 
@@ -955,19 +978,21 @@ export class BaseScreen {
       const max = g.items.length;
       const why = ITEMS[first.kind].pouch && (first.contents?.length ?? 0) > 0 ? '中の道具を出すと売れる' : '売れない';
       const key = `sell:${g.key}`;
-      const row = renderLine({
+      // 売れる数は「×3」で分かる。打ち込んだ数が多すぎたときは「3個まで」を赤で出す
+      const error = this.countError === key;
+      return renderLine({
         icon: ITEMS[first.kind].emoji,
         art: itemArt(first.kind),
         name: g.name,
-        tag: max > 1 ? `×${max}` : undefined,
+        tag: error ? `${max}個まで` : max > 1 ? `×${max}` : undefined,
+        tagError: error,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
         on: n > 0,
         className: !ok ? 'blocked' : undefined,
         button: ok ? undefined : { label: '売れない', disabled: true, onClick: () => {} },
+        right: ok ? this.stepper(key, n, max, (v) => this.sellCount.set(g.key, v)) : undefined,
+        onSelect: () => this.enter(() => (this.itemView = { kind: first.kind, item: first })),
       });
-      if (ok) countLine(row, `${max}個まで売れる`, this.countError === key);
-      if (ok) row.append(this.stepper(key, n, max, (v) => this.sellCount.set(g.key, v)));
-      return row;
     };
     return groups.length > 0 ? groups.map(sellRow) : [note(this.sellFrom === 'bag' ? 'バッグは空' : '倉庫は空')];
   }
@@ -1141,14 +1166,6 @@ function sortStock(items: Item[], by: ItemSortKey): Item[] {
   return groupItems(sortItems(items, 'kind'))
     .sort((a, b) => b.items.length - a.items.length)
     .flatMap((g) => g.items);
-}
-
-/** 説明の下に「n個まで…」を出す。打ち込んだ数が多すぎたとき（error）は赤にする */
-function countLine(row: HTMLElement, text: string, error: boolean): void {
-  const el = document.createElement('div');
-  el.className = error ? 'sub count-error' : 'sub';
-  el.textContent = text;
-  row.querySelector('.sub')!.after(el);
 }
 
 /**

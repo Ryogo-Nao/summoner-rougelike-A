@@ -94,3 +94,22 @@ test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => 
   const bag = await page.locator('#base-body .search-list .name').allInnerTexts();
   expect(bag[0]).toMatch(/^パン/);
 });
+
+test('F-88 道具の行はどれも同じ高さ。行を押すと説明が出て、戻れる', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 664 });
+  await openWithProfile(page, profileWith(1));
+  await nav(page, '冒険');
+  await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
+  await page.locator('.place-tabs button', { hasText: '倉庫' }).click();
+  const heights = () =>
+    page.evaluate(() => [...new Set([...document.querySelectorAll('.line-row')].map((r) => Math.round(r.getBoundingClientRect().height)))]);
+  expect(await heights()).toHaveLength(1);
+  await page.locator('#base-body .line-row', { hasText: '薬草' }).first().locator('.name').click();
+  await expect(page.locator('.item-detail')).toContainText('投げると');
+  await expect(page.locator('#base-depart')).toHaveText('戻る');
+  await page.locator('#base-depart').click();
+  await expect(page.locator('.item-detail')).toHaveCount(0);
+  // 商店も同じ高さ。値段の横に残りの数
+  await nav(page, '商店');
+  expect(await heights()).toHaveLength(1);
+});

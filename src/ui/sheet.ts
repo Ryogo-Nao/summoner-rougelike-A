@@ -24,13 +24,11 @@ export interface SheetRow {
   className?: string;
   /** 1行の形（lines で開いた一覧）のとき、名前の横に小さく出す（Lv・×2・値段など） */
   tag?: string;
-  /** 1行の形のとき、説明を2行まで出す（道具の説明など） */
-  wrap?: boolean;
 }
 
 /**
  * 一覧の1行（UIレビュー①②）。飾りの札にせず、1枚の紙の上を細い線で区切った行にする。
- * 左に顔か絵、まん中に名前（大きく太く）と tag（Lv・×2・値段）、その下に説明（小さく1行。wrap なら2行まで）。
+ * 左に顔か絵、まん中に名前（大きく太く）と tag（Lv・×2・値段）、その下に説明（小さく1行）。どの行も同じ高さになる。
  * 右に button か right（丸い印・［－］数［＋］など）。行を押すと onSelect
  */
 export interface LineRow {
@@ -41,8 +39,10 @@ export interface LineRow {
   face?: string;
   name: string;
   tag?: string;
+  /** tag を赤で出す（打ち込んだ数が多すぎたときの「n個まで」） */
+  tagError?: boolean;
+  /** 説明。行の高さをそろえるため、いつも1行（入りきらなければ「…」） */
   sub?: string;
-  wrap?: boolean;
   /** 選んでいる行（連れていく・親にする・買う数を選んだ）。淡い金にして左に金の線 */
   on?: boolean;
   dim?: boolean;
@@ -73,7 +73,7 @@ export function renderLine(row: LineRow): HTMLElement {
   top.append(name);
   if (row.tag) {
     const tag = document.createElement('span');
-    tag.className = 'line-tag';
+    tag.className = row.tagError ? 'line-tag error' : 'line-tag';
     tag.textContent = row.tag;
     top.append(tag);
   }
@@ -82,7 +82,7 @@ export function renderLine(row: LineRow): HTMLElement {
   text.append(top);
   if (row.sub) {
     const sub = document.createElement('div');
-    sub.className = row.wrap ? 'sub wrap' : 'sub';
+    sub.className = 'sub';
     // 行の中では改行せず、区切りは空白にする
     sub.textContent = row.sub.replace(/\n/g, '　');
     text.append(sub);

@@ -214,7 +214,6 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
       name: itemName(item),
       tag: state.isEquipped(item) ? '装備中' : items.length > 1 ? `×${items.length}` : undefined,
       sub: itemEffect(item),
-      wrap: true,
       onSelect: () => openItemSheet(state, sheet, item, after),
     };
   });
