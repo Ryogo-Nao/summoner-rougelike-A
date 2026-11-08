@@ -240,21 +240,24 @@ export interface Losses {
  * 拠点の中身はダンジョンの間は変わらないので、そのまま使う（ダンジョンで手に入れたもの・上がったレベルは残らない）。
  * そのうえで、持っているルーンと、持っていったバッグの道具の半分を失う
  */
-/** あきらめたら失うものの数。道具は持っていった道具の半分（聖なる袋は数えない）、ルーンは持っているルーンの半分 */
+/**
+ * あきらめたら失うものの数。道具は持っていった道具の半分（聖なる袋は数えない）、
+ * ルーンはこのダンジョンで拾ったルーン（拠点のルーンは減らない）
+ */
 export function giveUpLoss(profile: Profile, state: GameState): { items: number; runes: number; cards: number } {
   const pool = profile.bag.filter((i) => ITEMS[i.kind].pouch?.holy !== true);
   const cards = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])].filter((c) => c.obtainedHere);
-  return { items: Math.floor(pool.length / 2), runes: Math.ceil(profile.runes / 2), cards: cards.length };
+  return { items: Math.floor(pool.length / 2), runes: state.runes, cards: cards.length };
 }
 
 function giveUpToBase(profile: Profile, state: GameState): Losses {
   const found = [...state.cards, ...state.storage, ...(state.pendingCard ? [state.pendingCard] : [])].filter(
     (c) => c.obtainedHere,
   );
-  const runesLost = Math.ceil(profile.runes / 2);
+  // ルーンは、このダンジョンで拾った分だけを失う（拠点に持ち帰らない）。拠点のルーンはそのまま
+  const runesLost = state.runes;
   const { bag, lost, downgraded } = halveBag(profile.bag);
   profile.bag = bag;
-  profile.runes -= runesLost;
   profile.shopStock = rollStock(profile.cleared);
   profile.notices.shop = true;
   saveProfile(profile);

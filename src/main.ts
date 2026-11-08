@@ -504,13 +504,13 @@ onButton('btn-menu', () =>
     sheet,
     settings,
     () => settingsChanged(),
-    // あきらめると、ダンジョンに入る前に戻ったうえで、持っているルーンと持っていった道具の半分を失う
+    // あきらめると、ダンジョンに入る前に戻ったうえで、ここで拾ったルーンと、持っていった道具の半分を失う
     () =>
       {
         const loss = giveUpLoss(profile, state);
         const cards = loss.cards > 0 ? `\nここで仲間にした${loss.cards}体` : '';
         dialog.open(
-          `ダンジョンをあきらめる？\nダンジョンに入る前に戻る\n\n失うもの\n道具${loss.items}個　💠${loss.runes}${cards}`,
+          `ダンジョンをあきらめる？\nダンジョンに入る前に戻る\n\n失うもの\n道具${loss.items}個　ここで拾った💠${loss.runes}${cards}`,
           'あきらめる',
           'やめる',
           () => {
