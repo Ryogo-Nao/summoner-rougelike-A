@@ -18,7 +18,7 @@ import {
 } from '../game/fusion';
 import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
-import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
+import { buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
 import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemEffect, itemName, kindEffect, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
@@ -349,10 +349,7 @@ export class BaseScreen {
       lv.className = 'hub-lv';
       lv.textContent = card ? `Lv${card.level}` : '';
       slot.append(face, lv);
-      slot.addEventListener('click', () => {
-        this.tab = 'cards';
-        this.go('prep');
-      });
+      slot.addEventListener('click', () => this.go('allies'));
       party.append(slot);
     }
     // 魔法陣の台の上に主人公を立たせる
@@ -548,16 +545,20 @@ export class BaseScreen {
       record.textContent = `挑戦${rec.tries}回　踏破${rec.cleared}回　最高 B${rec.bestFloor}F`;
       box.append(record);
     }
+    // 確かめの窓と同じ並び：左に［挑む］（主役）、右に［やめる］
     const buttons = document.createElement('div');
-    buttons.className = 'sheet-pair';
-    const back = wideButton('戻る', false, () => this.leave(() => (this.dungeonView = null)));
-    const go = wideButton('挑む', false, () => {
+    buttons.className = 'dialog-buttons';
+    const go = document.createElement('button');
+    go.textContent = '挑む';
+    go.addEventListener('click', () => {
       this.dungeonId = d.id;
       this.dungeonView = null;
       this.render();
     });
-    go.classList.add('main');
-    buttons.append(back, go);
+    const cancel = document.createElement('button');
+    cancel.textContent = 'やめる';
+    cancel.addEventListener('click', () => this.leave(() => (this.dungeonView = null)));
+    buttons.append(go, cancel);
     box.append(buttons);
     return box;
   }
@@ -980,7 +981,7 @@ export class BaseScreen {
     const room = (this.buyTo === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT) - to.length;
     // 種類順（道具の表の順）に並べる
     const order = Object.keys(ITEMS);
-    const kinds = [...new Set([...ALWAYS_SOLD, ...p.shopStock])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const kinds = [...new Set(p.shopStock)].sort((a, b) => order.indexOf(a) - order.indexOf(b));
     const picked = kinds.filter((k) => (this.buyCount.get(k) ?? 0) > 0);
     const count = picked.reduce((n, k) => n + this.buyCount.get(k)!, 0);
     const total = picked.reduce((n, k) => n + buyPrice(k) * this.buyCount.get(k)!, 0);
@@ -1014,13 +1015,12 @@ export class BaseScreen {
       // ほかの品で選んだ分を引いて、この品をあと何個まで買えるか
       const otherRunes = total - buyPrice(kind) * n;
       const otherCount = count - n;
-      const shelf = ALWAYS_SOLD.includes(kind) ? Infinity : p.shopStock.filter((k) => k === kind).length;
+      const shelf = p.shopStock.filter((k) => k === kind).length;
       const max = Math.max(0, Math.min(shelf, Math.floor((p.runes - otherRunes) / buyPrice(kind)), room - otherCount));
       const key = `buy:${kind}`;
       // 買えない品（ルーンが足りない・送り先がいっぱい）は、行を暗くして［＋］を押せなくする
       const blocked = max === 0 && n === 0;
-      // 数に限りのある品（入れ替わる品）は、棚にある数を数の箱に「0/1」と出す（名前と値段を切らないように）。
-      // 打ち込んだ数が多すぎたときは、今買える数を値段の横に赤で出す
+      // 棚にある数（1つ、薬草とパンは2つ）までしか［＋］を押せない。打ち込んだ数が多すぎたときは、今買える数を値段の横に赤で出す
       const error = this.countError === key;
       const rest = error ? ` ${max}個まで` : '';
       return renderLine({
@@ -1032,7 +1032,7 @@ export class BaseScreen {
         sub: kindEffect(kind),
         on: n > 0,
         className: blocked ? 'blocked' : undefined,
-        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v), shelf === Infinity ? undefined : shelf),
+        right: this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)),
         onSelect: () => this.enter(() => (this.itemView = { kind })),
       });
     });
@@ -1096,10 +1096,9 @@ export class BaseScreen {
 
   /**
    * 数を選ぶ［－］数［＋］。数を押すと、じかに打ち込める。
-   * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す。
-   * stock があれば、数の箱に「選んだ数/棚にある数」を出す
+   * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す
    */
-  private stepper(key: string, value: number, max: number, set: (v: number) => void, stock?: number): HTMLElement {
+  private stepper(key: string, value: number, max: number, set: (v: number) => void): HTMLElement {
     const apply = (v: number) => {
       this.countError = null;
       set(Math.max(0, Math.min(max, v)));
@@ -1114,8 +1113,8 @@ export class BaseScreen {
     minus.disabled = value <= 0;
     minus.addEventListener('click', () => apply(value - 1));
     const num = document.createElement('button');
-    num.className = stock === undefined ? 'stepper-num' : 'stepper-num stock';
-    num.textContent = stock === undefined ? `${value}` : `${value}/${stock}`;
+    num.className = 'stepper-num';
+    num.textContent = `${value}`;
     num.addEventListener('click', () => {
       const input = document.createElement('input');
       input.className = 'stepper-num';

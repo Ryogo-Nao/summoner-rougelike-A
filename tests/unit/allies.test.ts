@@ -2,10 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { IZUTSUCHI, PERSONALITY_IDS, cardStats, createCard } from '../../src/game/cards';
 import { RECIPES, personalityOdds } from '../../src/game/fusion';
-import { buyPrice } from '../../src/game/items';
+import { buyPrice, type ItemKind } from '../../src/game/items';
 import { DIR_VECTORS, distance } from '../../src/game/dir';
 import { SPECIES, createMonster } from '../../src/game/monsters';
-import { loadoutOf, newProfile } from '../../src/game/profile';
+import { loadProfile, loadoutOf, newProfile, saveProfile } from '../../src/game/profile';
 import { buy, sell } from '../../src/game/shop';
 import { GameState } from '../../src/game/state';
 import { species } from '../helpers';
@@ -94,6 +94,34 @@ describe('F-65 商店', () => {
     expect(p.bag.length).toBe(bag + 1);
     expect(buy(p, 'herb', 'bag')).toBe(false);
     expect(p.runes).toBe(1);
+  });
+
+  it('棚には薬草とパンが2つずつ、ほかの品は1つずつ並ぶ。棚にある数より多くは買えない', () => {
+    const p = newProfile();
+    const count = (k: string) => p.shopStock.filter((s) => s === k).length;
+    expect(count('herb')).toBe(2);
+    expect(count('bread')).toBe(2);
+    for (const k of new Set(p.shopStock)) if (k !== 'herb' && k !== 'bread') expect(count(k), k).toBe(1);
+    p.runes = 10000;
+    expect(buy(p, 'herb', 'bag')).toBe(true);
+    expect(buy(p, 'herb', 'bag')).toBe(true);
+    expect(buy(p, 'herb', 'bag')).toBe(false);
+    expect(count('herb')).toBe(0);
+  });
+
+  it('前の保存データ（薬草とパンが棚になかったころ）は、読むときに一度だけ足す', () => {
+    const old = newProfile();
+    old.shopStock = ['club'] as ItemKind[];
+    saveProfile(old);
+    // 前の保存データには staples がない
+    const raw = JSON.parse(localStorage.getItem('summoner-profile')!) as Record<string, unknown>;
+    delete raw.staples;
+    localStorage.setItem('summoner-profile', JSON.stringify(raw));
+    const loaded = loadProfile();
+    expect(loaded.shopStock.filter((k) => k === 'herb')).toHaveLength(2);
+    expect(loaded.shopStock).toContain('club');
+    saveProfile(loaded);
+    expect(loadProfile().shopStock.filter((k) => k === 'herb')).toHaveLength(2);
   });
 
   it('売るとルーンが増え、持ち物から消える', () => {

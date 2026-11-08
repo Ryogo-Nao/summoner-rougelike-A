@@ -2204,6 +2204,9 @@ body:has(#base:not([hidden])) {
 }
 #base-depart:disabled {
   border-image-source: url('./ui-art/btn-main.png');
+  /* 押せないときの紙の地（前の見た目の名残り）を消し、宝石の絵だけにする */
+  border-color: transparent;
+  background: none;
   color: #e4e8f0;
   filter: grayscale(0.75) brightness(0.85);
 }
@@ -3211,20 +3214,14 @@ body.fan-open::before {
   text-align: center;
 }
 
-/* ダンジョンの詳しい画面：説明と記録、下に［戻る］［挑む］ */
-.dungeon-detail .sheet-pair {
+/* ダンジョンの詳しい画面：説明と記録、下に確かめの窓と同じ［挑む］［やめる］ */
+.dungeon-detail .dialog-buttons {
   margin-top: 14px;
 }
 .dungeon-detail .dungeon-record {
   margin-top: 8px;
   color: #6b5236;
   font-size: 13px;
-}
-#base-body.navy .dungeon-detail .sheet-wide:not(.main) {
-  height: 54px;
-  border-width: 8px;
-  border-image: url('./ui-art/btn-small.png') 22 fill / 8px stretch;
-  color: #ffe596;
 }
 
 /* ［－］［＋］は字ではなく線で描く（字体によって記号の位置がずれるため）。字は読み上げ用に残して見えなくする */
@@ -3252,9 +3249,4 @@ body.fan-open::before {
 }
 .stepper button:disabled::before {
   opacity: 0.45;
-}
-/* 商店の数に限りのある品は、数の箱に「0/1」と棚にある数も出す */
-.stepper .stepper-num.stock {
-  font-size: 14px;
-  letter-spacing: -0.02em;
 }

@@ -1,6 +1,6 @@
 import { HAND_LIMIT, IZUTSUCHI, createCard, isPartner, reserveCardIds, type Card } from './cards';
 import { BAG_LIMIT, ITEMS, START_ITEMS, allItems, createItem, noShortcuts, reserveItemIds, type Item, type ItemKind, type Shortcuts } from './items';
-import { rollStock } from './shop';
+import { STAPLES, rollStock } from './shop';
 import {
   cardFromData,
   cardToData,
@@ -31,8 +31,10 @@ export interface Profile {
   shortcuts: Shortcuts;
   /** 持っているルーン（お金） */
   runes: number;
-  /** 商店の、入れ替わる品。ダンジョンから戻るたびに選び直す */
+  /** 商店の棚（薬草とパンの2つずつと、入れ替わる品）。ダンジョンから戻るたびに選び直す */
   shopStock: ItemKind[];
+  /** 棚に薬草とパンが入るようになってからの保存データか（前のデータは、読むときに一度だけ足す） */
+  staples?: boolean;
   /** 戦績と累積（拠点の［記録］に出す） */
   records: Records;
   /** 何代目の召喚士か（requirements.md 9.1 世代継承）。今は継承の仕組みがないので、いつも1（初代） */
@@ -123,6 +125,7 @@ interface ProfileData {
   shortcuts?: Shortcuts;
   runes?: number;
   shopStock?: ItemKind[];
+  staples?: boolean;
   records?: Records;
   generation?: number;
   notices?: Notices;
@@ -145,6 +148,7 @@ export function newProfile(): Profile {
     shortcuts: noShortcuts(),
     runes: 0,
     shopStock: rollStock([]),
+    staples: true,
     records: newRecords(),
     generation: 1,
     notices: noNotices(),
@@ -163,7 +167,9 @@ export function loadProfile(): Profile {
       cleared: data.cleared ?? [],
       shortcuts: data.shortcuts ?? noShortcuts(),
       runes: data.runes ?? 0,
-      shopStock: data.shopStock ?? rollStock(data.cleared ?? []),
+      // 前の保存データの棚には薬草とパンがない（いくつでも買えた）ので、一度だけ足す
+      shopStock: data.shopStock ? (data.staples ? data.shopStock : [...STAPLES, ...data.shopStock]) : rollStock(data.cleared ?? []),
+      staples: true,
       records: { ...newRecords(), ...data.records },
       generation: data.generation ?? 1,
       notices: { ...noNotices(), ...data.notices },

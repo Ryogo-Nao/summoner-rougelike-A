@@ -8,8 +8,11 @@ import { WAREHOUSE_LIMIT } from './profile';
  * あとでダンジョンの中の店にも使えるよう、品ぞろえと売り買いはここにまとめる
  */
 
-/** いつでも、いくつでも買えるもの */
-export const ALWAYS_SOLD: ItemKind[] = ['herb', 'bread'];
+/**
+ * いつも並ぶ品と、その数（2026-11-08 から、いくつでも買えるのをやめて2つずつ）。
+ * ほかの品は1品につき1つ。どの品も、買うと棚からなくなり、ダンジョンから戻ると並べ直す
+ */
+export const STAPLES: ItemKind[] = ['herb', 'herb', 'bread', 'bread'];
 
 /** 戻るたびに入れ替わる品の数 */
 const STOCK_SIZE: [number, number] = [3, 5];
@@ -59,7 +62,10 @@ const STOCK_POOL: { kind: ItemKind; weight: number; dungeon?: string }[] = [
   { kind: 'rebirthBook', weight: 1 },
 ];
 
-/** 入れ替わる品を選び直す。同じ品は並べない。cleared は踏破したダンジョン（挑めるダンジョンの品だけ並べる） */
+/**
+ * 棚を並べ直す。薬草とパンを2つずつと、入れ替わる品（同じ品は並べない）を1つずつ。
+ * cleared は踏破したダンジョン（挑めるダンジョンの品だけ並べる）
+ */
 export function rollStock(cleared: string[], random: () => number = Math.random): ItemKind[] {
   const size = STOCK_SIZE[0] + Math.floor(random() * (STOCK_SIZE[1] - STOCK_SIZE[0] + 1));
   const open = (id: string) => DUNGEONS.some((d) => d.id === id && isUnlocked(d, cleared));
@@ -72,21 +78,19 @@ export function rollStock(cleared: string[], random: () => number = Math.random)
     const [picked] = pool.splice(i < 0 ? pool.length - 1 : i, 1);
     stock.push(picked.kind);
   }
-  return stock;
+  return [...STAPLES, ...stock];
 }
 
 /**
- * 1つ買って、where（バッグか倉庫）へ送る。入れ替わる品は、買うと棚からなくなる。
+ * 1つ買って、where（バッグか倉庫）へ送る。買うと棚からなくなる。
  * ルーンが足りない・送り先がいっぱい・棚にないときは買わずに false
  */
 export function buy(p: Profile, kind: ItemKind, where: 'bag' | 'warehouse'): boolean {
   const to = where === 'bag' ? p.bag : p.warehouse;
   if (p.runes < buyPrice(kind) || to.length >= (where === 'bag' ? BAG_LIMIT : WAREHOUSE_LIMIT)) return false;
-  if (!ALWAYS_SOLD.includes(kind)) {
-    const i = p.shopStock.indexOf(kind);
-    if (i < 0) return false;
-    p.shopStock.splice(i, 1);
-  }
+  const i = p.shopStock.indexOf(kind);
+  if (i < 0) return false;
+  p.shopStock.splice(i, 1);
   p.runes -= buyPrice(kind);
   to.push(createItem(kind));
   return true;
