@@ -16,10 +16,6 @@ UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 DIGITS = '0123456789'
 # 名前（ファイル名）: (字体, 太さ, 切り出す文字)
 FONTS = {
-    # 看板の「冒険の準備」：重厚な明朝
-    'hub-fantasy': ('Shippori Mincho B1', 800, '冒険の準備'),
-    # ［商店］［記録］［配合］：羊皮紙に合うアンティークの明朝
-    'hub-antique': ('Zen Antique', 400, '商店記録配合'),
     # 見出し・名札・ルーン・Lv・下のタブ：丸くない太いゴシック
     'hub-ui': (
         'Zen Kaku Gothic New',

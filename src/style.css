@@ -1554,19 +1554,6 @@ body:has(#base:not([hidden])) {
   margin-bottom: 6px;
 }
 
-/* 太い字に濃い縁取りと金のグラデーション（見出し・メニューの名前） */
-.gold-text {
-  display: inline-block;
-  background: linear-gradient(180deg, #fffbe2 0%, #ffe07a 40%, #f0a92a 72%, #b9701a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  filter: drop-shadow(1px 0 0 #3b2208) drop-shadow(-1px 0 0 #3b2208) drop-shadow(0 1px 0 #3b2208)
-    drop-shadow(0 -1px 0 #3b2208) drop-shadow(0 2px 1px rgba(0, 0, 0, 0.45));
-}
 
 /* 下のタブ：木の帯に、四角い枠のアイコンと名前を6つ並べる */
 #base-nav {
@@ -1899,46 +1886,10 @@ body:has(#base:not([hidden])) {
 
 /* ==== 拠点のトップの字体（scripts/subset-fonts.py で、使う文字だけ切り出したもの） ==== */
 @font-face {
-  font-family: 'Hub Fantasy';
-  src: url('./fonts/hub-fantasy.woff2') format('woff2');
-  font-weight: 800;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Hub Antique';
-  src: url('./fonts/hub-antique.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
   font-family: 'Hub UI';
   src: url('./fonts/hub-ui.woff2') format('woff2');
   font-weight: 900;
   font-display: swap;
-}
-/* 看板の「冒険の準備」：重厚な明朝。上が明るい黄色・下が深い金のグラデーションに、濃い茶と金の二重の縁取り */
-.hub-sign-title.gold-text {
-  font-family: 'Hub Fantasy', 'Hiragino Mincho ProN', serif;
-  font-size: min(32px, calc(var(--sign-w) * 0.08));
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  background: linear-gradient(180deg, #fff7c2 0%, #ffe36e 38%, #f2b234 66%, #b8721a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  filter: drop-shadow(1.5px 0 0 #3a1f08) drop-shadow(-1.5px 0 0 #3a1f08) drop-shadow(0 1.5px 0 #3a1f08)
-    drop-shadow(0 -1.5px 0 #3a1f08) drop-shadow(1px 0 0 #e8b54a) drop-shadow(-1px 0 0 #e8b54a)
-    drop-shadow(0 1px 0 #e8b54a) drop-shadow(0 -1px 0 #e8b54a) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5));
-}
-/* ［商店］［記録］［配合］：羊皮紙に合うアンティークの明朝。明るい黄色から金のグラデーションに、濃い茶の縁取り */
-.hub-title.gold-text {
-  font-family: 'Hub Antique', 'Hiragino Mincho ProN', serif;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  background: linear-gradient(180deg, #fffbe0 0%, #ffe27a 42%, #f5b33a 78%, #d98a1e 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  filter: drop-shadow(1.5px 0 0 #3a1c06) drop-shadow(-1.5px 0 0 #3a1c06) drop-shadow(0 1.5px 0 #3a1c06)
-    drop-shadow(0 -1.5px 0 #3a1c06) drop-shadow(0 2px 1px rgba(0, 0, 0, 0.35));
 }
 /* 小さな情報（見出し・名札・ルーン・Lv・下のタブ）：丸くない太いゴシック */
 #base-title,
@@ -3253,4 +3204,18 @@ body.fan-open::before {
 /* 確かめの窓の並び（あきらめる・ダンジョンの詳しい画面）では、赤い宝石も空色と同じ高さにする */
 .dialog-buttons button.danger {
   height: 50px;
+}
+
+/* 拠点のトップの名前の絵（描いてもらった文字。docs/art-guide.md 8.1） */
+.label-art {
+  display: inline-block;
+  width: auto;
+  vertical-align: middle;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+.hub-sign-title .label-art {
+  height: min(46px, calc(var(--sign-w) * 0.11));
+}
+.hub-title .label-art {
+  height: min(30px, 4.8cqh);
 }

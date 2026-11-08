@@ -362,13 +362,14 @@ export class BaseScreen {
     sign.className = 'hub-sign';
     const plate = document.createElement('button');
     plate.className = 'hub-sign-plate';
+    // 看板と札の名前は、描いてもらった文字の絵（public/art/ui_label_*.png。docs/art-guide.md 8.1）
     const signTitle = document.createElement('span');
-    signTitle.className = 'hub-sign-title gold-text';
-    signTitle.textContent = '冒険の準備';
+    signTitle.className = 'hub-sign-title';
+    signTitle.append(labelImage('adventure', '冒険の準備'));
     plate.append(signTitle);
     plate.addEventListener('click', () => this.go('prep'));
     sign.append(plate);
-    /** icon は public/art/ui_hub_<icon>.png */
+    /** icon は public/art/ui_hub_<icon>.png、名前の絵は public/art/ui_label_<icon>.png */
     const item = (view: View, icon: string, name: string, wide = false, otherMode?: OtherMode): HTMLElement => {
       const b = document.createElement('button');
       b.className = wide ? 'hub-item wide' : 'hub-item';
@@ -376,8 +377,8 @@ export class BaseScreen {
       ic.className = 'hub-icon';
       ic.append(uiImage(`ui_hub_${icon}`));
       const t = document.createElement('span');
-      t.className = 'hub-title gold-text';
-      t.textContent = name;
+      t.className = 'hub-title';
+      t.append(labelImage(icon, name));
       const chevron = document.createElement('span');
       chevron.className = 'hub-go';
       chevron.append(uiImage('ui_chevron'));
@@ -1346,6 +1347,13 @@ function withArt(el: HTMLElement, art: HTMLElement): HTMLElement {
 }
 
 /** UIの絵（public/art/<name>.png） */
+/** 拠点のトップの名前の絵。読み上げと、絵が出ないときのために alt に名前を入れる */
+function labelImage(name: string, text: string): HTMLImageElement {
+  const img = uiImage(`ui_label_${name}`, 'label-art');
+  img.alt = text;
+  return img;
+}
+
 function uiImage(name: string, className = ''): HTMLImageElement {
   const img = document.createElement('img');
   img.src = `art/${name}.png`;
