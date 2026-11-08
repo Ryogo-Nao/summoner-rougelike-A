@@ -37,6 +37,11 @@ const STOCK_POOL: { kind: ItemKind; weight: number; dungeon?: string }[] = [
   { kind: 'thunderSword', weight: 3, dungeon: 'ice' },
   { kind: 'thunderShield', weight: 3, dungeon: 'ice' },
   { kind: 'thunderStaff', weight: 2, dungeon: 'ice' },
+  // 光の装備はいかずちの坑道に、闇の装備はとこやみの大穴に挑めるようになってから
+  { kind: 'lightSword', weight: 2, dungeon: 'mine' },
+  { kind: 'lightShield', weight: 2, dungeon: 'mine' },
+  { kind: 'darkSword', weight: 2, dungeon: 'abyss' },
+  { kind: 'darkShield', weight: 2, dungeon: 'abyss' },
   { kind: 'tomeFire', weight: 1 },
   { kind: 'tomeIce', weight: 1 },
   { kind: 'tomeWind', weight: 1 },

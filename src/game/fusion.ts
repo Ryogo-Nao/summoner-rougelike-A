@@ -37,6 +37,15 @@ export const RECIPES: readonly (readonly [string, string, string])[] = [
   ['berogg', 'shururu', 'hidamari'], // かえるとへびから、トカゲ
   ['garuf', 'patari', 'hidamari'], // 翼のある獣から、竜に近いトカゲ
   ['kaburamu', 'pokotake', 'goromu'], // 硬い殻と、根を張る茸から、岩
+  // 配合でしか生まれない8種（2026-11-08）。弱い×弱い、または弱い×強い
+  ['hinoko', 'patari', 'hiirodori'], // 火の粉の雛と、闇の翼から、火の鳥
+  ['berogg', 'kujiran', 'mizuchi'], // 泉の蛙と、大くじらから、水の竜
+  ['birisu', 'garuf', 'narukami'], // 雷のリスと、黒狼から、雷の狼
+  ['pokotake', 'tsuchimogu', 'kodama'], // 茸ともぐらから、森の精
+  ['nemuriga', 'kamaitachi', 'tsumuji'], // 蛾と、風のいたちから、つむじ風の精
+  ['hotari', 'fuwakura', 'kourin'], // ほたると、光のくらげから、光の輪の精
+  ['yoruneko', 'shururu', 'nue'], // 黒猫と蛇から、鵺
+  ['chuppi', 'dosuino', 'yumebaku'], // 鼠と大猪から、獏
 ];
 
 /** 親2体から生まれる別の種族。組み合わせがなければ null */

@@ -391,7 +391,209 @@ const ICE: Dungeon = {
   ],
 };
 
-export const DUNGEONS: Dungeon[] = [FIRST, FOREST, ICE];
+/** 同じレベルで出る魔物をまとめて書く（新しいダンジョン用） */
+const band = (species: string[], floors: [number, number], level: number): MonsterEntry[] =>
+  species.map((id) => ({ species: id, floors, level }));
+
+/** 新しいダンジョンに共通の、草・食べ物・矢・印・袋・魔導書の重み。装備と書はダンジョンごとに足す */
+const commonItems = (deep: number): ItemEntry[] => [
+  { kind: 'herb', weight: 15 },
+  { kind: 'bigHerb', weight: 10 },
+  { kind: 'water', weight: 12 },
+  { kind: 'antidote', weight: 7 },
+  { kind: 'kitsuke', weight: 7 },
+  { kind: 'bread', weight: 4 },
+  { kind: 'bigBread', weight: 2.5 },
+  { kind: 'blank', weight: 4.5 },
+  { kind: 'arrow', weight: 4 },
+  { kind: 'ironArrow', weight: 4 },
+  { kind: 'sealReveal', weight: 2 },
+  { kind: 'sealRevive', weight: 2 },
+  { kind: 'sealSummon', weight: 1.5 },
+  { kind: 'sealPoison', weight: 1.5 },
+  { kind: 'sealConfuse', weight: 1.5 },
+  { kind: 'sealEscape', weight: 1.5 },
+  { kind: 'sealPin', weight: 2 },
+  { kind: 'sealSleep', weight: 2 },
+  { kind: 'sealDoom', weight: 0.8 },
+  ...stars(1.5),
+  { kind: 'pot', weight: 2 },
+  { kind: 'pouch', weight: 0.6 },
+  { kind: 'finePouch', weight: 0.4 },
+  { kind: 'holyPouch', weight: 0.3 },
+  { kind: 'bronzeSword', weight: 1.5 },
+  { kind: 'ironSword', weight: 3.5 },
+  { kind: 'leatherShield', weight: 1.5 },
+  { kind: 'ironShield', weight: 3.5 },
+  ...(['tomeFire', 'tomeIce', 'tomeWind', 'tomeThunder', 'tomeEarth', 'tomePower', 'tomeGuard', 'tomeMagic', 'tomeWard'] as ItemKind[]).map(
+    (kind) => ({ kind, weight: 0.75 }),
+  ),
+  { kind: 'fusionBook', weight: 1, floors: [6, deep] },
+  { kind: 'rebirthBook', weight: 0.5, floors: [6, deep] },
+];
+
+/**
+ * 4つ目のダンジョン（難しさ4。しずくの氷穴を6とする。balance.md 7.5）。2026-11-08 に足した魔物が出る。
+ * 浅い階は新しい弱い魔物が中心で、カマイタチが B4F から。深くなるとイワガメ・ホムラジシ・シロジカも出る。
+ * モンスターハウスが多い（B2F から 30％）。炎と疾風の装備が落ちている
+ */
+const VALLEY: Dungeon = {
+  id: 'valley',
+  name: 'ほたる火の谷',
+  desc: '全15階　魔物はLv4〜12\nモンスターハウスが多い',
+  requires: 'forest',
+  floors: 15,
+  allyStairsHeal: 0.15,
+  runes: { piles: [2, 3], amount: [12, 28], perFloor: 0.15 },
+  // 夕暮れの谷。琥珀色の土と、ほたるの淡い黄緑の明かり
+  theme: {
+    floor: '#5a4a32',
+    pebble: '#7d6a48',
+    wallStone: '#7b6a4e',
+    mortar: '#382c1c',
+    face: '#5c4c36',
+    rim: '#d8c48e',
+    outside: '#241d14',
+    light: [240, 236, 160],
+    dark: 0.4,
+    torches: 0.06,
+  },
+  itemsPerFloor: [4, 6],
+  monsterLevel: 4,
+  monsterHouse: { chance: 0.3, fromFloor: 2, monsters: [6, 10], items: [5, 8] },
+  items: [
+    ...commonItems(15),
+    { kind: 'fireSword', weight: 0.8 },
+    { kind: 'fireShield', weight: 0.8 },
+    { kind: 'fireStaff', weight: 0.5 },
+    { kind: 'windSword', weight: 0.8 },
+    { kind: 'windShield', weight: 0.8 },
+    { kind: 'windStaff', weight: 0.5 },
+  ],
+  monsters: [
+    // 浅い階：新しい弱い魔物がLv4。カマイタチは B4F から
+    ...band(['tsunousa', 'watage', 'hinoko', 'hotari', 'tsuchimogu', 'pukuri'], [1, 5], 4),
+    ...band(['kamaitachi'], [4, 5], 4),
+    // 中ほど：イワガメは B8F、ホムラジシは B9F から
+    ...band(['tsunousa', 'watage', 'hinoko', 'hotari', 'tsuchimogu', 'kamaitachi'], [6, 10], 7),
+    ...band(['iwagame'], [8, 10], 7),
+    ...band(['homurajishi'], [9, 10], 7),
+    // 深い階：強い魔物が中心。弱い魔物はレベルを上げて出す。シロジカは B12F から
+    ...band(['kamaitachi', 'iwagame', 'homurajishi'], [11, 15], 11),
+    ...band(['shirojika'], [12, 15], 11),
+    ...band(['tsunousa', 'hinoko', 'watage', 'hotari'], [11, 15], 12),
+  ],
+};
+
+/**
+ * 5つ目のダンジョン（難しさ6。しずくの氷穴と同じくらい）。B1F から新しい強い魔物だけが出る。
+ * 階段での仲間の回復は少ない。大地と光の装備が落ちている（光の装備はここで初めて手に入る）
+ */
+const MINE: Dungeon = {
+  id: 'mine',
+  name: 'いかずちの坑道',
+  desc: '全22階　魔物はLv5〜17\n強い魔物ばかりが出る',
+  requires: 'valley',
+  floors: 22,
+  allyStairsHeal: 0.1,
+  runes: { piles: [2, 3], amount: [18, 40], perFloor: 0.15 },
+  // 雷の走る古い坑道。黒い岩に、黄色い明かり
+  theme: {
+    floor: '#3a3a40',
+    pebble: '#57575f',
+    wallStone: '#5d5d68',
+    mortar: '#22222a',
+    face: '#45454f',
+    rim: '#c8c27a',
+    outside: '#16161c',
+    light: [255, 236, 140],
+    dark: 0.44,
+    torches: 0.05,
+  },
+  itemsPerFloor: [5, 7],
+  monsterLevel: 5,
+  monsterHouse: { chance: 0.15, fromFloor: 4, monsters: [7, 10], items: [6, 9] },
+  items: [
+    ...commonItems(22),
+    { kind: 'earthSword', weight: 1 },
+    { kind: 'earthShield', weight: 1 },
+    { kind: 'earthStaff', weight: 0.6 },
+    { kind: 'lightSword', weight: 0.8, floors: [6, 22] },
+    { kind: 'lightShield', weight: 0.8, floors: [6, 22] },
+  ],
+  monsters: [
+    // 浅い階：強い魔物がLv5。弱い魔物は出さない。クジランは B3F から
+    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika'], [1, 5], 5),
+    ...band(['kujiran'], [3, 5], 5),
+    // 中ほど：ホムラジシとイワガメも出る。ビリス・ヨルネコはレベルを上げて出す
+    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame'], [6, 11], 8),
+    ...band(['homurajishi'], [8, 11], 9),
+    ...band(['birisu', 'yoruneko'], [6, 11], 10),
+    // 深い階：ゴウリキは B14F から
+    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi'], [12, 17], 12),
+    ...band(['gouriki'], [14, 17], 12),
+    ...band(['birisu', 'yoruneko', 'pukuri'], [12, 17], 13),
+    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi', 'gouriki'], [18, 22], 16),
+    ...band(['raijuu', 'karabone'], [21, 22], 17),
+  ],
+};
+
+/**
+ * 6つ目のダンジョン（難しさ7）。B1F から強い魔物と、とても強い魔物（ゴウリキなど）が出る。全30階と長く、
+ * 階段での仲間の回復はほとんどない。闇の装備が落ちている（ここで初めて手に入る）
+ */
+const ABYSS: Dungeon = {
+  id: 'abyss',
+  name: 'とこやみの大穴',
+  desc: '全30階　魔物はLv6〜22\n階段での仲間の回復がほとんどない',
+  requires: 'mine',
+  floors: 30,
+  allyStairsHeal: 0.05,
+  runes: { piles: [2, 4], amount: [22, 50], perFloor: 0.15 },
+  // 底の見えない闇。紫がかった黒い石に、冷たい紫の明かり
+  theme: {
+    floor: '#302a3a',
+    pebble: '#4a4258',
+    wallStone: '#4f465e',
+    mortar: '#1c1724',
+    face: '#3a3346',
+    rim: '#a99ac8',
+    outside: '#120f18',
+    light: [210, 190, 255],
+    dark: 0.48,
+    torches: 0.03,
+  },
+  itemsPerFloor: [5, 7],
+  monsterLevel: 6,
+  monsterHouse: { chance: 0.2, fromFloor: 5, monsters: [7, 11], items: [6, 9] },
+  items: [
+    ...commonItems(30),
+    { kind: 'darkSword', weight: 0.8, floors: [8, 30] },
+    { kind: 'darkShield', weight: 0.8, floors: [8, 30] },
+    { kind: 'lightSword', weight: 0.5 },
+    { kind: 'lightShield', weight: 0.5 },
+    { kind: 'thunderSword', weight: 0.6 },
+    { kind: 'fireSword', weight: 0.6 },
+  ],
+  monsters: [
+    // 浅い階：強い魔物がLv6。ゴウリキ・ホムラジシも B1F から
+    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi'], [1, 6], 6),
+    ...band(['kujiran', 'shirojika'], [3, 6], 7),
+    // 中ほど：前のダンジョンのとても強い魔物（ゴロム・ツララグマ）も出る
+    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi', 'kujiran', 'shirojika'], [7, 12], 10),
+    ...band(['goromu', 'moyari'], [9, 12], 10),
+    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'moyari'], [13, 18], 13),
+    ...band(['tsuraragu', 'nurarika'], [13, 18], 14),
+    ...band(['yoruneko', 'birisu', 'tsunousa'], [13, 18], 15),
+    // 深い階：レベルがさらに上がる
+    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu'], [19, 24], 17),
+    ...band(['yoruneko', 'watage', 'hotari'], [19, 24], 18),
+    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu', 'moyari'], [25, 30], 21),
+    ...band(['gouriki', 'homurajishi', 'raijuu'], [28, 30], 22),
+  ],
+};
+
+export const DUNGEONS: Dungeon[] = [FIRST, FOREST, ICE, VALLEY, MINE, ABYSS];
 
 /** 挑めるか。前のダンジョンを踏破していなければ挑めない */
 export function isUnlocked(dungeon: Dungeon, cleared: string[]): boolean {

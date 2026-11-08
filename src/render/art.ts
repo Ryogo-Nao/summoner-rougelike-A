@@ -53,6 +53,7 @@ export function itemArt(kind: string): string | undefined {
 const ART_IDS = new Set([
   'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
   'nemuriga', 'kuimushi', 'amigumo', 'chisui', 'tsubumaru', 'fuwakura', 'nurarika', 'kirigani', 'dosuino', 'tsuraragu',
+  'hinoko', 'pukuri', 'birisu', 'tsuchimogu', 'watage', 'hotari', 'yoruneko', 'tsunousa', 'homurajishi', 'kujiran', 'raijuu', 'iwagame', 'kamaitachi', 'shirojika', 'karabone', 'gouriki', 'hiirodori', 'mizuchi', 'narukami', 'kodama', 'tsumuji', 'kourin', 'nue', 'yumebaku',
   ...[...ITEM_ART].map((k) => `item_${k}`),
   ...ICON_IDS,
 ]);
@@ -67,6 +68,7 @@ export const isSmallArt = (id: string) => id.startsWith('item_') || id.startsWit
 const FACE_IDS = new Set([
   'player', 'izutsuchi', 'chuppi', 'berogg', 'pokotake', 'shururu', 'garuf', 'kaburamu', 'moyari', 'hidamari', 'patari', 'goromu',
   'nemuriga', 'kuimushi', 'amigumo', 'chisui', 'tsubumaru', 'fuwakura', 'nurarika', 'kirigani', 'dosuino', 'tsuraragu',
+  'hinoko', 'pukuri', 'birisu', 'tsuchimogu', 'watage', 'hotari', 'yoruneko', 'tsunousa', 'homurajishi', 'kujiran', 'raijuu', 'iwagame', 'kamaitachi', 'shirojika', 'karabone', 'gouriki', 'hiirodori', 'mizuchi', 'narukami', 'kodama', 'tsumuji', 'kourin', 'nue', 'yumebaku',
 ]);
 
 /** 丸い枠に入れる顔。絵がなければ fallback の絵文字を文字で出す */

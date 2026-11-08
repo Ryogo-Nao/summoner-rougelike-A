@@ -19,7 +19,7 @@ describe('F-93 弱み（鈍足・ふらふら）のある魔物には強みが�
     for (const s of SPECIES.filter(hasDrawback)) {
       expect(s.mighty || s.sturdy || s.special !== undefined || s.twoHits || s.reach || s.regen, s.id).toBeTruthy();
     }
-    expect(SPECIES.filter(hasDrawback).map((s) => s.id).sort()).toEqual(['goromu', 'patari', 'tsubumaru']);
+    expect(SPECIES.filter(hasDrawback).map((s) => s.id).sort()).toEqual(['goromu', 'gouriki', 'iwagame', 'kujiran', 'patari', 'tsubumaru', 'watage']);
   });
 
   it('仲間になると、弱みのある種族は能力の伸びが1.2倍（Lv1は同じ）', () => {

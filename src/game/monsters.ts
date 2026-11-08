@@ -49,6 +49,8 @@ export interface Species {
    * sleep は鱗粉で眠らせる、pin は糸ではりつけにする、manaBite はMPを減らす（主人公だけ）、drain は与えたダメージの半分を吸い取る
    */
   special?: 'spore' | 'venom' | 'breath' | 'sleep' | 'pin' | 'manaBite' | 'drain';
+  /** 特技の呼び名（ログに出す）。省くと 胞子・毒・火・鱗粉・糸。水の属性の breath は水の見た目で吐く */
+  specialName?: string;
   /** 仲間にしたときの成長の型と早さ。プレイヤーには見せない */
   growth: GrowthType;
   pace: GrowthPace;
@@ -78,7 +80,35 @@ export const SPECIES: readonly Species[] = [
   { id: 'kirigani', name: 'キリガニ', emoji: '🦀', hp: 32, atk: 9, def: 10, matk: 4, mdef: 3, element: 'water', exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'defense', pace: 'normal' },
   { id: 'dosuino', name: 'ドスイノ', emoji: '🐗', hp: 40, atk: 12, def: 4, matk: 3, mdef: 2, element: 'none', exp: 34, capture: 0.06, cost: 10, speed: 'normal', growth: 'attack', pace: 'normal' },
   { id: 'tsuraragu', name: 'ツララグマ', emoji: '🐻‍❄️', hp: 50, atk: 14, def: 8, matk: 4, mdef: 4, element: 'water', exp: 48, capture: 0.04, cost: 13, speed: 'normal', growth: 'hp', pace: 'normal' },
+  // 2026-11-08 に足した24種。属性ごとに、野生の弱い魔物・野生の強い魔物・配合でしか生まれない魔物を1体ずつ（balance.md 4章）
+  { id: 'hinoko', name: 'ヒノコ', emoji: '🐤', hp: 12, atk: 4, def: 2, matk: 5, mdef: 3, element: 'fire', exp: 6, capture: 0.25, cost: 4, speed: 'normal', growth: 'balance', pace: 'early' },
+  { id: 'pukuri', name: 'プクリ', emoji: '🐡', hp: 14, atk: 3, def: 6, matk: 3, mdef: 4, element: 'water', exp: 6, capture: 0.25, cost: 4, speed: 'normal', growth: 'defense', pace: 'normal' },
+  { id: 'birisu', name: 'ビリス', emoji: '🐿️', hp: 12, atk: 4, def: 2, matk: 5, mdef: 3, element: 'thunder', exp: 7, capture: 0.22, cost: 4, speed: 'normal', twoHits: true, growth: 'balance', pace: 'early' },
+  { id: 'tsuchimogu', name: 'ツチモグ', emoji: '🐹', hp: 16, atk: 4, def: 5, matk: 2, mdef: 3, element: 'earth', exp: 7, capture: 0.22, cost: 5, speed: 'normal', growth: 'defense', pace: 'normal' },
+  { id: 'watage', name: 'ワタゲ', emoji: '🌼', hp: 10, atk: 3, def: 2, matk: 6, mdef: 5, element: 'wind', exp: 6, capture: 0.25, cost: 4, speed: 'normal', erratic: true, special: 'sleep', specialName: '綿毛', growth: 'balance', pace: 'early' },
+  { id: 'hotari', name: 'ホタリ', emoji: '🪲', hp: 11, atk: 3, def: 2, matk: 6, mdef: 8, element: 'light', exp: 6, capture: 0.25, cost: 4, speed: 'normal', growth: 'balance', pace: 'normal' },
+  { id: 'yoruneko', name: 'ヨルネコ', emoji: '🐈‍⬛', hp: 14, atk: 5, def: 2, matk: 5, mdef: 4, element: 'dark', exp: 7, capture: 0.22, cost: 5, speed: 'normal', special: 'spore', specialName: '妖しい瞳', growth: 'attack', pace: 'early' },
+  { id: 'tsunousa', name: 'ツノウサ', emoji: '🐇', hp: 13, atk: 5, def: 3, matk: 2, mdef: 2, element: 'none', exp: 6, capture: 0.25, cost: 4, speed: 'normal', growth: 'attack', pace: 'early' },
+  { id: 'homurajishi', name: 'ホムラジシ', emoji: '🦁', hp: 44, atk: 13, def: 6, matk: 11, mdef: 6, element: 'fire', exp: 36, capture: 0.06, cost: 11, speed: 'normal', special: 'breath', growth: 'attack', pace: 'normal' },
+  { id: 'kujiran', name: 'クジラン', emoji: '🐋', hp: 55, atk: 12, def: 7, matk: 11, mdef: 8, element: 'water', exp: 40, capture: 0.05, cost: 12, speed: 'slow', special: 'breath', specialName: '水の塊', growth: 'hp', pace: 'late' },
+  { id: 'raijuu', name: 'ライジュウ', emoji: '🐆', hp: 42, atk: 13, def: 5, matk: 8, mdef: 5, element: 'thunder', exp: 38, capture: 0.06, cost: 11, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
+  { id: 'iwagame', name: 'イワガメ', emoji: '🐢', hp: 48, atk: 10, def: 15, matk: 4, mdef: 6, element: 'earth', exp: 36, capture: 0.06, cost: 11, speed: 'slow', sturdy: true, growth: 'defense', pace: 'late' },
+  { id: 'kamaitachi', name: 'カマイタチ', emoji: '🦦', hp: 32, atk: 12, def: 5, matk: 6, mdef: 4, element: 'wind', exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'attack', pace: 'early' },
+  { id: 'shirojika', name: 'シロジカ', emoji: '🦌', hp: 40, atk: 11, def: 7, matk: 9, mdef: 10, element: 'light', exp: 34, capture: 0.06, cost: 11, speed: 'normal', growth: 'balance', pace: 'normal' },
+  { id: 'karabone', name: 'カラボネ', emoji: '💀', hp: 40, atk: 13, def: 8, matk: 4, mdef: 4, element: 'dark', exp: 34, capture: 0.06, cost: 11, speed: 'normal', growth: 'defense', pace: 'normal' },
+  { id: 'gouriki', name: 'ゴウリキ', emoji: '🦍', hp: 52, atk: 15, def: 7, matk: 3, mdef: 3, element: 'none', exp: 40, capture: 0.05, cost: 12, speed: 'slow', mighty: true, growth: 'hp', pace: 'late' },
+  { id: 'hiirodori', name: 'ヒイロドリ', emoji: '🐦', hp: 34, atk: 10, def: 5, matk: 10, mdef: 7, element: 'fire', exp: 30, capture: 0.05, cost: 10, speed: 'normal', regen: 0.05, growth: 'balance', pace: 'normal' },
+  { id: 'mizuchi', name: 'ミズチ', emoji: '🐉', hp: 58, atk: 15, def: 8, matk: 12, mdef: 9, element: 'water', exp: 40, capture: 0.05, cost: 12, speed: 'normal', reach: 2, reachName: '水の息', growth: 'attack', pace: 'normal' },
+  { id: 'narukami', name: 'ナルカミ', emoji: '🐺', hp: 50, atk: 15, def: 6, matk: 10, mdef: 6, element: 'thunder', exp: 42, capture: 0.05, cost: 12, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
+  { id: 'kodama', name: 'コダマ', emoji: '🌳', hp: 34, atk: 9, def: 7, matk: 8, mdef: 8, element: 'earth', exp: 30, capture: 0.05, cost: 10, speed: 'normal', special: 'spore', regen: 0.06, growth: 'hp', pace: 'late' },
+  { id: 'tsumuji', name: 'ツムジ', emoji: '🌪️', hp: 46, atk: 13, def: 5, matk: 10, mdef: 7, element: 'wind', exp: 40, capture: 0.05, cost: 12, speed: 'normal', reach: 2, reachName: '風の刃', growth: 'attack', pace: 'normal' },
+  { id: 'kourin', name: 'コウリン', emoji: '😇', hp: 46, atk: 12, def: 6, matk: 12, mdef: 10, element: 'light', exp: 40, capture: 0.05, cost: 12, speed: 'normal', special: 'drain', growth: 'balance', pace: 'normal' },
+  { id: 'nue', name: 'ヌエ', emoji: '🐒', hp: 34, atk: 11, def: 5, matk: 7, mdef: 5, element: 'dark', exp: 30, capture: 0.05, cost: 10, speed: 'normal', twoHits: true, special: 'venom', growth: 'attack', pace: 'normal' },
+  { id: 'yumebaku', name: 'ユメバク', emoji: '🐘', hp: 46, atk: 13, def: 7, matk: 10, mdef: 8, element: 'none', exp: 30, capture: 0.05, cost: 10, speed: 'normal', special: 'sleep', specialName: '夢の霧', growth: 'hp', pace: 'normal' },
 ];
+
+/** 配合でしか生まれない魔物（野生には出ない。fusion.ts の RECIPES で生まれる） */
+export const FUSION_ONLY = ['hiirodori', 'mizuchi', 'narukami', 'kodama', 'tsumuji', 'kourin', 'nue', 'yumebaku'];
 
 
 /** 強みの倍率（balance.md 4.6） */

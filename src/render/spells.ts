@@ -236,7 +236,11 @@ export class SpellFx {
         const k = (i / steps) * reachK;
         const x = a.x + (b.x - a.x) * k;
         const y = a.y + (b.y - a.y) * k;
-        this.flame(ctx, x, y + ts * 0.1, ts * (0.14 + 0.16 * (i / steps)), fade * (0.6 + 0.4 * (i / steps)), now + i * 90);
+        const r = ts * (0.14 + 0.16 * (i / steps));
+        const heat = fade * (0.6 + 0.4 * (i / steps));
+        // 水の属性（クジラン）は、火の代わりに水の塊を吹きつける
+        if (scene.water) this.splash(ctx, x, y + ts * 0.1, r, heat);
+        else this.flame(ctx, x, y + ts * 0.1, r, heat, now + i * 90);
       }
       if (phase === 'travel') {
         const len = Math.hypot(target.x - caster.pos.x, target.y - caster.pos.y) || 1;
@@ -393,6 +397,21 @@ export class SpellFx {
   }
 
   /** ゆらめく炎1つ。heat（0〜1）が小さいほど薄く低い */
+  /** 水の塊。白い芯から青へ透ける丸 */
+  private splash(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, alpha: number): void {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.5, 0, x, y - r * 0.3, r * 1.1);
+    g.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    g.addColorStop(0.4, 'rgba(140, 210, 255, 0.85)');
+    g.addColorStop(1, 'rgba(40, 120, 220, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, y - r * 0.3, r * 1.05, r * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   private flame(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, heat: number, now: number): void {
     const f = 1 + Math.sin(now / 70) * 0.1 + Math.sin(now / 31) * 0.06;
     ctx.save();
@@ -570,9 +589,9 @@ export class SpellFx {
     this.popupEffects(scene, now);
     switch (scene.action) {
       case 'breath':
-        // 火が当たったところで、小さく燃え上がる
+        // 火が当たったところで、小さく燃え上がる（水の塊はしぶきが散る）
         for (const p of scene.popups) {
-          if (p.kind === 'damage' || p.kind === 'hurt') this.particles.burst({ x: p.pos.x + 0.5, y: p.pos.y + 0.55, count: 12, color: FIRE, speed: [0.8, 2.2], size: [0.04, 0.08], life: [220, 380], gravity: -1.5, glow: true });
+          if (p.kind === 'damage' || p.kind === 'hurt') this.particles.burst({ x: p.pos.x + 0.5, y: p.pos.y + 0.55, count: 12, color: scene.water ? ICE : FIRE, speed: [0.8, 2.2], size: [0.04, 0.08], life: [220, 380], gravity: scene.water ? 1.5 : -1.5, glow: true });
         }
         break;
       case 'lightning':

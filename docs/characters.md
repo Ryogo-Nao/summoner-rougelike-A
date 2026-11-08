@@ -35,8 +35,32 @@
 | kirigani | キリガニ | 魔獣 | 薙ぎ払う | 氷の甲羅を持つ大蟹、二つの鋏は凍てつく岩さえ断ち切る | 前の絵柄（ちびキャラ） |
 | dosuino | ドスイノ | 魔獣 | 突進する | 怒りのままに突き進む大猪、その牙は鉄の扉さえ貫く | 前の絵柄（ちびキャラ） |
 | tsuraragu | ツララグマ | 魔獣 | 薙ぎ払う | 氷穴の最奥に君臨する白熊、背の氷柱は挑んだ者たちの墓標 | 前の絵柄（ちびキャラ） |
+| hinoko | ヒノコ | 神獣 | 飛びかかる | 炉の最後の火の粉から孵った雛、暗がりで迷う者を温める | 新しい絵柄で反映済み |
+| pukuri | プクリ | 神獣 | のしかかる | 地下の泉を漂う小さな魚、身を守るときは丸くふくらむ | 新しい絵柄で反映済み |
+| birisu | ビリス | 神獣 | 飛びかかる | 尾に雷をためるリス、まばたきの間に二度噛みつく | 新しい絵柄で反映済み |
+| tsuchimogu | ツチモグ | 神獣 | のしかかる | 迷宮の壁に穴を掘るもぐら、地の下の抜け道を誰より知る | 新しい絵柄で反映済み |
+| watage | ワタゲ | 神獣 | 漂って触れる | 風に漂う綿毛の精、その種を吸った者は眠りに落ちる | 新しい絵柄で反映済み |
+| hotari | ホタリ | 神獣 | 漂って触れる | 深い道を照らすほたる、迷った者のまわりに集まる | 新しい絵柄で反映済み |
+| yoruneko | ヨルネコ | 魔獣 | 飛びかかる | 夜を歩く黒猫、その妖しい瞳は見た者の心を乱す | 新しい絵柄で反映済み |
+| tsunousa | ツノウサ | 神獣 | 突進する | 野に住む角のうさぎ、追いつめられると小さな角で突く | 新しい絵柄で反映済み |
+| homurajishi | ホムラジシ | 魔獣 | 飛びかかる | 火山の門を守る獅子、燃えるたてがみは侵す者を灰にする | 新しい絵柄で反映済み |
+| kujiran | クジラン | 神獣 | のしかかる | 地底湖を泳ぐ年老いたくじら、水の塊を吐いて敵を退ける | 新しい絵柄で反映済み |
+| raijuu | ライジュウ | 魔獣 | 突進する | 雷雲とともに駆ける獣、稲妻と一緒に地に落ちてくる | 新しい絵柄で反映済み |
+| iwagame | イワガメ | 神獣 | のしかかる | 千年眠り続ける亀、岩の甲羅はどんな一撃もはね返す | 新しい絵柄で反映済み |
+| kamaitachi | カマイタチ | 魔獣 | 薙ぎ払う | つむじ風に乗るいたち、風を感じる前に二度斬りつける | 新しい絵柄で反映済み |
+| shirojika | シロジカ | 神獣 | 突進する | 光の差す所を歩く白い鹿、角の光は魔法をはね返す | 新しい絵柄で反映済み |
+| karabone | カラボネ | 魔獣 | 薙ぎ払う | 廃墟を守り続ける騎士の骨、忘れられた命令に今も従う | 新しい絵柄で反映済み |
+| gouriki | ゴウリキ | 魔獣 | のしかかる | 恐ろしい力を持つ大猿、動きは鈍いがその拳は石を砕く | 新しい絵柄で反映済み |
+| hiirodori | ヒイロドリ | 神獣 | 急降下する | 己の灰から何度でもよみがえる緋色の鳥、再生のしるし | 新しい絵柄で反映済み |
+| mizuchi | ミズチ | 神獣 | 薙ぎ払う | 泉の蛙と古いくじらから生まれた水の竜、深い淵を治める | 新しい絵柄で反映済み |
+| narukami | ナルカミ | 神獣 | 突進する | 小さなリスの雷を受け継いだ狼、その遠吠えは嵐を呼ぶ | 新しい絵柄で反映済み |
+| kodama | コダマ | 神獣 | のしかかる | 苔と茸から生まれた古い森の精、木のように傷を癒す | 新しい絵柄で反映済み |
+| tsumuji | ツムジ | 神獣 | 薙ぎ払う | 蛾と鎌いたちから生まれたつむじ風の精、遠くから風で斬る | 新しい絵柄で反映済み |
+| kourin | コウリン | 神獣 | 漂って触れる | ほたると光のくらげから生まれた光の精、奪った命で傷を癒す | 新しい絵柄で反映済み |
+| nue | ヌエ | 魔獣 | 飛びかかる | 黒猫と蛇から生まれた夜のあやかし、その声は凶事を告げる | 新しい絵柄で反映済み |
+| yumebaku | ユメバク | 神獣 | のしかかる | 鼠と大猪から生まれた獏、悪い夢を食べて敵を眠らせる | 新しい絵柄で反映済み |
 
-全22体（神獣 10体、魔獣 12体）
+全46体（神獣 27体、魔獣 19体）
 
 ## 方向ごとの見本の絵
 
@@ -508,4 +532,508 @@ Intimidating posture.
 Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
 Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
 No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### ヒノコ（hinoko）　神獣
+
+- 背景：炉の最後の火の粉から孵った雛、暗がりで迷う者を温める
+- 見た目：火の粉のような羽をまとう丸いひよこ。小さなくちばし
+- 色：橙と赤の羽、黄色い胸、金の目
+- 攻撃の動き方：飛びかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round fire chick with fluffy feathers that flicker like embers and a tiny beak.
+Background story: A chick hatched from the last ember of a hearth; it warms travelers lost in the dark.
+Color scheme: warm orange and red feathers, yellow belly, small gold eyes.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### プクリ（pukuri）　神獣
+
+- 背景：地下の泉を漂う小さな魚、身を守るときは丸くふくらむ
+- 見た目：宙に浮かぶ丸いふぐ。ふくらんだ頬と短いひれ
+- 色：水色と白の体、青い斑点、薄い黄色のひれ
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round puffer fish floating in the air, cheeks puffed, short fins.
+Background story: A little fish that drifts in underground springs; it puffs up to protect itself.
+Color scheme: pale aqua and white body, blue spots, light yellow fins.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ビリス（birisu）　神獣
+
+- 背景：尾に雷をためるリス、まばたきの間に二度噛みつく
+- 見た目：電気の毛並みの大きな尾を持つリス
+- 色：黄色とクリームの毛、尾に紺の縞
+- 攻撃の動き方：飛びかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small squirrel with a big fluffy tail crackling with static, shaped into the fur.
+Background story: A squirrel that stores lightning in its tail; it bites twice before you blink.
+Color scheme: yellow and cream fur, dark blue stripes on the tail.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ツチモグ（tsuchimogu）　神獣
+
+- 背景：迷宮の壁に穴を掘るもぐら、地の下の抜け道を誰より知る
+- 見た目：大きな掘る爪と桃色の鼻の、丸いもぐら
+- 色：茶色の毛、桃色の鼻と手
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round mole with big digging claws and a pink nose.
+Background story: A mole that digs tunnels through the labyrinth walls; it knows every hidden path below.
+Color scheme: brown velvet fur, pink nose and paws.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ワタゲ（watage）　神獣
+
+- 背景：風に漂う綿毛の精、その種を吸った者は眠りに落ちる
+- 見た目：小さな目の、丸くふわふわの綿毛
+- 色：白い綿毛、薄い青の影、黄色の芯
+- 攻撃の動き方：漂って触れる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round fluffy dandelion-seed creature with tiny eyes, drifting.
+Background story: A fluff spirit drifting on the wind; those who breathe its seeds fall asleep.
+Color scheme: soft white fluff, pale blue shading, a small yellow center.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ホタリ（hotari）　神獣
+
+- 背景：深い道を照らすほたる、迷った者のまわりに集まる
+- 見た目：尾がやわらかく光る丸いほたる
+- 色：紺の体、薄い黄色に光る尾
+- 攻撃の動き方：漂って触れる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round firefly with a softly glowing tail and short wings.
+Background story: A firefly that lights the deep paths; it gathers around those who are lost.
+Color scheme: dark blue body, pale yellow glowing tail.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ヨルネコ（yoruneko）　魔獣
+
+- 背景：夜を歩く黒猫、その妖しい瞳は見た者の心を乱す
+- 見た目：妖しく光る目と長い尾の黒猫
+- 色：黒い毛、紫の影、琥珀色の目
+- 攻撃の動き方：飛びかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small black cat with glowing hypnotic eyes and a long tail.
+Background story: A black cat that walks the night; its strange eyes confuse those who meet them.
+Color scheme: black fur, purple shading, amber eyes.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### ツノウサ（tsunousa）　神獣
+
+- 背景：野に住む角のうさぎ、追いつめられると小さな角で突く
+- 見た目：額に短い角が1本ある、耳の長い丸いうさぎ
+- 色：クリーム色の毛、桃色の耳、象牙色の角
+- 攻撃の動き方：突進する
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small round rabbit with a single short horn on its forehead and long ears.
+Background story: A horned rabbit of the meadow; it charges with its little horn when cornered.
+Color scheme: cream white fur, pink inner ears, ivory horn.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ホムラジシ（homurajishi）　魔獣
+
+- 背景：火山の門を守る獅子、燃えるたてがみは侵す者を灰にする
+- 見た目：たてがみが炎でできた大きな獅子。鋭い牙と爪
+- 色：深紅の体、橙と黄の炎のたてがみ、黒い爪
+- 攻撃の動き方：飛びかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A large powerful lion whose mane is made of roaring flames, sharp fangs and claws.
+Background story: A lion that guards the volcano gate; its burning mane turns intruders to ash.
+Color scheme: dark crimson body, orange and yellow flame mane, black claws.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### クジラン（kujiran）　神獣
+
+- 背景：地底湖を泳ぐ年老いたくじら、水の塊を吐いて敵を退ける
+- 見た目：宙を泳ぐ大きなおだやかなくじら。頭に潮吹き
+- 色：深い青の背、クリーム色の腹、水色の模様
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A huge gentle whale floating as if swimming in the air, a water spout on its head.
+Background story: An old whale swimming in the underground lake; it spouts water to drive off foes.
+Color scheme: deep blue back, pale cream belly, light aqua patterns.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ライジュウ（raijuu）　魔獣
+
+- 背景：雷雲とともに駆ける獣、稲妻と一緒に地に落ちてくる
+- 見た目：稲妻の模様の大きなしなやかな獣。鋭い爪
+- 色：紺と紫の毛、明るい黄色の稲妻の模様
+- 攻撃の動き方：突進する
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A large sleek thunder beast like a big wild cat, lightning-shaped markings, sharp claws.
+Background story: A beast that runs with the thunderclouds; it falls to earth with the lightning.
+Color scheme: dark navy and violet fur, bright yellow lightning markings.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### イワガメ（iwagame）　神獣
+
+- 背景：千年眠り続ける亀、岩の甲羅はどんな一撃もはね返す
+- 見た目：岩と水晶の甲羅の大きな亀。太い足
+- 色：灰茶の岩の甲羅、琥珀の水晶、砂色の肌
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A large tortoise with a shell made of rough rock and crystals, thick legs.
+Background story: A tortoise that has slept a thousand years; its stone shell turns away any blow.
+Color scheme: grey-brown rock shell, amber crystals, sandy skin.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### カマイタチ（kamaitachi）　魔獣
+
+- 背景：つむじ風に乗るいたち、風を感じる前に二度斬りつける
+- 見た目：前足に鎌の刃を持つしなやかないたち
+- 色：銀灰の毛、白い腹、鋼の刃
+- 攻撃の動き方：薙ぎ払う
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A sleek weasel with sickle-shaped blades on its front legs, wind swirling at its tail.
+Background story: A weasel that rides the whirlwind; it slashes twice before you feel the wind.
+Color scheme: silver grey fur, white belly, steel blades.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### シロジカ（shirojika）　神獣
+
+- 背景：光の差す所を歩く白い鹿、角の光は魔法をはね返す
+- 見た目：光る枝のような角の背の高い白い鹿
+- 色：真っ白な毛、金の角、薄紫の影
+- 攻撃の動き方：突進する
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A tall white deer with shining branch-like antlers and a calm face.
+Background story: A white deer that walks where the light falls; the light of its antlers repels magic.
+Color scheme: pure white fur, gold antlers, pale lavender shading.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### カラボネ（karabone）　魔獣
+
+- 背景：廃墟を守り続ける騎士の骨、忘れられた命令に今も従う
+- 見た目：欠けた鎧に錆びた剣と盾の骨の騎士
+- 色：象牙色の骨、黒い鉄の鎧、色あせた紫の外套
+- 攻撃の動き方：薙ぎ払う
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A skeleton knight in broken armor holding a rusty sword and shield.
+Background story: A knight's bones that still guard the ruins, faithful to an order long forgotten.
+Color scheme: ivory bones, dark iron armor, faded purple cloak.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### ゴウリキ（gouriki）　魔獣
+
+- 背景：恐ろしい力を持つ大猿、動きは鈍いがその拳は石を砕く
+- 見た目：大きな拳の、筋骨たくましい大猿
+- 色：濃い灰の毛、黄褐色の顔と胸、茶の手甲
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A huge muscular ape with big fists and a scarred face, hunched powerful body.
+Background story: An ape of terrible strength; slow to move, but its fists shatter stone.
+Color scheme: dark grey fur, tan face and chest, brown wristbands.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### ヒイロドリ（hiirodori）　神獣
+
+- 背景：己の灰から何度でもよみがえる緋色の鳥、再生のしるし
+- 見た目：長くなびく尾羽と冠羽の火の鳥。翼を広げる
+- 色：緋色と朱の羽、金の先、薄い黄色の胸
+- 攻撃の動き方：急降下する
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A graceful firebird with long flowing tail feathers and a crest, wings spread.
+Background story: A scarlet bird that rises again from its own ashes, a sign of rebirth.
+Color scheme: scarlet and vermilion feathers, gold tips, pale yellow chest.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ミズチ（mizuchi）　神獣
+
+- 背景：泉の蛙と古いくじらから生まれた水の竜、深い淵を治める
+- 見た目：ひれと小さな角の、長くとぐろを巻く水の竜
+- 色：青緑のうろこ、白い腹、金の角とひげ
+- 攻撃の動き方：薙ぎ払う
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A long serpentine water dragon with fins and small horns, coiled body, flowing whiskers.
+Background story: A water dragon born from a spring frog and an ancient whale; it rules the deep pools.
+Color scheme: teal blue scales, white belly, gold horns and whiskers. Keep the creature's greens clearly darker and more muted than the pure green background.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ナルカミ（narukami）　神獣
+
+- 背景：小さなリスの雷を受け継いだ狼、その遠吠えは嵐を呼ぶ
+- 見た目：雷をまとうたてがみと金の額飾りの気高い狼
+- 色：銀白と薄い青の毛、金の飾りと稲妻のたてがみ
+- 攻撃の動き方：突進する
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A noble wolf wearing thunder, a mane of crackling electric fur and a gold forehead crest.
+Background story: A wolf that inherited the thunder of a small squirrel; its howl calls the storm.
+Color scheme: silver white and pale blue fur, gold crest and lightning-shaped mane.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### コダマ（kodama）　神獣
+
+- 背景：苔と茸から生まれた古い森の精、木のように傷を癒す
+- 見た目：頭に茸が生えた、優しい顔の古い切り株の精
+- 色：茶色の樹皮、クリーム色の顔、赤と白の茸
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small forest spirit made of an old tree stump with a gentle face and mushrooms on its head.
+Background story: A spirit of the old forest born from moss and mushrooms; it heals itself as trees do.
+Color scheme: brown bark, cream face, red and white mushroom caps.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ツムジ（tsumuji）　神獣
+
+- 背景：蛾と鎌いたちから生まれたつむじ風の精、遠くから風で斬る
+- 見た目：鳥のような顔と羽の、つむじ風の形の精
+- 色：白と薄い水色の渦、銀の羽
+- 攻撃の動き方：薙ぎ払う
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A wind spirit shaped like a small whirlwind with a bird-like face and feathered wings.
+Background story: A whirlwind spirit born from a moth and a sickle weasel; it cuts from afar with wind blades.
+Color scheme: white and pale cyan swirls, silver feathers.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### コウリン（kourin）　神獣
+
+- 背景：ほたると光のくらげから生まれた光の精、奪った命で傷を癒す
+- 見た目：頭上に金の光の輪と4枚の小さな羽の、丸い精
+- 色：白と薄い金、やわらかな薄紫
+- 攻撃の動き方：漂って触れる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A small angelic spirit creature with a gold halo above its head and four small feathered wings.
+Background story: A spirit of light born from a firefly and a glowing jellyfish; it heals itself with the life it takes.
+Color scheme: white and pale gold, soft lavender accents.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
+```
+
+### ヌエ（nue）　魔獣
+
+- 背景：黒猫と蛇から生まれた夜のあやかし、その声は凶事を告げる
+- 見た目：猿の顔、狸のような体、虎縞の脚、尾は蛇のあやかし
+- 色：濃い茶と黒の毛、黄色の虎縞、灰色がかった蛇の尾
+- 攻撃の動き方：飛びかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_dark_softened.webp
+
+```
+Dark mythical beast fantasy game art, original character design, menacing but not gory. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A mythical chimera with a monkey face, a tanuki-like body, tiger-striped legs and a snake for a tail.
+Background story: A creature of the night born from a black cat and a snake; its cry brings ill omens.
+Color scheme: dark brown and black fur, yellow tiger stripes, olive-grey snake tail. Keep the creature's greens clearly darker and more muted than the pure green background.
+Intimidating posture.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), anime cel shading with deep shadows and a subtle rim light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no blood, no ground shadow, no text, no watermark, no border.
+```
+
+### ユメバク（yumebaku）　神獣
+
+- 背景：鼠と大猪から生まれた獏、悪い夢を食べて敵を眠らせる
+- 見た目：短い鼻と眠たげな目の、星の模様の獏
+- 色：黒と白の体、薄紫の星の模様
+- 攻撃の動き方：のしかかる
+- 絵：新しい絵柄で反映済み
+- 添える見本：design/art-direction/ref_divine_todoroki.webp
+
+```
+Majestic mythical beast fantasy game art, original character design. Same line work and shading style as the attached reference image, but a different creature with its own colors.
+Subject: A tapir-like dream eater with a short trunk, sleepy half-closed eyes and star-shaped markings.
+Background story: A creature born from a mouse and a wild boar; it eats nightmares and lulls foes to sleep.
+Color scheme: black and white body, pale lavender star markings.
+Noble, dignified posture. Ornamental details that suit the creature.
+3/4 front view facing down-left, looking at the viewer, full body, centered, single character.
+Dark navy outline (#2B3A67), refined anime cel shading with 2 shadow tones, light from the top left.
+Square 1:1 image. Plain solid pure green background (#00FF00), completely flat, nothing else.
+No sparkles, no floating particles, no glow or aura, no ground shadow, no text, no watermark, no border.
 ```

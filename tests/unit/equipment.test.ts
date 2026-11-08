@@ -121,15 +121,18 @@ describe('F-87 属性の装備', () => {
     expect(hits).toBeGreaterThan(0);
   });
 
-  it('落ちているのは、森は疾風・大地、氷穴は氷。はじまりの洞窟と、光・闇の装備はどこにも出ない', () => {
+  it('落ちているのは、森は疾風・大地、氷穴は氷。はじまりの洞窟には出ない。光はいかずちの坑道から、闇はとこやみの大穴だけ', () => {
     const elemental = (id: string) =>
       DUNGEONS.find((d) => d.id === id)!.items.map((e) => e.kind).filter((k) => ITEMS[k].element || ITEMS[k].staff);
     expect(elemental('first')).toEqual([]);
     expect(elemental('forest').sort()).toEqual(['earthShield', 'earthStaff', 'earthSword', 'windShield', 'windStaff', 'windSword']);
     expect(elemental('ice').sort()).toEqual(['iceShield', 'iceStaff', 'iceSword']);
+    const where = (kind: string) => DUNGEONS.filter((d) => d.items.some((e) => e.kind === kind)).map((d) => d.id);
+    expect(where('lightSword')).toEqual(['mine', 'abyss']);
+    expect(where('darkSword')).toEqual(['abyss']);
   });
 
-  it('商店：炎の装備は森に、雷の装備は氷穴に挑めるようになってから並ぶ。光・闇はまだ並ばない', () => {
+  it('商店：炎の装備は森に、雷の装備は氷穴に、光はいかずちの坑道に、闇はとこやみの大穴に挑めるようになってから並ぶ', () => {
     const seen = (cleared: string[]) => {
       const kinds = new Set<ItemKind>();
       const random = seeded(cleared.length + 1);
@@ -146,5 +149,10 @@ describe('F-87 属性の装備', () => {
     expect(ice.has('thunderShield')).toBe(true);
     expect(ice.has('thunderStaff')).toBe(true);
     for (const k of LIGHT_DARK) expect(ice.has(k as ItemKind), k).toBe(false);
+    const mine = seen(['first', 'forest', 'valley']);
+    expect(mine.has('lightSword')).toBe(true);
+    expect(mine.has('darkSword')).toBe(false);
+    const abyss = seen(['first', 'forest', 'valley', 'mine']);
+    expect(abyss.has('darkShield')).toBe(true);
   });
 });

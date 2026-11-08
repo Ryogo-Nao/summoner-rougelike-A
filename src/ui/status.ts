@@ -21,10 +21,11 @@ function traits(species: Species, partner: boolean): string {
   if (species.mighty) list.push('攻撃力が1.5倍');
   if (species.sturdy) list.push('受けるダメージが半分');
   if (species.phasing) list.push('壁をすり抜ける');
-  if (species.special === 'spore') list.push('胞子で混乱させる');
+  if (species.special === 'spore') list.push(`${species.specialName ?? '胞子'}で混乱させる`);
   if (species.special === 'venom') list.push('攻撃で毒にする');
-  if (species.special === 'breath') list.push('火を吐く\n召喚中は大火球を使える');
-  if (species.special === 'sleep') list.push('鱗粉で眠らせる');
+  if (species.special === 'breath')
+    list.push(species.element === 'fire' ? '火を吐く\n召喚中は大火球を使える' : `${species.specialName ?? '火'}を吐く`);
+  if (species.special === 'sleep') list.push(`${species.specialName ?? '鱗粉'}で眠らせる`);
   if (species.special === 'pin') list.push('糸ではりつけにする');
   if (species.special === 'manaBite') list.push('かじってMPを減らす');
   if (species.special === 'drain') list.push('与えたダメージの半分を吸い取る');

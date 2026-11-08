@@ -235,6 +235,8 @@ export type SceneAction =
 /** 場面を記録するときに渡す、演出の種類と範囲 */
 interface SceneFx {
   action: SceneAction;
+  /** 吐く息を水の見た目にする（水の属性の breath） */
+  water?: boolean;
   /** 演出がかかるマス。省くと toward の1マス */
   cells?: Pos[];
   item?: ItemKind;
@@ -258,6 +260,8 @@ export interface Scene {
   cells: Pos[];
   /** 投げた・撃った道具の種類（飛んでいく絵に使う） */
   item?: ItemKind;
+  /** 吐く息を水の見た目にする（クジランの水の塊） */
+  water?: boolean;
   /** この場面でたおれた・封印された魔物と、瀕死になった仲間（actors の key）。消えていく動きを見せる */
   defeated: string[];
   popups: Popup[];
@@ -1931,7 +1935,8 @@ export class GameState {
     const spells: SpellId[] = ['fire'];
     const staff = this.staffSpell();
     for (const id of ATTACK_SPELLS) if (this.learned.has(id) || staff === id) spells.push(id);
-    if (this.allies.some((a) => a.card.species.special === 'breath')) spells.push('bigFire');
+    // 大火球は、火を吐く火の属性の仲間（ヒダマリ・ホムラジシ）が召喚中のとき
+    if (this.allies.some((a) => a.card.species.special === 'breath' && a.card.species.element === 'fire')) spells.push('bigFire');
     for (const id of BUFF_SPELLS) if (this.learned.has(id)) spells.push(id);
     return spells;
   }
@@ -2220,6 +2225,7 @@ export class GameState {
       action: fx.action,
       cells: (fx.cells ?? [toward]).map((c) => ({ ...c })),
       item: fx.item,
+      water: fx.water,
       defeated: actors.filter((a) => !a.isPlayer && !alive.has(a.key)).map((a) => a.key),
       popups: this.popups.splice(start),
       logBefore,
@@ -2367,15 +2373,15 @@ export class GameState {
     const mark = (text: string) => this.popups.push({ pos: { ...at }, text, kind: 'status' });
     if (kind === 'spore') {
       ailments.confused = CONFUSE_TURNS;
-      this.addLog(`${from.name}の胞子 → ${who}は混乱した`);
+      this.addLog(`${from.name}の${from.specialName ?? '胞子'} → ${who}は混乱した`);
       mark(STATUS_TEXT.confuse);
     } else if (kind === 'venom') {
       ailments.poisoned = POISON_TURNS;
-      this.addLog(`${from.name}の毒 → ${who}は毒を受けた`);
+      this.addLog(`${from.name}の${from.specialName ?? '毒'} → ${who}は毒を受けた`);
       mark(STATUS_TEXT.poison);
     } else if (kind === 'sleep') {
       ailments.asleep = this.rng.int(...SLEEP_TURNS);
-      this.addLog(`${from.name}の鱗粉 → ${who}は眠った`);
+      this.addLog(`${from.name}の${from.specialName ?? '鱗粉'} → ${who}は眠った`);
       mark(STATUS_TEXT.sleep);
     } else if (kind === 'pin') {
       ailments.pinned = target === 'monster' ? 1 : this.rng.int(...PIN_TURNS);
@@ -2506,7 +2512,8 @@ export class GameState {
         const to = pick === 'player' ? p : pick!.pos;
         m.facing = dirFromDelta(to.x - m.pos.x, to.y - m.pos.y) ?? m.facing;
         const turnTo = dirFromDelta(m.pos.x - to.x, m.pos.y - to.y);
-        const fx = { action: 'breath' as const, cells: this.lineCells(m.pos, to) };
+        const fx = { action: 'breath' as const, cells: this.lineCells(m.pos, to), water: m.species.element === 'water' };
+        const how = m.species.specialName ?? '火';
         if (pick === 'player') {
           if (turnTo !== null) this.player.facing = turnTo;
           this.provoker = m;
@@ -2515,7 +2522,7 @@ export class GameState {
             to,
             () => {
               const rate = elementRate(m.species.element, this.playerElement());
-              this.hurtPlayer(m, rollDamage(this.rng, m.matk, this.magicDefense(), rate), '火', true, rate);
+              this.hurtPlayer(m, rollDamage(this.rng, m.matk, this.magicDefense(), rate), how, true, rate);
             },
             fx,
           );
@@ -2528,7 +2535,7 @@ export class GameState {
             to,
             () => {
               const rate = elementRate(m.species.element, a.card.species.element);
-              this.hurtAlly(m, a, fortified(this.warded(rollDamage(this.rng, m.matk, a.card.mdef, rate)), a.ailments), '火', rate);
+              this.hurtAlly(m, a, fortified(this.warded(rollDamage(this.rng, m.matk, a.card.mdef, rate)), a.ailments), how, rate);
             },
             fx,
           );
@@ -2810,9 +2817,11 @@ export class GameState {
       if (target) {
         a.facing = dirFromDelta(target.pos.x - a.pos.x, target.pos.y - a.pos.y) ?? a.facing;
         const rate = elementRate(a.card.species.element, target.species.element);
-        this.scene(a.pos, target.pos, () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef, rate), a, '火', rate), {
+        const how = species.specialName ?? '火';
+        this.scene(a.pos, target.pos, () => this.damageMonster(target, rollDamage(this.rng, this.allyMagic(a), target.mdef, rate), a, how, rate), {
           action: 'breath',
           cells: this.lineCells(a.pos, target.pos),
+          water: species.element === 'water',
         });
         return;
       }
