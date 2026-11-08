@@ -116,8 +116,8 @@ export class BaseScreen {
   private shopAction: { label: string; disabled: boolean; run: () => void } | null = null;
   /** 配合の画面で最後にしたこと（「ガルフ+1が生まれた」など） */
   private fusionNote = '';
-  /** 一覧ごと（仲間・連れていく仲間・バッグ・倉庫）の、検索の文字と、見ているページ（0から） */
-  private lists = new Map<string, { query: string; page: number }>();
+  /** 一覧ごと（仲間・連れていく仲間・バッグ・倉庫）の、検索の文字 */
+  private lists = new Map<string, { query: string }>();
 
   /**
    * onDepart は、ダンジョンを選んで［出発］を押したときに呼ぶ。dialog は配合の前に確かめるのに使う。
@@ -385,23 +385,22 @@ export class BaseScreen {
   private alliesRows(p: Profile): HTMLElement[] {
     const head = document.createElement('div');
     head.className = 'base-sort';
-    const list = this.pagedList('allies', p.cards, cardSearchText, '種族・ニックネームで探す', (card) =>
+    const list = this.searchList('allies', p.cards, cardSearchText, '種族・ニックネーム', (card) =>
       allyRow(card, { on: p.hand.includes(card.id), onSelect: () => this.enter(() => (this.viewing = card)) }),
     );
     head.append(
-      this.cardSortKeys(p),
-      list.search,
+      listTools(list.search, this.cardSortSelect(p)),
       note(`仲間 ${p.cards.length}体　連れていく ${p.hand.length}/${HAND_LIMIT}`, 'allies-count'),
     );
     return [head, list.list];
   }
 
   /**
-   * 一覧を1ページ10行ずつ出し、上に検索の欄を置く（requirements.md 10.4）。
+   * 一覧と、上に置く検索の欄（requirements.md 10.4）。ページには分けず、すべて出してスクロールする。
    * 検索は search を head に、list を本文に置く。打つたびに一覧だけを描き直す（欄から指が離れないように）。
    * 検索の文字はひらがなとカタカナを区別しない
    */
-  private pagedList<T>(
+  private searchList<T>(
     id: string,
     items: T[],
     text: (item: T) => string,
@@ -410,25 +409,18 @@ export class BaseScreen {
   ): { search: HTMLElement; list: HTMLElement } {
     let state = this.lists.get(id);
     if (!state) {
-      state = { query: '', page: 0 };
+      state = { query: '' };
       this.lists.set(id, state);
     }
     const st = state;
     const list = document.createElement('div');
-    list.className = 'paged-list';
+    list.className = 'search-list';
     const draw = () => {
       const q = searchKey(st.query);
       const hits = q ? items.filter((item) => searchKey(text(item)).includes(q)) : items;
-      const pages = Math.max(1, Math.ceil(hits.length / PAGE_SIZE));
-      st.page = Math.min(st.page, pages - 1);
-      const shown = hits.slice(st.page * PAGE_SIZE, (st.page + 1) * PAGE_SIZE).map(row);
-      const parts: HTMLElement[] = shown.length > 0 ? shown : [note(q ? '見つからない' : 'まだいない')];
-      if (pages > 1) parts.push(this.pager(st.page, pages, hits.length, (page) => {
-        st.page = page;
-        draw();
-        this.body.scrollTop = 0;
-      }));
-      list.replaceChildren(...parts);
+      const shown = hits.map(row);
+      list.classList.toggle('empty', shown.length === 0);
+      list.replaceChildren(...(shown.length > 0 ? shown : [note(q ? '見つからない' : 'まだいない')]));
     };
     const box = document.createElement('label');
     box.className = 'list-search';
@@ -439,8 +431,8 @@ export class BaseScreen {
     input.enterKeyHint = 'search';
     input.addEventListener('input', () => {
       st.query = input.value;
-      st.page = 0;
       draw();
+      this.body.scrollTop = 0;
     });
     // 決定を押したらキーボードを閉じる
     input.addEventListener('keydown', (e) => {
@@ -449,19 +441,6 @@ export class BaseScreen {
     box.append(input);
     draw();
     return { search: box, list };
-  }
-
-  /** ページを移るボタン。［‹ 前へ］ 2 / 5　43件［次へ ›］ */
-  private pager(page: number, pages: number, total: number, onPage: (page: number) => void): HTMLElement {
-    const bar = document.createElement('div');
-    bar.className = 'pager';
-    const prev = wideButton('‹ 前へ', page === 0, () => onPage(page - 1));
-    const next = wideButton('次へ ›', page >= pages - 1, () => onPage(page + 1));
-    const at = document.createElement('span');
-    at.className = 'pager-at';
-    at.textContent = `${page + 1} / ${pages}　${total}件`;
-    bar.append(prev, at, next);
-    return bar;
   }
 
   /** その他（記録と設定）。上で［記録］［設定］を切り替える。設定はダンジョンのメニューと同じもの */
@@ -504,23 +483,23 @@ export class BaseScreen {
   }
 
   /**
-   * 仲間のタブ。上に並べ替えのボタンと、連れていく仲間の顔（5つの枠）を固定して出す。
-   * 行の右の丸い印を押すと、連れていく・残すを切り替える。行の大きさは変えない。上の顔を押しても残せる
+   * 仲間のタブ（H-02）。上に、連れていく仲間の数と顔（5つの枠）の1行と、検索・並べ替えの1行を固定して出す。
+   * 一覧は飾りのない細い行（名前・Lv・HP・属性）。右の丸い印を押すと、連れていく・残すを切り替える。上の顔を押しても残せる
    */
   private cardRows(p: Profile): HTMLElement[] {
     const hand = this.handCards();
     const head = document.createElement('div');
     head.className = 'base-sort';
-    const sorts = this.cardSortKeys(p);
     const party = document.createElement('div');
-    party.className = 'party-band';
-    const label = document.createElement('div');
+    party.className = 'party-band slim';
+    const label = document.createElement('span');
     label.className = 'party-label';
-    label.textContent = '連れていく仲間';
-    const count = document.createElement('div');
+    label.textContent = '連れていく';
+    const count = document.createElement('span');
     count.className = 'party-count';
     count.textContent = `${hand.length} / ${HAND_LIMIT}`;
     const text = document.createElement('div');
+    text.className = 'party-head';
     text.append(label, count);
     const faces = document.createElement('div');
     faces.className = 'party-faces';
@@ -539,9 +518,9 @@ export class BaseScreen {
       faces.append(face);
     }
     party.append(text, faces);
-    const list = this.pagedList('cards', p.cards, cardSearchText, '種族・ニックネームで探す', (card) => {
+    const list = this.searchList('cards', p.cards, cardSearchText, '種族・ニックネーム', (card) => {
       const taking = p.hand.includes(card.id);
-      return allyRow(card, {
+      return allyLine(card, {
         on: taking,
         label: taking ? '残す' : '連れていく',
         disabled: !taking && hand.length >= HAND_LIMIT,
@@ -553,25 +532,27 @@ export class BaseScreen {
         onSelect: () => this.enter(() => (this.viewing = card)),
       });
     });
-    head.append(sorts, party, list.search);
+    list.list.classList.add('line-list');
+    head.append(party, listTools(list.search, this.cardSortSelect(p)));
     return [head, list.list];
   }
 
-  /** 仲間の並べ替えのボタン。1回目は昇順（↑）、同じボタンをもう一度押すと降順（↓） */
-  private cardSortKeys(p: Profile): HTMLElement {
-    const sorts = document.createElement('div');
-    sorts.className = 'sort-keys';
-    for (const key of CARD_SORT_KEYS) {
-      const on = this.cardSort?.key === key;
-      const b = wideButton(`${CARD_SORT_LABEL[key]}${on ? (this.cardSort!.desc ? ' ↓' : ' ↑') : ''}`, false, () => {
-        const desc = on ? !this.cardSort!.desc : false;
+  /**
+   * 仲間の並べ替えのボタン。「⇅ レベル↓ ▾」のように今の並べ方を出し、押すと選ぶ輪が出る（iPhone）。
+   * 並べ替えると仲間の並びそのものが変わる。まだ並べ替えていないときは「⇅ 並べ替え」
+   */
+  private cardSortSelect(p: Profile): HTMLElement {
+    const current = CARD_SORTS.findIndex((o) => o.key === this.cardSort?.key && o.desc === this.cardSort?.desc);
+    return selectButton(
+      current >= 0 ? CARD_SORTS[current].short : '並べ替え',
+      CARD_SORTS.map((o) => o.label),
+      current,
+      (i) => {
+        const { key, desc } = CARD_SORTS[i];
         this.cardSort = { key, desc };
         this.change(() => (p.cards = sortCards(p.cards, key, desc)));
-      });
-      if (on) b.classList.add('on');
-      sorts.append(b);
-    }
-    return sorts;
+      },
+    );
   }
 
   /**
@@ -771,7 +752,7 @@ export class BaseScreen {
     // 選んでいる並べ方で出す（あとから入れた道具も、その並びに入る）
     const groups = groupItems(sortStock(from, this.itemSort));
     if (groups.length === 0) return [head, note(bag ? 'バッグは空' : '倉庫は空')];
-    const list = this.pagedList(
+    const list = this.searchList(
       this.itemPlace,
       groups,
       (g) => `${g.name} ${ITEMS[g.items[0].kind].kana} ${itemCategory(g.items[0].kind)}`,
@@ -824,24 +805,15 @@ export class BaseScreen {
 
   /** 並べ替えのボタン。押すと種類順・名前順・個数順から選べる（iPhone では下に選ぶ輪が出る） */
   private sortSelect(sort: (by: ItemSortKey) => void): HTMLElement {
-    const box = document.createElement('label');
-    box.className = 'sort-select';
-    const text = document.createElement('span');
-    text.textContent = `⇅ 並べ替え：${ITEM_SORT_LABEL[this.itemSort]}`;
-    const select = document.createElement('select');
-    for (const key of ITEM_SORT_KEYS) {
-      const o = document.createElement('option');
-      o.value = key;
-      o.textContent = ITEM_SORT_LABEL[key];
-      o.selected = key === this.itemSort;
-      select.append(o);
-    }
-    select.addEventListener('change', () => {
-      this.itemSort = select.value as ItemSortKey;
-      this.change(() => sort(this.itemSort));
-    });
-    box.append(text, select);
-    return box;
+    return selectButton(
+      ITEM_SORT_LABEL[this.itemSort],
+      ITEM_SORT_KEYS.map((key) => ITEM_SORT_LABEL[key]),
+      ITEM_SORT_KEYS.indexOf(this.itemSort),
+      (i) => {
+        this.itemSort = ITEM_SORT_KEYS[i];
+        this.change(() => sort(this.itemSort));
+      },
+    );
   }
 
   /**
@@ -1190,8 +1162,83 @@ function allyRow(
   return row;
 }
 
-/** 拠点の一覧の、1ページの行数 */
-const PAGE_SIZE = 10;
+/**
+ * 一覧の1行（UIレビュー①②）。飾りの札にせず、紙の上を細い線で区切った行にする。
+ * 左に顔、まん中に名前と Lv（大きく）、その下に HP と属性（小さく）。右の丸い印で連れていく・残すを切り替える。行を押すとつよさ
+ */
+function allyLine(
+  card: Card,
+  opts: { on: boolean; label: string; disabled: boolean; onToggle: () => void; onSelect: () => void },
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = opts.on ? 'line-row taking' : 'line-row';
+  const face = document.createElement('span');
+  face.className = 'line-face';
+  face.append(faceElement(card.species.id, cardIcon(card)));
+  const top = document.createElement('div');
+  top.className = 'line-top';
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = cardName(card);
+  const lv = document.createElement('span');
+  lv.className = 'line-lv';
+  lv.textContent = `Lv${card.level}`;
+  top.append(name, lv);
+  const sub = document.createElement('div');
+  sub.className = 'sub';
+  sub.textContent = `HP${card.maxHp}　${elementText(card.species.element)}`;
+  const text = document.createElement('div');
+  text.className = 'line-text';
+  text.append(top, sub);
+  const check = document.createElement('button');
+  check.className = opts.on ? 'check on' : 'check';
+  check.setAttribute('aria-label', opts.label);
+  check.disabled = opts.disabled;
+  check.addEventListener('click', opts.onToggle);
+  row.append(face, text, check);
+  row.addEventListener('click', (e) => {
+    if (!(e.target instanceof Element && e.target.closest('button'))) opts.onSelect();
+  });
+  return row;
+}
+
+/** 検索の欄と並べ替えのボタンを1行に並べる */
+function listTools(search: HTMLElement, sort: HTMLElement): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'list-tools';
+  box.append(search, sort);
+  return box;
+}
+
+/**
+ * 「⇅ 種類順 ▾」の形の並べ替えのボタン。押すと options から選べる（iPhone では下に選ぶ輪が出る）。
+ * current が -1 のときは、どれも選んでいない（選ぶと onPick）
+ */
+function selectButton(text: string, options: string[], current: number, onPick: (index: number) => void): HTMLElement {
+  const box = document.createElement('label');
+  box.className = 'sort-select';
+  const label = document.createElement('span');
+  label.textContent = `⇅ ${text}`;
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', '並べ替え');
+  if (current < 0) {
+    const none = document.createElement('option');
+    none.textContent = '並べ替え';
+    none.disabled = true;
+    none.selected = true;
+    select.append(none);
+  }
+  options.forEach((t, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = t;
+    o.selected = i === current;
+    select.append(o);
+  });
+  select.addEventListener('change', () => onPick(Number(select.value)));
+  box.append(label, select);
+  return box;
+}
 
 /** 検索で比べる形。全角・半角をそろえ、ひらがなはカタカナに、英字は小文字にする */
 function searchKey(text: string): string {
@@ -1280,8 +1327,17 @@ function note(text: string, className = 'sheet-note'): HTMLElement {
 }
 
 type CardSortKey = 'level' | 'obtained' | 'name' | 'kind';
-const CARD_SORT_KEYS: CardSortKey[] = ['level', 'obtained', 'name', 'kind'];
-const CARD_SORT_LABEL: Record<CardSortKey, string> = { level: 'レベル', obtained: '入手', name: '名前', kind: '種類' };
+/** 仲間の並べ方。short はボタンに、label は選ぶ輪に出す */
+const CARD_SORTS: { key: CardSortKey; desc: boolean; short: string; label: string }[] = [
+  { key: 'level', desc: true, short: 'レベル↓', label: 'レベルの高い順' },
+  { key: 'level', desc: false, short: 'レベル↑', label: 'レベルの低い順' },
+  { key: 'obtained', desc: true, short: '入手↓', label: '新しく仲間にした順' },
+  { key: 'obtained', desc: false, short: '入手↑', label: '前に仲間にした順' },
+  { key: 'name', desc: false, short: '名前↑', label: '名前（あ→ん）' },
+  { key: 'name', desc: true, short: '名前↓', label: '名前（ん→あ）' },
+  { key: 'kind', desc: false, short: '種類↑', label: '種類（図鑑の順）' },
+  { key: 'kind', desc: true, short: '種類↓', label: '種類（図鑑の逆）' },
+];
 
 /**
  * カードを並べ替える（昇順。desc なら逆にする）。

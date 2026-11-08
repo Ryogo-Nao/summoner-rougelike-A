@@ -2,18 +2,24 @@
 import { expect, test } from '@playwright/test';
 import { collectErrors, nav, openWithProfile, profileWith } from './helpers';
 
-const names = (page: import('@playwright/test').Page) => page.locator('#base-body .paged-list .sheet-row .name').allInnerTexts();
+const names = (page: import('@playwright/test').Page) => page.locator('#base-body .search-list .name').allInnerTexts();
 
-test('F-61 仲間の一覧は10件ずつのページ', async ({ page }) => {
+test('F-61 仲間の一覧はページに分けずスクロールする。冒険の準備の仲間は 390×664 で5行見える', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 664 });
   await openWithProfile(page, profileWith(24));
   await nav(page, '仲間');
-  expect((await names(page)).length).toBe(10);
-  await expect(page.locator('.pager-at')).toHaveText(/1 \/ 3/);
-  await page.locator('.pager button', { hasText: '次へ' }).click();
-  await expect(page.locator('.pager-at')).toHaveText(/2 \/ 3/);
-  await page.locator('.pager button', { hasText: '次へ' }).click();
-  expect((await names(page)).length).toBe(5);
-  await expect(page.locator('.pager button', { hasText: '次へ' })).toBeDisabled();
+  expect((await names(page)).length).toBe(25);
+  await expect(page.locator('.pager')).toHaveCount(0);
+  await nav(page, '冒険');
+  expect((await names(page)).length).toBe(25);
+  const seen = await page.evaluate(() => {
+    const body = document.getElementById('base-body')!.getBoundingClientRect();
+    return [...document.querySelectorAll('.line-row')].filter((r) => {
+      const b = r.getBoundingClientRect();
+      return b.top >= body.top && b.bottom <= body.bottom;
+    }).length;
+  });
+  expect(seen).toBeGreaterThanOrEqual(5);
 });
 
 test('F-62 検索：ひらがな・ニックネーム・道具の種類で探せる', async ({ page }) => {
@@ -28,7 +34,7 @@ test('F-62 検索：ひらがな・ニックネーム・道具の種類で探せ
   await box.fill('たろう');
   expect(await names(page)).toEqual(['たろう']);
   await box.fill('ずずず');
-  await expect(page.locator('.paged-list')).toContainText('見つからない');
+  await expect(page.locator('.search-list')).toContainText('見つからない');
   // 道具：倉庫で「いん」と打つと印が出る
   await nav(page, '冒険');
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
@@ -85,6 +91,6 @@ test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => 
   // 持ち物は種類順
   await nav(page, '冒険');
   await page.locator('#base-tabs button', { hasText: '持ち物' }).click();
-  const bag = await page.locator('#base-body .paged-list .sheet-row .name').allInnerTexts();
+  const bag = await page.locator('#base-body .search-list .sheet-row .name').allInnerTexts();
   expect(bag[0]).toMatch(/^パン/);
 });
