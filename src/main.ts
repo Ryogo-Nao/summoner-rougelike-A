@@ -510,7 +510,7 @@ onButton('btn-menu', () =>
         const loss = giveUpLoss(profile, state);
         const cards = loss.cards > 0 ? `\nここで仲間にした${loss.cards}体` : '';
         dialog.open(
-          `ダンジョンをあきらめる？\nダンジョンに入る前に戻る\n\n失うもの\n道具${loss.items}個　ここで拾った💠${loss.runes}${cards}`,
+          `ダンジョンをあきらめる？\nダンジョンに入る前に戻る\n\n失うもの\n道具${loss.items}個　💠${loss.runes}${cards}`,
           'あきらめる',
           'やめる',
           () => {
