@@ -83,7 +83,7 @@ const stars = (weight: number): ItemEntry[] => STAR_ITEMS.map((kind) => ({ kind,
 const FIRST: Dungeon = {
   id: 'first',
   name: 'はじまりの洞窟',
-  desc: '全10階　魔物はLv1\n仲間と出会う、最初のダンジョン',
+  desc: '全10階　魔物はLv1\n仲間と出会う\n最初のダンジョン',
   floors: 10,
   allyStairsHeal: 0.25,
   runes: { piles: [1, 2], amount: [5, 15], perFloor: 0.15 },

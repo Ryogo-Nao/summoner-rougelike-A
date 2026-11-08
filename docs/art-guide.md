@@ -268,7 +268,7 @@ Gemini で作った素材を使っている（2026-11-05）。CSS だけでは�
 | ② 行の札 | src/ui-art/menu.png | 拠点のトップの札と同じ。選んでいる行は金の光で縁取る |
 | ③ 見出しの帯 | src/ui-art/ribbon-head.png | 紺のリボン。slice 20 80（左右は尾ごと） |
 | ④ タブ | src/ui-art/tab2-on.png・tab2-off.png | 選んでいる方は明るい紺に光る金、ほかは暗い紺。slice 24。並べ替え・［バッグ］［倉庫］も同じ |
-| ⑤ 大きなボタン | src/ui-art/btn-main.png | 金の縁に空色の宝石の面。slice 40 76。［ダンジョンに向かう］［購入する］など。［戻る］は④の暗い紺 |
+| ⑤ 大きなボタン | src/ui-art/btn-main.png | 金の縁に空色の宝石の面。slice 40 76。［ダンジョンに向かう］［買う］など。［戻る］は④の暗い紺 |
 | ⑥ 小さなボタン | src/ui-art/btn-small.png | 紺の板に金の縁。slice 22。行の［出発］［倉庫へ送る］、［－］［＋］ |
 | ⑦ 選ぶ印 | src/ui-art/check-on.png・check-off.png | 金の丸に緑のチェック、空の金の丸 |
 | 顔と道具の枠 | src/ui-art/slot.png | 拠点のトップの仲間の枠と同じ金の四角い枠 |

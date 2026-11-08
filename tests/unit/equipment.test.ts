@@ -1,7 +1,7 @@
 // 6.7 属性の装備（docs/test-plan.md F-87）。属性の剣・盾・杖。杖は持っている間その魔法を使え、同じ属性の魔法を強くする
 import { describe, expect, it } from 'vitest';
 import { DUNGEONS } from '../../src/game/dungeons';
-import { ITEMS, STAFF_RATE, createItem, equipBonus, equipMagic, type ItemKind } from '../../src/game/items';
+import { ITEMS, STAFF_RATE, createItem, equipBonus, equipMagic, itemDesc, type ItemKind } from '../../src/game/items';
 import { rollStock } from '../../src/game/shop';
 import { emptyState, logsSince, placeMonster } from '../helpers';
 
@@ -72,6 +72,19 @@ describe('F-87 属性の装備', () => {
     sword.plus = 2;
     expect(equipBonus(sword)).toBe(7);
     expect(equipMagic(sword)).toBe(0);
+  });
+
+  it('＋のある装備の説明は、＋を足した数で出す', () => {
+    const iron = createItem('ironSword');
+    expect(itemDesc(iron)).toBe('攻撃力+7');
+    iron.plus = 1;
+    expect(itemDesc(iron)).toBe('攻撃力+8');
+    const shield = createItem('fireShield');
+    shield.plus = 2;
+    expect(itemDesc(shield)).toBe('防御力+7　🔥火');
+    const staff = createItem('iceStaff');
+    staff.plus = 1;
+    expect(itemDesc(staff).startsWith('魔攻+4　攻撃力+1')).toBe(true);
   });
 
   it('炎の剣で殴ると、風の魔物によく効く', () => {

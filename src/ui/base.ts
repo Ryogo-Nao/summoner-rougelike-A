@@ -20,7 +20,7 @@ import type { ConfirmDialog } from './dialog';
 import { SPECIES } from '../game/monsters';
 import { ALWAYS_SOLD, buy, canSell, sell } from '../game/shop';
 import { DUNGEONS, dungeonById, isUnlocked } from '../game/dungeons';
-import { BAG_LIMIT, ITEMS, itemCategory, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, itemCategory, itemDesc, itemName, sortItems, buyPrice, sellPrice, type ItemKind, type Item } from '../game/items';
 import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../game/profile';
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
 import { HOW_TO_PLAY, SPELL_ICONS, cardIcon, settingRows, spellEffect, statLines } from './screens';
@@ -284,7 +284,7 @@ export class BaseScreen {
       if (this.tab === 'cards') children.push(...this.cardRows(p));
       else children.push(...this.itemListRows(p));
     }
-    document.getElementById('base-runes')!.replaceChildren(uiImage('ui_rune', 'rune-gem'), `${p.runes}ルーン`);
+    document.getElementById('base-runes')!.replaceChildren(uiImage('ui_rune', 'rune-gem'), `${p.runes}`);
     this.body.replaceChildren(...children);
     this.body.scrollTop = keepScroll ? scroll : 0;
     this.depart.textContent = inside ? '戻る' : 'ダンジョンに向かう';
@@ -601,13 +601,13 @@ export class BaseScreen {
       if (this.fusionMode === mode) b.classList.add('on');
       modes.append(b);
     }
-    // 持っている数 / 1回に使う数。書とルーンは絵で出す
+    // 1回に使う数と、持っている数。書とルーンは絵で出す
     const cost = note('', 'fusion-cost');
     cost.append(
-      inlineArt(itemArt(book), ITEMS[book].emoji),
-      ` ${ITEMS[book].name} ${bookCount(p, book)}/1　`,
-      uiImage('ui_rune', 'inline-art'),
-      ` ルーン ${p.runes}/${FUSION_COST}`,
+      '必要 ',
+      chip(inlineArt(itemArt(book), ITEMS[book].emoji), `${ITEMS[book].name} 1（持っている ${bookCount(p, book)}）`),
+      '　',
+      chip(uiImage('ui_rune', 'inline-art'), `${FUSION_COST}（持っている ${p.runes}）`),
     );
     head.append(modes, cost);
     const out: HTMLElement[] = [head];
@@ -696,10 +696,9 @@ export class BaseScreen {
     }
     const bonus = inheritedBonus(a, b);
     const odds = personalityOdds(a.personality, b.personality);
-    const oddsText = PERSONALITY_IDS.filter((id) => odds[id] > 0)
+    const oddsChips = PERSONALITY_IDS.filter((id) => odds[id] > 0)
       .sort((x, y) => odds[y] - odds[x])
-      .map((id) => `${PERSONALITIES[id].name}${Math.round(odds[id] * 1000) / 10}％`)
-      .join('　');
+      .map((id) => chip(`${PERSONALITIES[id].name} ${Math.round(odds[id] * 1000) / 10}％`));
     const nickname = rebirthMode ? a.nickname : fromOther ? undefined : [a, b][this.childFrom].nickname;
     const name = `${unknown ? '？？？' : nickname || species.name}+${fusions}`;
     box.append(
@@ -710,9 +709,12 @@ export class BaseScreen {
         sub: `Lv1　${rebirthMode ? '転生' : '配合'}${fusions}回`,
       }),
       table([
-        ['足し算', `HP+${bonus.maxHp}　攻撃+${bonus.atk}　防御+${bonus.def}\n魔攻+${bonus.matk}　魔防+${bonus.mdef}`],
+        [
+          '足し算',
+          [`HP+${bonus.maxHp}`, `攻撃+${bonus.atk}`, `防御+${bonus.def}`, `魔攻+${bonus.matk}`, `魔防+${bonus.mdef}`].map((t) => chip(t)),
+        ],
         ['伸び', `×${growthRate(fusions).toFixed(2)}`],
-        ['性格', oddsText],
+        ['性格', oddsChips],
       ]),
     );
     const problem = costProblem(p, rebirthMode ? REBIRTH_BOOK : FUSION_BOOK);
@@ -794,7 +796,7 @@ export class BaseScreen {
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name,
-      sub: ITEMS[item.kind].desc,
+      sub: itemDesc(item),
       button: { label, disabled, onClick: () => this.change(onClick) },
       onSelect: pouch ? () => this.enter(() => (this.pouch = item)) : undefined,
     });
@@ -825,7 +827,7 @@ export class BaseScreen {
     const box = document.createElement('label');
     box.className = 'sort-select';
     const text = document.createElement('span');
-    text.textContent = `⇅ ソート：${ITEM_SORT_LABEL[this.itemSort]}`;
+    text.textContent = `⇅ 並べ替え：${ITEM_SORT_LABEL[this.itemSort]}`;
     const select = document.createElement('select');
     for (const key of ITEM_SORT_KEYS) {
       const o = document.createElement('option');
@@ -897,12 +899,12 @@ export class BaseScreen {
     );
     // 下のボタンでまとめて買う
     this.shopAction = {
-      label: count > 0 ? `${count}個を購入　💠${total}` : '購入する',
+      label: count > 0 ? `${count}個を買う　💠${total}` : '買う品を選ぶ',
       disabled: count === 0,
       run: () =>
         this.change(() => {
           for (const k of picked) for (let i = 0; i < this.buyCount.get(k)!; i++) buy(p, k, this.buyTo);
-          this.shopNote = `${count}個を購入して ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
+          this.shopNote = `${count}個を買って ${this.buyTo === 'bag' ? 'バッグ' : '倉庫'}へ送った`;
           this.buyCount.clear();
           this.countError = null;
         }),
@@ -925,8 +927,8 @@ export class BaseScreen {
         className: blocked ? 'blocked' : n > 0 ? 'chosen' : undefined,
       });
       // 数に限りのある品（入れ替わる品）だけ、棚にある数を出す。打ち込んだ数が多すぎたときは、今買える数を赤で出す
-      if (this.countError === key) countLine(row, `${max}個まで購入可能`, true);
-      else if (shelf !== Infinity) countLine(row, `${shelf}個まで購入可能`, false);
+      if (this.countError === key) countLine(row, `${max}個まで買える`, true);
+      else if (shelf !== Infinity) countLine(row, `${shelf}個まで買える`, false);
       row.append(this.stepper(key, n, max, (v) => this.buyCount.set(kind, v)));
       return row;
     });
@@ -950,14 +952,14 @@ export class BaseScreen {
     );
     // 下のボタンでまとめて売る
     this.shopAction = {
-      label: picked.length > 0 ? `${picked.length}個を売却　💠${total}` : '売却する',
+      label: picked.length > 0 ? `${picked.length}個を売る　💠${total}` : '売る品を選ぶ',
       disabled: picked.length === 0,
       run: () =>
         this.change(() => {
           const got = sell(p, picked);
           this.sellCount.clear();
           this.countError = null;
-          this.shopNote = `${picked.length}個を売却して ${got}ルーンを得た`;
+          this.shopNote = `${picked.length}個を売って 💠${got} を得た`;
         }),
     };
     head.append(places);
@@ -974,9 +976,9 @@ export class BaseScreen {
         name: `${g.name}${max > 1 ? `　×${max}` : ''}`,
         sub: ok ? `${first.count !== undefined ? '1束' : '1つ'} 💠${sellPrice(first)}` : why,
         className: !ok ? 'blocked' : n > 0 ? 'chosen' : undefined,
-        button: ok ? undefined : { label: '売却不可', disabled: true, onClick: () => {} },
+        button: ok ? undefined : { label: '売れない', disabled: true, onClick: () => {} },
       });
-      if (ok) countLine(row, `${max}個まで売却可能`, this.countError === key);
+      if (ok) countLine(row, `${max}個まで売れる`, this.countError === key);
       if (ok) row.append(this.stepper(key, n, max, (v) => this.sellCount.set(g.key, v)));
       return row;
     };
@@ -1243,17 +1245,26 @@ function uiImage(name: string, className = ''): HTMLImageElement {
 }
 
 /** 名前と値を2列に並べた表 */
-function table(rows: [string, string][]): HTMLElement {
+function table(rows: [string, string | HTMLElement[]][]): HTMLElement {
   const dl = document.createElement('dl');
   dl.className = 'status-table base-table';
   for (const [k, v] of rows) {
     const dt = document.createElement('dt');
     dt.textContent = k;
     const dd = document.createElement('dd');
-    dd.textContent = v;
+    if (typeof v === 'string') dd.textContent = v;
+    else dd.append(...v);
     dl.append(dt, dd);
   }
   return dl;
+}
+
+/** 途中で折り返さない言葉のかたまり（「防御+1」「がんばりや 7.5％」など）。行が足りなければ、かたまりごと次の行へ送る */
+function chip(...parts: (string | Node)[]): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'chip';
+  el.append(...parts);
+  return el;
 }
 
 function move(item: Item, from: Item[], to: Item[]): void {

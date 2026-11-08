@@ -267,6 +267,15 @@ export function itemName(item: Item): string {
 export const equipBonus = (item: Item) => (ITEMS[item.kind].bonus ?? 0) + (ITEMS[item.kind].magic ? 0 : (item.plus ?? 0));
 /** 杖で上がる魔攻（＋値を含む）。杖でなければ 0 */
 export const equipMagic = (item: Item) => (ITEMS[item.kind].magic ? (ITEMS[item.kind].magic ?? 0) + (item.plus ?? 0) : 0);
+
+/** 道具の説明。＋のある装備は、＋を足した数で出す（錬金釜で強くしても正しい数になる） */
+export function itemDesc(item: Item): string {
+  const def = ITEMS[item.kind];
+  if (!def.slot || !item.plus) return def.desc;
+  if (def.magic) return def.desc.replace(`魔攻+${def.magic}`, `魔攻+${equipMagic(item)}`);
+  return def.desc.replace(/^(攻撃力|防御力)\+\d+/, `$1+${equipBonus(item)}`);
+}
+
 /** 杖と同じ属性の魔法の威力の倍率 */
 export const STAFF_RATE = 1.25;
 

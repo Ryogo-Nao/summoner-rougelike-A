@@ -1,6 +1,6 @@
 import { elementText } from '../game/elements';
 import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartner, type Card } from '../game/cards';
-import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemName, type Item } from '../game/items';
+import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
 import { Sheet, wideButton, type SheetRow, type SheetTitle } from './sheet';
@@ -199,7 +199,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
-    sub: ITEMS[item.kind].desc,
+    sub: itemDesc(item),
     button: { label: '選ぶ', onClick: () => openItemSheet(state, sheet, item, after) },
   }));
   const buffs = [
@@ -257,7 +257,7 @@ export function openFloorSheet(state: GameState, sheet: Sheet, after: AfterActio
     wideButton('バッグの道具と入れ替える', state.bag.length === 0, () => openFloorSwapSheet(state, sheet, after)),
   );
   buttons.append(wideButton('足踏みする', false, act(() => state.wait())));
-  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: `足元：${itemName(item)}` }, [], { note: def.desc, footer: buttons });
+  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: `足元：${itemName(item)}` }, [], { note: itemDesc(item), footer: buttons });
 }
 
 /**
@@ -318,7 +318,7 @@ function choiceRows(
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: label(item),
-      sub: ITEMS[item.kind].desc,
+      sub: itemDesc(item),
       className: on ? 'chosen' : undefined,
       onSelect: toggle,
       button: { label: on ? '✓' : '選ぶ', disabled: !on && chosen.size >= limit, onClick: toggle },
@@ -454,7 +454,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: label(item),
-      sub: ITEMS[item.kind].desc,
+      sub: itemDesc(item),
       button: { label: '選ぶ', onClick: () => openPotSheet(state, sheet, pot, after, back, item) },
     }));
     sheet.open('錬金釜：1つ目の装備', rows, {
@@ -494,7 +494,7 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
     name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
-    sub: ITEMS[item.kind].desc,
+    sub: itemDesc(item),
     button: {
       label: '入れ替える',
       onClick: () => {
@@ -541,7 +541,7 @@ function openItemSheet(state: GameState, sheet: Sheet, item: Item, after: AfterA
     buttons.append(wideButton(dropProblem ?? '置く', dropProblem !== null, act(() => state.dropItem(item))));
   }
   buttons.append(wideButton('戻る', false, () => openBagSheet(state, sheet, after)));
-  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: itemName(item) }, [], { note: def.desc, footer: buttons });
+  sheet.open({ art: itemArt(item.kind), icon: def.emoji, text: itemName(item) }, [], { note: itemDesc(item), footer: buttons });
 }
 
 /** 「攻撃力 5 → 9 ↑4」。上がるなら緑、下がるなら赤で出す */
@@ -575,7 +575,7 @@ const EFFECT_SPEED_SUB: Record<EffectSpeed, string> = {
 const NEXT_SPEED: Record<EffectSpeed, EffectSpeed> = { normal: 'fast', fast: 'min', min: 'normal' };
 
 /** 遊び方の短い説明。ダンジョンのメニューと、拠点のその他に出す */
-export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると入れ替わるか押すかを選べる';
+export const HOW_TO_PLAY = '攻撃は［攻撃］ボタンで\n方向を押し続けるとダッシュ\n隣の仲間をタップすると\n入れ替わるか押すかを選べる';
 
 /**
  * 設定の行（ダンジョンのメニューと、拠点のその他で同じものを出す）。
@@ -595,7 +595,7 @@ export function settingRows(settings: Settings, onChange: () => void): SheetRow[
     },
     {
       icon: '🔁',
-      name: '仲間のいるマスへ進む',
+      name: '仲間へ進むと',
       sub: settings.allyMove === 'swap' ? '仲間と入れ替わる' : '仲間を1マス押し出す\n押せないときは入れ替わる',
       button: {
         label: settings.allyMove === 'swap' ? '入れ替わる' : '押す',
