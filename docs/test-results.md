@@ -2,6 +2,14 @@
 
 項目は docs/test-plan.md。
 
+## 2026-11-08（v100、拠点の看板と札を1枚の絵に・商店のアイコン）
+
+影響のあるテストを動かした。拠点のトップ（base.ts・style.css）と絵だけを変えたので、画面は拠点と一覧のテスト。
+
+| 種類 | 結果 |
+|---|---|
+| 画面のテスト（hub・lists、iPhone の WebKit と Chromium） | 28件 すべて通過 |
+
 ## 2026-11-08（v99、属性の装備の絵と、小さなアイコン）
 
 影響のあるテストを動かした。絵の一覧（art.ts）、文の中の絵文字を絵にする部品（icons.ts）と、それを使う画面（sheet.ts・base.ts・screens.ts・status.ts・dialog.ts・main.ts・renderer.ts）を変えたので、画面は拠点・一覧・ダンジョンのテスト。

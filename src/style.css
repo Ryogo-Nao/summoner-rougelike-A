@@ -1788,94 +1788,6 @@ body:has(#base:not([hidden])) {
   line-height: 14px;
   text-shadow: 1px 0 0 #3b2208, -1px 0 0 #3b2208, 0 1px 0 #3b2208, 0 -1px 0 #3b2208;
 }
-/*
- * 鎖で吊るした［冒険の準備］の看板。絵（幅 704・板 302・鎖ごと 487）を下の端にそろえて出す。
- * 見える鎖の長さは、余った高さに合わせて伸び縮みする（上は仲間の台の裏に差し込む）
- */
-.hub-sign {
-  position: relative;
-  z-index: 1;
-  flex: none;
-  width: var(--sign-w);
-  /* 鎖は短く決めた長さにし、余った高さはかたまりの上下と札との間で同じに分ける */
-  height: calc(var(--sign-w) * 0.43 + 30px);
-  margin: -6px auto 0;
-  background: url('./ui-art/signboard.png') center bottom / 100% auto no-repeat;
-}
-/* 押せる板。左のランタンをよけ、文字を板の木目のまん中にそろえる */
-.hub-sign-plate {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: calc(var(--sign-w) * 0.43);
-  display: flex;
-  align-items: center;
-  /* 文字は板のまん中にそろえる（左右の余白を同じにする） */
-  padding: 3.6% 16% 0;
-  border: none;
-  background: none;
-}
-.hub-sign-plate:active {
-  transform: translateY(2px);
-  filter: brightness(0.96);
-}
-.hub-sign-title {
-  flex: 1;
-  font-size: min(29px, calc(var(--sign-w) * 0.072));
-  text-align: center;
-}
-
-/* ［商店］は幅いっぱい、［記録］［配合］は2つ並べる。木の縁に真ちゅうの金具の札。看板のすぐ下に置く */
-.hub-menus {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: min(8px, 1.2cqh) 8px;
-  width: var(--sign-w);
-  margin: 0 auto;
-}
-.hub-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: min(58px, 8cqh);
-  padding: 0 8px;
-  border-style: solid;
-  border-width: 8px;
-  border-image: url('./ui-art/menu.png') 56 fill / 18px stretch;
-  background: none;
-  filter: drop-shadow(0 2px 3px rgba(61, 47, 34, 0.35));
-}
-.hub-item.wide {
-  grid-column: 1 / -1;
-}
-.hub-item:active {
-  transform: translateY(2px);
-}
-.hub-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: min(38px, 5.6cqh);
-  height: min(38px, 5.6cqh);
-}
-.hub-icon img {
-  width: 100%;
-  height: 100%;
-}
-.hub-title {
-  flex: 1;
-  font-size: min(20px, 3.6cqh);
-  text-align: left;
-  /* 狭い画面でも「記録」「配合」を縦に折らない */
-  white-space: nowrap;
-}
-.hub-go img {
-  display: block;
-  width: 20px;
-  height: 20px;
-}
 @media (prefers-reduced-motion: reduce) {
   .hub-stage,
   .hub-slot.empty .hub-face::before,
@@ -3159,11 +3071,6 @@ body.fan-open::before {
   display: flex;
   flex-direction: column;
 }
-/* ［商店］は札のまん中に名前を置く（右の » の幅だけ左へ戻す） */
-.hub-item.wide .hub-title {
-  padding-left: 18px;
-  text-align: center;
-}
 
 /* ダンジョンの詳しい画面：説明と記録、下に確かめの窓と同じ［挑む］［やめる］ */
 .dungeon-detail .dialog-buttons {
@@ -3206,19 +3113,6 @@ body.fan-open::before {
   height: 50px;
 }
 
-/* 拠点のトップの名前の絵（描いてもらった文字。docs/art-guide.md 8.1） */
-.label-art {
-  display: inline-block;
-  width: auto;
-  vertical-align: middle;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
-}
-.hub-sign-title .label-art {
-  height: min(46px, calc(var(--sign-w) * 0.11));
-}
-.hub-title .label-art {
-  height: min(30px, 4.8cqh);
-}
 
 /* 文の中の小さな絵（属性・ルーン・状態異常など。ui/icons.ts） */
 .inline-icon {
@@ -3244,4 +3138,46 @@ body.fan-open::before {
 .list-search input {
   padding-left: 34px;
   background: #fffaf0 9px center / 20px 20px no-repeat;
+}
+
+/*
+ * 拠点のトップの看板と札（文字ごと1枚の絵。docs/art-guide.md 8.1）。
+ * 看板は鎖の上の端を仲間の台の裏に差し込む。札は 2×2 に並べ、右上は空けておく
+ */
+.hub-sign {
+  position: relative;
+  z-index: 1;
+  display: block;
+  flex: none;
+  width: var(--sign-w);
+  margin: -6px auto 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.hub-sign-art,
+.hub-card-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 2px 3px rgba(61, 47, 34, 0.35));
+}
+.hub-sign:active,
+.hub-item:active {
+  transform: translateY(2px);
+  filter: brightness(0.96);
+}
+.hub-menus {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: min(8px, 1.2cqh) 8px;
+  width: var(--sign-w);
+  margin: 0 auto;
+}
+.hub-item {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
 }

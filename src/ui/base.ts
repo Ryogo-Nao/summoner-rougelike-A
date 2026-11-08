@@ -358,40 +358,30 @@ export class BaseScreen {
     stage.className = 'hub-stage';
     stage.append(artElement('player', '🧙', 'hub-art'));
     hero.append(stage, note(`${generationName(p.generation)} 召喚士`, 'hub-name'), party);
-    // 鎖で吊るした［冒険の準備］の看板。板のどこを押しても冒険へ（ダンジョンを選ぶところから）
-    const sign = document.createElement('div');
+    // 鎖で吊るした［冒険の準備］の看板と、［商店］［記録］［配合］の札は、文字ごと1枚の絵（docs/art-guide.md 8.1）。
+    // 「NEW」「！」の印と押せる範囲だけを上に重ねる
+    const sign = document.createElement('button');
     sign.className = 'hub-sign';
-    const plate = document.createElement('button');
-    plate.className = 'hub-sign-plate';
-    // 看板と札の名前は、描いてもらった文字の絵（public/art/ui_label_*.png。docs/art-guide.md 8.1）
-    const signTitle = document.createElement('span');
-    signTitle.className = 'hub-sign-title';
-    signTitle.append(labelImage('adventure', '冒険の準備'));
-    plate.append(signTitle);
-    plate.addEventListener('click', () => this.go('prep'));
-    sign.append(plate);
-    /** icon は public/art/ui_hub_<icon>.png、名前の絵は public/art/ui_label_<icon>.png */
-    const item = (view: View, icon: string, name: string, wide = false, otherMode?: OtherMode): HTMLElement => {
+    sign.setAttribute('aria-label', '冒険の準備');
+    sign.append(uiImage('ui_sign_adventure', 'hub-sign-art'));
+    sign.addEventListener('click', () => this.go('prep'));
+    /** 札の絵は public/art/ui_card_<name>.png */
+    const item = (view: View, art: string, name: string, otherMode?: OtherMode): HTMLElement => {
       const b = document.createElement('button');
-      b.className = wide ? 'hub-item wide' : 'hub-item';
-      const ic = document.createElement('span');
-      ic.className = 'hub-icon';
-      ic.append(uiImage(`ui_hub_${icon}`));
-      const t = document.createElement('span');
-      t.className = 'hub-title';
-      t.append(labelImage(icon, name));
-      const chevron = document.createElement('span');
-      chevron.className = 'hub-go';
-      chevron.append(uiImage('ui_chevron'));
-      b.append(ic, t, chevron);
+      b.className = 'hub-item';
+      b.setAttribute('aria-label', name);
+      b.append(uiImage(`ui_card_${art}`, 'hub-card-art'));
       const mark = this.badgeOf(p, view);
       if (mark) b.append(mark);
       b.addEventListener('click', () => this.go(view, otherMode));
       return b;
     };
+    // 2×2 に並べ、右上は空けておく（あとで別の札を置く）
+    const spare = document.createElement('span');
+    spare.className = 'hub-item-spare';
     const menus = document.createElement('div');
     menus.className = 'hub-menus';
-    menus.append(item('shop', 'shop', '商店', true), item('other', 'records', '記録', false, 'records'), item('fusion', 'fusion', '配合'));
+    menus.append(item('shop', 'shop', '商店'), spare, item('other', 'records', '記録', 'records'), item('fusion', 'fusion', '配合'));
     // 主人公・仲間と、鎖で吊るした看板は1つのかたまり。かたまりの上・札との間・札の下の余白を同じにする
     const upper = document.createElement('div');
     upper.className = 'hub-upper';
@@ -1352,13 +1342,6 @@ function withArt(el: HTMLElement, art: HTMLElement): HTMLElement {
 }
 
 /** UIの絵（public/art/<name>.png） */
-/** 拠点のトップの名前の絵。読み上げと、絵が出ないときのために alt に名前を入れる */
-function labelImage(name: string, text: string): HTMLImageElement {
-  const img = uiImage(`ui_label_${name}`, 'label-art');
-  img.alt = text;
-  return img;
-}
-
 function uiImage(name: string, className = ''): HTMLImageElement {
   const img = document.createElement('img');
   img.src = `art/${name}.png`;
