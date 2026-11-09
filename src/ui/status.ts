@@ -20,6 +20,7 @@ function traits(species: Species, partner: boolean): string {
   // ふらふら・鈍足は敵のときだけの弱み。仲間には出さない（balance.md 4.6）
   if (species.mighty) list.push('攻撃力が1.5倍');
   if (species.sturdy) list.push('受けるダメージが半分');
+  if (species.armored) list.push('物理で受けるダメージが2/3');
   if (species.phasing) list.push('壁をすり抜ける');
   if (species.special === 'spore') list.push(`${species.specialName ?? '胞子'}で混乱させる`);
   if (species.special === 'venom') list.push('攻撃で毒にする');

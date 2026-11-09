@@ -139,3 +139,34 @@ test('F-83 メニューの「正面のマスの枠」のスイッチを押すと
   expect(saved).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test('F-96 階段を降りる確かめは、ダンジョンの詳しい画面と同じ：左に主役の［降りる］、右に赤い［やめる］', async ({ page }) => {
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  // 保存した続きのデータで、主人公を階段の上に置いて開き直す
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('summoner-run') !== null)).toBe(true);
+  await page.evaluate(() => {
+    const run = JSON.parse(localStorage.getItem('summoner-run')!);
+    const i = run.map.tiles.indexOf(2);
+    run.player.pos = { x: i % run.map.width, y: Math.floor(i / run.map.width) };
+    run.monsters = [];
+    localStorage.setItem('summoner-run', JSON.stringify(run));
+  });
+  await page.reload();
+  await expect(page.locator('#base')).toBeHidden();
+  // 階段の上で足踏みすると聞かれる
+  await expect(async () => {
+    await press(page, '#pad [data-dir="wait"]');
+    await expect(page.locator('#dialog')).toBeVisible({ timeout: 500 });
+  }).toPass();
+  await expect(page.locator('#dialog-text')).toHaveText('階段を降りる？');
+  await expect(page.locator('#dialog-yes')).toHaveText('降りる');
+  await expect(page.locator('#dialog-yes')).not.toHaveClass(/danger/);
+  await expect(page.locator('#dialog-no')).toHaveText('やめる');
+  await expect(page.locator('#dialog-no')).toHaveClass(/danger/);
+  // ［降りる］はダンジョンの詳しい画面の［挑む］と、［やめる］は同じ画面の［やめる］と同じ絵
+  const look = (sel: string) => page.locator(sel).evaluate((el) => `${getComputedStyle(el).borderImageSource} ${getComputedStyle(el).filter}`);
+  const [yes, no] = [await look('#dialog-yes'), await look('#dialog-no')];
+  expect(yes).toContain('btn-main');
+  expect(no).toContain('hue-rotate');
+});

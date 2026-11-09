@@ -27,7 +27,7 @@ import { HIT_RATE, allyLevelForExp, playerLevelForExp, rollDamage } from './comb
 import { EFFECT_TEXT, effectOf, elementRate, type Element } from './elements';
 import { DIR_VECTORS, dirFromDelta, distance, isDiagonal, type Dir, type Pos } from './dir';
 import { generateFloor, randomFreePointIn } from './dungeon';
-import { dungeonById, monstersForFloor, randomItem, randomRune, type Dungeon } from './dungeons';
+import { dungeonById, pickMonster, randomItem, randomRune, type Dungeon } from './dungeons';
 import { GameMap, Tile, type Room } from './map';
 import { SPECIES, createMonster, monsterExp, type Monster, type Species, mightyAtk, sturdyDamage } from './monsters';
 import {
@@ -760,11 +760,10 @@ export class GameState {
   /** 部屋の空いているマスに、この階に出る魔物を1体置く。置けなければ何もしない */
   /** dormant なら、モンスターハウスで眠っている魔物にする */
   private spawnMonster(room: Room, dormant = false): void {
-    const kinds = monstersForFloor(this.dungeon, this.floor);
     for (let attempt = 0; attempt < 10; attempt++) {
       const pos = randomFreePointIn(this.rng, this.map, room);
       if (this.isOccupied(pos.x, pos.y)) continue;
-      const kind = this.rng.pick(kinds);
+      const kind = pickMonster(this.dungeon, this.floor, this.rng);
       const monster = createMonster(speciesById(kind.species), pos, kind.level);
       if (dormant) monster.dormant = true;
       this.monsters.push(monster);
@@ -1720,7 +1719,8 @@ export class GameState {
    * rate は属性の倍率（raw にはもうかけてある）。よく効いた・効きにくいを出すのに使う。与えたダメージを返す
    */
   private damageMonster(m: Monster, raw: number, by: Ally | null, how: string, rate = 1): number {
-    const dmg = sturdyDamage(m.species, fortified(raw, m.ailments));
+    // 物理は主人公と仲間の通常攻撃（how が「攻撃」）
+    const dmg = sturdyDamage(m.species, fortified(raw, m.ailments), how === '攻撃');
     m.hp -= dmg;
     this.wake(m.ailments);
     m.dormant = false;
@@ -2703,15 +2703,15 @@ export class GameState {
     }
     const rate = elementRate(m.species.element, a.card.species.element);
     const dmg = fortified(this.guarded(rollDamage(this.rng, mightyAtk(m.species, raged(m.atk, m.ailments)), a.card.def, rate)), a.ailments);
-    if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃', rate)) return;
+    if (!this.hurtAlly(m, a, dmg, ranged ? `${m.species.reachName ?? '舌'}の攻撃` : '攻撃', rate, true)) return;
     this.drain(m.species, m, dmg, m.species.name);
     this.afflict(m.species, a.ailments, name, 'ally', a.pos);
   }
 
   /** 魔物が仲間にダメージを与える。how はログに出す攻撃の名前、rate は属性の倍率。瀕死になって召喚が解けたら false */
-  private hurtAlly(m: Monster, a: Ally, raw: number, how: string, rate = 1): boolean {
+  private hurtAlly(m: Monster, a: Ally, raw: number, how: string, rate = 1, physical = false): boolean {
     const name = cardName(a.card);
-    const dmg = sturdyDamage(a.card.species, raw);
+    const dmg = sturdyDamage(a.card.species, raw, physical);
     a.card.hp = Math.max(0, a.card.hp - dmg);
     this.wake(a.ailments);
     this.addLog(`${m.species.name}の${how} → ${name}に${dmg}ダメージ${effectNote(rate)}`);

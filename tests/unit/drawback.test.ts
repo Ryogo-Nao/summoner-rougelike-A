@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWBACK_GROWTH, cardStats, hasDrawback } from '../../src/game/cards';
 import { MIGHTY_RATE, SPECIES, mightyAtk, sturdyDamage } from '../../src/game/monsters';
+import { emptyState, placeMonster } from '../helpers';
 
 const sp = (id: string) => SPECIES.find((s) => s.id === id)!;
 
@@ -15,9 +16,16 @@ describe('F-93 弱み（鈍足・ふらふら）のある魔物には強みが�
     expect(sp('patari').special).toBe('drain');
   });
 
+  it('イワガメは物理（通常攻撃）で受けるダメージだけ2/3、魔法や投げたものはそのまま', () => {
+    expect(sturdyDamage(sp('iwagame'), 9, true)).toBe(6);
+    expect(sturdyDamage(sp('iwagame'), 1, true)).toBe(1);
+    expect(sturdyDamage(sp('iwagame'), 9)).toBe(9);
+    expect(sturdyDamage(sp('tsubumaru'), 10, true)).toBe(5);
+  });
+
   it('弱みのある魔物はどれも強みを持つ', () => {
     for (const s of SPECIES.filter(hasDrawback)) {
-      expect(s.mighty || s.sturdy || s.special !== undefined || s.twoHits || s.reach || s.regen, s.id).toBeTruthy();
+      expect(s.mighty || s.sturdy || s.armored || s.special !== undefined || s.twoHits || s.reach || s.regen, s.id).toBeTruthy();
     }
     expect(SPECIES.filter(hasDrawback).map((s) => s.id).sort()).toEqual(['goromu', 'gouriki', 'iwagame', 'kujiran', 'patari', 'tsubumaru', 'watage']);
   });

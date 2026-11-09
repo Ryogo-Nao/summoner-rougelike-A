@@ -36,7 +36,17 @@ export type Stats = Record<Stat, number>;
 export const STAT_LABEL: Record<Stat, string> = { maxHp: 'HP', atk: '攻撃', def: '防御', matk: '魔攻', mdef: '魔防' };
 
 /** 性格（requirements.md 6.2）。封印したときにカードごとに決まり、能力だけに効く */
-export type PersonalityId = 'ganbari' | 'shincho' | 'takumashii' | 'okubyo' | 'sunao';
+export type PersonalityId =
+  | 'ganbari'
+  | 'shincho'
+  | 'takumashii'
+  | 'okubyo'
+  | 'kashikoi'
+  | 'kimagure'
+  | 'otonashii'
+  | 'ochitsuki'
+  | 'yancha'
+  | 'sunao';
 
 export interface Personality {
   name: string;
@@ -50,6 +60,12 @@ export const PERSONALITIES: Record<PersonalityId, Personality> = {
   shincho: { name: 'しんちょう', up: 'def', down: 'atk' },
   takumashii: { name: 'たくましい', up: 'maxHp', down: 'atk' },
   okubyo: { name: 'おくびょう', up: 'maxHp', down: 'def' },
+  // 魔攻・魔防の性格（2026-11-10）
+  kashikoi: { name: 'かしこい', up: 'matk', down: 'atk' },
+  kimagure: { name: 'きまぐれ', up: 'matk', down: 'def' },
+  otonashii: { name: 'おとなしい', up: 'mdef', down: 'atk' },
+  ochitsuki: { name: 'おちつき', up: 'mdef', down: 'matk' },
+  yancha: { name: 'やんちゃ', up: 'atk', down: 'mdef' },
   sunao: { name: 'すなお' },
 };
 export const PERSONALITY_IDS = Object.keys(PERSONALITIES) as PersonalityId[];

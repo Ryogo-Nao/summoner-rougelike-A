@@ -1,4 +1,5 @@
 import { ARROW_DROP, ITEMS, STAR_ITEMS, createItem, createRune, type Item, type ItemKind } from './items';
+import { SPECIES } from './monsters';
 import type { Rng } from './rng';
 
 /** 落ちているアイテム1行ぶん。floors を省くと全階に出る（同じアイテムを階ごとに分けて書いてもよい） */
@@ -16,6 +17,19 @@ export interface MonsterEntry {
   species: string;
   floors: [number, number];
   level?: number;
+  /** 強い魔物。tiered のダンジョンでは、階ごとの割合で強い魔物と弱い魔物を出し分ける */
+  strong?: boolean;
+}
+
+/**
+ * 強い魔物の割合（balance.md 7.5）。どのダンジョンでも B1〜5F は弱い魔物だけ、
+ * B6〜10F は4割、B11〜15F は8割、B16F から強い魔物だけ
+ */
+export function strongShare(floor: number): number {
+  if (floor <= 5) return 0;
+  if (floor <= 10) return 0.4;
+  if (floor <= 15) return 0.8;
+  return 1;
 }
 
 /**
@@ -74,6 +88,8 @@ export interface Dungeon {
    * 深い階ほど、1階ごとに perFloor の割合で増える
    */
   runes: { piles: [number, number]; amount: [number, number]; perFloor: number };
+  /** 強い魔物と弱い魔物を、階ごとの割合（strongShare）で出し分ける */
+  tiered?: boolean;
 }
 
 /** 星（9種類）を、それぞれ同じ重みで並べる。重みは、そのダンジョンの印と同じくらいにする */
@@ -394,6 +410,9 @@ const ICE: Dungeon = {
 /** 同じレベルで出る魔物をまとめて書く（新しいダンジョン用） */
 const band = (species: string[], floors: [number, number], level: number): MonsterEntry[] =>
   species.map((id) => ({ species: id, floors, level }));
+/** 強い魔物の band */
+const strong = (species: string[], floors: [number, number], level: number): MonsterEntry[] =>
+  species.map((id) => ({ species: id, floors, level, strong: true }));
 
 /** 新しいダンジョンに共通の、草・食べ物・矢・印・袋・魔導書の重み。装備と書はダンジョンごとに足す */
 const commonItems = (deep: number): ItemEntry[] => [
@@ -434,7 +453,7 @@ const commonItems = (deep: number): ItemEntry[] => [
 
 /**
  * 4つ目のダンジョン（難しさ4。しずくの氷穴を6とする。balance.md 7.5）。2026-11-08 に足した魔物が出る。
- * 浅い階は新しい弱い魔物が中心で、カマイタチが B4F から。深くなるとイワガメ・ホムラジシ・シロジカも出る。
+ * B1〜5F は弱い魔物だけ。B6F からカマイタチ、B8F からイワガメ、B9F からホムラジシ、B12F からシロジカが出る。
  * モンスターハウスが多い（B2F から 30％）。炎と疾風の装備が落ちている
  */
 const VALLEY: Dungeon = {
@@ -443,6 +462,7 @@ const VALLEY: Dungeon = {
   desc: '全15階　魔物はLv4〜12\nモンスターハウスが多い',
   requires: 'forest',
   floors: 15,
+  tiered: true,
   allyStairsHeal: 0.15,
   runes: { piles: [2, 3], amount: [12, 28], perFloor: 0.15 },
   // 夕暮れの谷。琥珀色の土と、ほたるの淡い黄緑の明かり
@@ -471,30 +491,31 @@ const VALLEY: Dungeon = {
     { kind: 'windStaff', weight: 0.5 },
   ],
   monsters: [
-    // 浅い階：新しい弱い魔物がLv4。カマイタチは B4F から
+    // 浅い階：弱い魔物だけがLv4
     ...band(['tsunousa', 'watage', 'hinoko', 'hotari', 'tsuchimogu', 'pukuri'], [1, 5], 4),
-    ...band(['kamaitachi'], [4, 5], 4),
-    // 中ほど：イワガメは B8F、ホムラジシは B9F から
-    ...band(['tsunousa', 'watage', 'hinoko', 'hotari', 'tsuchimogu', 'kamaitachi'], [6, 10], 7),
-    ...band(['iwagame'], [8, 10], 7),
-    ...band(['homurajishi'], [9, 10], 7),
-    // 深い階：強い魔物が中心。弱い魔物はレベルを上げて出す。シロジカは B12F から
-    ...band(['kamaitachi', 'iwagame', 'homurajishi'], [11, 15], 11),
-    ...band(['shirojika'], [12, 15], 11),
+    // 中ほど：強い魔物が4割。イワガメは B8F、ホムラジシは B9F から
+    ...band(['tsunousa', 'watage', 'hinoko', 'hotari', 'tsuchimogu', 'pukuri'], [6, 10], 7),
+    ...strong(['kamaitachi'], [6, 10], 7),
+    ...strong(['iwagame'], [8, 10], 7),
+    ...strong(['homurajishi'], [9, 10], 7),
+    // 深い階：強い魔物が8割。弱い魔物はレベルを上げて出す。シロジカは B12F から
+    ...strong(['kamaitachi', 'iwagame', 'homurajishi'], [11, 15], 11),
+    ...strong(['shirojika'], [12, 15], 11),
     ...band(['tsunousa', 'hinoko', 'watage', 'hotari'], [11, 15], 12),
   ],
 };
 
 /**
- * 5つ目のダンジョン（難しさ6。しずくの氷穴と同じくらい）。B1F から新しい強い魔物だけが出る。
+ * 5つ目のダンジョン（難しさ6。しずくの氷穴と同じくらい）。B1〜5F は弱い魔物だけ、B16F から強い魔物だけが出る。
  * 階段での仲間の回復は少ない。大地と光の装備が落ちている（光の装備はここで初めて手に入る）
  */
 const MINE: Dungeon = {
   id: 'mine',
   name: 'いかずちの坑道',
-  desc: '全22階　魔物はLv5〜17\n強い魔物ばかりが出る',
+  desc: '全22階　魔物はLv5〜17\n深い階は強い魔物ばかりが出る',
   requires: 'valley',
   floors: 22,
+  tiered: true,
   allyStairsHeal: 0.1,
   runes: { piles: [2, 3], amount: [18, 40], perFloor: 0.15 },
   // 雷の走る古い坑道。黒い岩に、黄色い明かり
@@ -522,24 +543,23 @@ const MINE: Dungeon = {
     { kind: 'lightShield', weight: 0.8, floors: [6, 22] },
   ],
   monsters: [
-    // 浅い階：強い魔物がLv5。弱い魔物は出さない。クジランは B3F から
-    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika'], [1, 5], 5),
-    ...band(['kujiran'], [3, 5], 5),
-    // 中ほど：ホムラジシとイワガメも出る。ビリス・ヨルネコはレベルを上げて出す
-    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame'], [6, 11], 8),
-    ...band(['homurajishi'], [8, 11], 9),
-    ...band(['birisu', 'yoruneko'], [6, 11], 10),
-    // 深い階：ゴウリキは B14F から
-    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi'], [12, 17], 12),
-    ...band(['gouriki'], [14, 17], 12),
-    ...band(['birisu', 'yoruneko', 'pukuri'], [12, 17], 13),
-    ...band(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi', 'gouriki'], [18, 22], 16),
-    ...band(['raijuu', 'karabone'], [21, 22], 17),
+    // 浅い階：弱い魔物だけがLv5
+    ...band(['birisu', 'yoruneko', 'pukuri', 'tsuchimogu', 'hotari'], [1, 5], 5),
+    // 中ほど（強い魔物が4割、B11F から8割）：ホムラジシは B8F から。弱い魔物はレベルを上げて出す
+    ...strong(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame'], [6, 11], 8),
+    ...strong(['homurajishi'], [8, 11], 9),
+    ...band(['birisu', 'yoruneko', 'pukuri', 'tsuchimogu'], [6, 11], 10),
+    // 深い階（B16F から強い魔物だけ）：ゴウリキは B14F から
+    ...strong(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi'], [12, 17], 12),
+    ...strong(['gouriki'], [14, 17], 12),
+    ...band(['birisu', 'yoruneko', 'pukuri'], [12, 15], 13),
+    ...strong(['raijuu', 'kamaitachi', 'karabone', 'shirojika', 'kujiran', 'iwagame', 'homurajishi', 'gouriki'], [18, 22], 16),
+    ...strong(['raijuu', 'karabone'], [21, 22], 17),
   ],
 };
 
 /**
- * 6つ目のダンジョン（難しさ7）。B1F から強い魔物と、とても強い魔物（ゴウリキなど）が出る。全30階と長く、
+ * 6つ目のダンジョン（難しさ7）。B1〜5F は弱い魔物だけ、B16F から強い魔物（ゴウリキなど）だけが出る。全30階と長く、
  * 階段での仲間の回復はほとんどない。闇の装備が落ちている（ここで初めて手に入る）
  */
 const ABYSS: Dungeon = {
@@ -548,6 +568,7 @@ const ABYSS: Dungeon = {
   desc: '全30階　魔物はLv6〜22\n階段での仲間の回復がほとんどない',
   requires: 'mine',
   floors: 30,
+  tiered: true,
   allyStairsHeal: 0.05,
   runes: { piles: [2, 4], amount: [22, 50], perFloor: 0.15 },
   // 底の見えない闇。紫がかった黒い石に、冷たい紫の明かり
@@ -576,20 +597,22 @@ const ABYSS: Dungeon = {
     { kind: 'fireSword', weight: 0.6 },
   ],
   monsters: [
-    // 浅い階：強い魔物がLv6。ゴウリキ・ホムラジシも B1F から
-    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi'], [1, 6], 6),
-    ...band(['kujiran', 'shirojika'], [3, 6], 7),
-    // 中ほど：前のダンジョンのとても強い魔物（ゴロム・ツララグマ）も出る
-    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi', 'kujiran', 'shirojika'], [7, 12], 10),
-    ...band(['goromu', 'moyari'], [9, 12], 10),
-    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'moyari'], [13, 18], 13),
-    ...band(['tsuraragu', 'nurarika'], [13, 18], 14),
-    ...band(['yoruneko', 'birisu', 'tsunousa'], [13, 18], 15),
-    // 深い階：レベルがさらに上がる
-    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu'], [19, 24], 17),
-    ...band(['yoruneko', 'watage', 'hotari'], [19, 24], 18),
-    ...band(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu', 'moyari'], [25, 30], 21),
-    ...band(['gouriki', 'homurajishi', 'raijuu'], [28, 30], 22),
+    // 浅い階：弱い魔物だけがLv6
+    ...band(['yoruneko', 'birisu', 'tsunousa', 'watage', 'hotari', 'hinoko'], [1, 6], 6),
+    // B6F から強い魔物が4割。ゴウリキ・ホムラジシも出る
+    ...strong(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi'], [6, 6], 6),
+    ...strong(['kujiran', 'shirojika'], [6, 6], 7),
+    // 中ほど：前のダンジョンのとても強い魔物（ゴロム・モヤリ・ツララグマ・ヌラリカ）も出る
+    ...strong(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kamaitachi', 'kujiran', 'shirojika'], [7, 12], 10),
+    ...strong(['goromu', 'moyari'], [9, 12], 10),
+    ...band(['yoruneko', 'birisu', 'tsunousa', 'watage'], [7, 12], 11),
+    ...strong(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'moyari'], [13, 18], 13),
+    ...strong(['tsuraragu', 'nurarika'], [13, 18], 14),
+    ...band(['yoruneko', 'birisu', 'tsunousa'], [13, 15], 15),
+    // 深い階（B16F から強い魔物だけ）：レベルがさらに上がる
+    ...strong(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu'], [19, 24], 17),
+    ...strong(['gouriki', 'homurajishi', 'raijuu', 'karabone', 'iwagame', 'kujiran', 'shirojika', 'goromu', 'tsuraragu', 'moyari'], [25, 30], 21),
+    ...strong(['gouriki', 'homurajishi', 'raijuu'], [28, 30], 22),
   ],
 };
 
@@ -607,9 +630,20 @@ export function dungeonById(id: string): Dungeon {
 const onFloor = (floors: [number, number] | undefined, floor: number) =>
   !floors || (floor >= floors[0] && floor <= floors[1]);
 
+/**
+ * そのダンジョンに出る魔物が使う特技。毒にする魔物がいなければ毒消し草、
+ * 混乱させる魔物がいなければキツケソウを落とさない（balance.md 7.5）
+ */
+const curedBy: Partial<Record<ItemKind, 'venom' | 'spore'>> = { antidote: 'venom', kitsuke: 'spore' };
+function needed(dungeon: Dungeon, kind: ItemKind): boolean {
+  const special = curedBy[kind];
+  if (!special) return true;
+  return dungeon.monsters.some((e) => SPECIES.find((s) => s.id === e.species)?.special === special);
+}
+
 /** その階に落ちているアイテムを1つ作る。矢は何本かまとめて落ちている */
 export function randomItem(dungeon: Dungeon, floor: number, rng: Rng): Item {
-  const entries = dungeon.items.filter((e) => onFloor(e.floors, floor));
+  const entries = dungeon.items.filter((e) => onFloor(e.floors, floor) && needed(dungeon, e.kind));
   const total = entries.reduce((sum, e) => sum + e.weight, 0);
   let r = rng.next() * total;
   let kind = entries[0].kind;
@@ -633,8 +667,21 @@ export function randomRune(dungeon: Dungeon, floor: number, rng: Rng): Item {
 }
 
 /** その階に出る魔物と、そのレベル */
-export function monstersForFloor(dungeon: Dungeon, floor: number): { species: string; level: number }[] {
+export function monstersForFloor(dungeon: Dungeon, floor: number): { species: string; level: number; strong: boolean }[] {
   return dungeon.monsters
     .filter((e) => onFloor(e.floors, floor))
-    .map((e) => ({ species: e.species, level: e.level ?? dungeon.monsterLevel }));
+    .map((e) => ({ species: e.species, level: e.level ?? dungeon.monsterLevel, strong: e.strong === true }));
+}
+
+/**
+ * その階に出す魔物を1体選ぶ。tiered のダンジョンは、strongShare の割合で強い魔物を、
+ * 残りで弱い魔物を選ぶ（片方がいなければもう片方）
+ */
+export function pickMonster(dungeon: Dungeon, floor: number, rng: Rng): { species: string; level: number } {
+  const kinds = monstersForFloor(dungeon, floor);
+  if (!dungeon.tiered) return rng.pick(kinds);
+  const strongOnes = kinds.filter((k) => k.strong);
+  const weakOnes = kinds.filter((k) => !k.strong);
+  const pool = rng.chance(strongShare(floor)) ? strongOnes : weakOnes;
+  return rng.pick(pool.length > 0 ? pool : kinds);
 }

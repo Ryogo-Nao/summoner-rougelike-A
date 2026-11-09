@@ -1,5 +1,5 @@
 import { elementText } from '../game/elements';
-import { HAND_LIMIT, PERSONALITIES, PERSONALITY_IDS, SUMMON_LIMIT, cardName, growthRate, isPartner, type Card } from '../game/cards';
+import { HAND_LIMIT, PERSONALITIES, SUMMON_LIMIT, cardName, growthRate, isPartner, type Card } from '../game/cards';
 import {
   FUSION_BOOK,
   FUSION_COST,
@@ -13,7 +13,6 @@ import {
   otherSpecies,
   inheritedBonus,
   nextFusions,
-  personalityOdds,
   rebirth,
 } from '../game/fusion';
 import type { ConfirmDialog } from './dialog';
@@ -770,10 +769,6 @@ export class BaseScreen {
       box.append(note('生まれる子の種族', 'fusion-label'), pick);
     }
     const bonus = inheritedBonus(a, b);
-    const odds = personalityOdds(a.personality, b.personality);
-    const oddsChips = PERSONALITY_IDS.filter((id) => odds[id] > 0)
-      .sort((x, y) => odds[y] - odds[x])
-      .map((id) => chip(`${PERSONALITIES[id].name} ${Math.round(odds[id] * 1000) / 10}％`));
     const nickname = rebirthMode ? a.nickname : fromOther ? undefined : [a, b][this.childFrom].nickname;
     const name = `${unknown ? '？？？' : nickname || species.name}+${fusions}`;
     box.append(
@@ -789,7 +784,6 @@ export class BaseScreen {
           [`HP+${bonus.maxHp}`, `攻撃+${bonus.atk}`, `防御+${bonus.def}`, `魔攻+${bonus.matk}`, `魔防+${bonus.mdef}`].map((t) => chip(t)),
         ],
         ['伸び', `×${growthRate(fusions).toFixed(2)}`],
-        ['性格', oddsChips],
       ]),
     );
     const problem = costProblem(p, rebirthMode ? REBIRTH_BOOK : FUSION_BOOK);
@@ -811,7 +805,7 @@ export class BaseScreen {
           this.childFrom = 0;
         }),
         undefined,
-        true,
+        'danger',
       );
     });
     go.classList.add('main');

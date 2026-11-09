@@ -79,6 +79,20 @@ test('F-64 配合の画面で仲間を押すと、つよさが出て、戻れる
   await expect(page.locator('#base-depart')).toBeHidden();
 });
 
+test('F-97 配合の確かめに、生まれる子の性格の確率は出さない', async ({ page }) => {
+  await openWithProfile(page, profileWith(4));
+  await nav(page, '仲間');
+  await page.locator('#base-body .ally-modes button', { hasText: '配合' }).click();
+  // 右の丸い印（aria-label が「選ぶ」）で親を2体選ぶ
+  const pick = page.locator('#base-body .line-row.ally').getByRole('button', { name: '選ぶ', exact: true });
+  await pick.first().click();
+  await pick.first().click();
+  await expect(page.locator('#base-body', { hasText: '足し算' })).toBeVisible();
+  await expect(page.locator('#base-body').getByText('伸び', { exact: true })).toBeVisible();
+  await expect(page.locator('#base-body').getByText('性格', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#base-body')).not.toContainText('％');
+});
+
 test('F-65・F-66 商店で買える。一覧は種類順', async ({ page }) => {
   await openWithProfile(page, profileWith(1));
   await nav(page, '商店');

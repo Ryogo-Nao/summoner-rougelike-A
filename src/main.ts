@@ -288,16 +288,24 @@ function playScenes(done: () => void): void {
   requestAnimationFrame(frame);
 }
 
+/** 階段を降りるか確かめる。ボタンはダンジョンの詳しい画面と同じ：左に［降りる］（主役）、右に赤い［やめる］ */
 function askDescend(): void {
-  dialog.open('階段を降りる？', '降りる', 'やめる', () => {
-    state.descend();
-    redraw();
-    if (state.cleared) endRun();
-    else {
-      saveRun(state);
-      showFloorTitle();
-    }
-  });
+  dialog.open(
+    '階段を降りる？',
+    '降りる',
+    'やめる',
+    () => {
+      state.descend();
+      redraw();
+      if (state.cleared) endRun();
+      else {
+        saveRun(state);
+        showFloorTitle();
+      }
+    },
+    undefined,
+    'stop',
+  );
 }
 
 const floorTitle = document.getElementById('floor-title')!;
@@ -506,7 +514,7 @@ onButton('btn-menu', () =>
             afterAction();
           },
           undefined,
-          true,
+          'danger',
         );
       },
   ),

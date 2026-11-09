@@ -1,6 +1,6 @@
 // 1.5 仲間（docs/test-plan.md F-40〜F-44）と、商店（F-65）
 import { describe, expect, it } from 'vitest';
-import { IZUTSUCHI, PERSONALITY_IDS, cardStats, createCard } from '../../src/game/cards';
+import { IZUTSUCHI, PERSONALITIES, PERSONALITY_IDS, cardStats, createCard } from '../../src/game/cards';
 import { RECIPES, personalityOdds } from '../../src/game/fusion';
 import { buyPrice, type ItemKind } from '../../src/game/items';
 import { DIR_VECTORS, distance } from '../../src/game/dir';
@@ -59,6 +59,18 @@ describe('F-42 仲間の能力', () => {
         }
       }
     }
+  });
+});
+
+describe('F-42 性格（魔攻・魔防の性格は 2026-11-10）', () => {
+  it('性格は10種類で、魔攻・魔防も上げ下げする', () => {
+    expect(PERSONALITY_IDS.length).toBe(10);
+    const ups = new Set(Object.values(PERSONALITIES).map((x) => x.up));
+    const downs = new Set(Object.values(PERSONALITIES).map((x) => x.down));
+    for (const s of ['matk', 'mdef'] as const) expect([ups.has(s), downs.has(s)], s).toEqual([true, true]);
+    const s = species('kujiran');
+    expect(cardStats(s, 20, 'kashikoi').matk).toBeGreaterThan(cardStats(s, 20, 'sunao').matk);
+    expect(cardStats(s, 20, 'yancha').mdef).toBeLessThan(cardStats(s, 20, 'sunao').mdef);
   });
 });
 

@@ -1,5 +1,7 @@
 import { setRichText } from './icons';
 
+export type DialogTone = 'plain' | 'danger' | 'stop';
+
 /** はい／いいえの確認ダイアログ。開いている間は isOpen() が true */
 export class ConfirmDialog {
   private readonly root = document.getElementById('dialog')!;
@@ -26,13 +28,15 @@ export class ConfirmDialog {
   }
 
   /**
-   * onNo を省くと、いいえは閉じるだけ。
-   * danger は取り消せない操作（あきらめる・配合する・別れる）。［はい］を注意の赤にし、［いいえ］を主役の色にする
+   * onNo を省くと、いいえは閉じるだけ。tone はボタンの色。
+   * danger は取り消せない操作（あきらめる・配合する・別れる）。［はい］を注意の赤にし、［いいえ］を主役の色にする。
+   * stop はダンジョンの詳しい画面と同じ：［はい］は主役のまま、［いいえ］（やめる）を赤にする（階段を降りる）
    */
-  open(message: string, yesLabel: string, noLabel: string, onYes: () => void, onNo?: () => void, danger = false): void {
+  open(message: string, yesLabel: string, noLabel: string, onYes: () => void, onNo?: () => void, tone: DialogTone = 'plain'): void {
     setRichText(this.text, message);
-    this.yes.classList.toggle('danger', danger);
-    this.no.classList.toggle('main', danger);
+    this.yes.classList.toggle('danger', tone === 'danger');
+    this.no.classList.toggle('main', tone === 'danger');
+    this.no.classList.toggle('danger', tone === 'stop');
     this.yes.textContent = yesLabel;
     this.no.textContent = noLabel;
     this.onYes = onYes;

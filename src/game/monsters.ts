@@ -40,10 +40,11 @@ export interface Species {
   phasing?: boolean;
   /**
    * 弱み（鈍足・ふらふら）の代わりの強み（2026-11-08。balance.md 4.6）。
-   * mighty は通常攻撃の攻撃力が1.5倍、sturdy は受けるダメージが半分
+   * mighty は通常攻撃の攻撃力が1.5倍、sturdy は受けるダメージが半分、armored は物理（通常攻撃）で受けるダメージが2/3
    */
   mighty?: boolean;
   sturdy?: boolean;
+  armored?: boolean;
   /**
    * 特技（balance.md 3.5、4章）。spore は胞子で混乱、venom は毒、breath は火を吐く、
    * sleep は鱗粉で眠らせる、pin は糸ではりつけにする、manaBite はMPを減らす（主人公だけ）、drain は与えたダメージの半分を吸い取る
@@ -92,7 +93,7 @@ export const SPECIES: readonly Species[] = [
   { id: 'homurajishi', name: 'ホムラジシ', emoji: '🦁', hp: 44, atk: 13, def: 6, matk: 11, mdef: 6, element: 'fire', exp: 36, capture: 0.06, cost: 11, speed: 'normal', special: 'breath', growth: 'attack', pace: 'normal' },
   { id: 'kujiran', name: 'クジラン', emoji: '🐋', hp: 55, atk: 12, def: 7, matk: 11, mdef: 8, element: 'water', exp: 40, capture: 0.05, cost: 12, speed: 'slow', special: 'breath', specialName: '水の塊', growth: 'hp', pace: 'late' },
   { id: 'raijuu', name: 'ライジュウ', emoji: '🐆', hp: 42, atk: 13, def: 5, matk: 8, mdef: 5, element: 'thunder', exp: 38, capture: 0.06, cost: 11, speed: 'normal', twoHits: true, growth: 'attack', pace: 'normal' },
-  { id: 'iwagame', name: 'イワガメ', emoji: '🐢', hp: 48, atk: 10, def: 15, matk: 4, mdef: 6, element: 'earth', exp: 36, capture: 0.06, cost: 11, speed: 'slow', sturdy: true, growth: 'defense', pace: 'late' },
+  { id: 'iwagame', name: 'イワガメ', emoji: '🐢', hp: 48, atk: 10, def: 15, matk: 4, mdef: 6, element: 'earth', exp: 36, capture: 0.06, cost: 11, speed: 'slow', armored: true, growth: 'defense', pace: 'late' },
   { id: 'kamaitachi', name: 'カマイタチ', emoji: '🦦', hp: 32, atk: 12, def: 5, matk: 6, mdef: 4, element: 'wind', exp: 30, capture: 0.07, cost: 10, speed: 'normal', twoHits: true, growth: 'attack', pace: 'early' },
   { id: 'shirojika', name: 'シロジカ', emoji: '🦌', hp: 40, atk: 11, def: 7, matk: 9, mdef: 10, element: 'light', exp: 34, capture: 0.06, cost: 11, speed: 'normal', growth: 'balance', pace: 'normal' },
   { id: 'karabone', name: 'カラボネ', emoji: '💀', hp: 40, atk: 13, def: 8, matk: 4, mdef: 4, element: 'dark', exp: 34, capture: 0.06, cost: 11, speed: 'normal', growth: 'defense', pace: 'normal' },
@@ -114,12 +115,17 @@ export const FUSION_ONLY = ['hiirodori', 'mizuchi', 'narukami', 'kodama', 'tsumu
 /** 強みの倍率（balance.md 4.6） */
 export const MIGHTY_RATE = 1.5;
 export const STURDY_RATE = 0.5;
+export const ARMORED_RATE = 2 / 3;
 
 /** 通常攻撃の攻撃力。mighty なら1.5倍 */
 export const mightyAtk = (species: Species, atk: number) => (species.mighty ? Math.round(atk * MIGHTY_RATE) : atk);
 
-/** 受けるダメージ。sturdy なら半分（最低1） */
-export const sturdyDamage = (species: Species, dmg: number) => (species.sturdy ? Math.max(1, Math.round(dmg * STURDY_RATE)) : dmg);
+/** 受けるダメージ。sturdy なら半分、armored なら物理（physical）だけ2/3（どちらも最低1） */
+export function sturdyDamage(species: Species, dmg: number, physical = false): number {
+  if (species.sturdy) return Math.max(1, Math.round(dmg * STURDY_RATE));
+  if (species.armored && physical) return Math.max(1, Math.round(dmg * ARMORED_RATE));
+  return dmg;
+}
 
 export interface Monster {
   species: Species;
