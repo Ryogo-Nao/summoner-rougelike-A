@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWBACK_GROWTH, cardStats, hasDrawback } from '../../src/game/cards';
 import { MIGHTY_RATE, SPECIES, mightyAtk, sturdyDamage } from '../../src/game/monsters';
-import { emptyState, placeMonster } from '../helpers';
 
 const sp = (id: string) => SPECIES.find((s) => s.id === id)!;
 
