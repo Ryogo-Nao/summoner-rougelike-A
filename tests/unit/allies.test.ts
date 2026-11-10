@@ -6,7 +6,7 @@ import { buyPrice, type ItemKind } from '../../src/game/items';
 import { DIR_VECTORS, distance } from '../../src/game/dir';
 import { SPECIES, createMonster } from '../../src/game/monsters';
 import { loadProfile, loadoutOf, newProfile, saveProfile } from '../../src/game/profile';
-import { buy, sell } from '../../src/game/shop';
+import { STOCK_SIZE, buy, rollStock, sell } from '../../src/game/shop';
 import { GameState } from '../../src/game/state';
 import { species } from '../helpers';
 
@@ -108,12 +108,21 @@ describe('F-65 商店', () => {
     expect(p.runes).toBe(1);
   });
 
-  it('棚には薬草とパンが2つずつ、ほかの品は1つずつ並ぶ。棚にある数より多くは買えない', () => {
+  it('棚は12：常設の薬草とパンが2つずつと、日替わりの品が8つ（重なることもある）。棚にある数より多くは買えない', () => {
     const p = newProfile();
     const count = (k: string) => p.shopStock.filter((s) => s === k).length;
-    expect(count('herb')).toBe(2);
-    expect(count('bread')).toBe(2);
-    for (const k of new Set(p.shopStock)) if (k !== 'herb' && k !== 'bread') expect(count(k), k).toBe(1);
+    expect(p.shopStock).toHaveLength(12);
+    expect(p.shopStock.slice(0, 4)).toEqual(['herb', 'herb', 'bread', 'bread']);
+    expect(p.shopStock.slice(4)).toHaveLength(STOCK_SIZE);
+    // 日替わりは同じ品が重なることがある
+    let repeated = false;
+    for (let i = 0; i < 200 && !repeated; i++) {
+      const daily = rollStock([]).slice(4);
+      repeated = new Set(daily).size < daily.length;
+    }
+    expect(repeated).toBe(true);
+    expect(count('herb')).toBeGreaterThanOrEqual(2);
+    expect(count('bread')).toBeGreaterThanOrEqual(2);
     p.runes = 10000;
     expect(buy(p, 'herb', 'bag')).toBe(true);
     expect(buy(p, 'herb', 'bag')).toBe(true);

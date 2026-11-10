@@ -9,13 +9,13 @@ import { WAREHOUSE_LIMIT } from './profile';
  */
 
 /**
- * いつも並ぶ品と、その数（2026-11-08 から、いくつでも買えるのをやめて2つずつ）。
- * ほかの品は1品につき1つ。どの品も、買うと棚からなくなり、ダンジョンから戻ると並べ直す
+ * いつも並ぶ品（常設4つ）。2026-11-08 から、いくつでも買えるのをやめて薬草とパンを2つずつ。
+ * どの品も、棚の1つにつき1つ買える。買うと棚からなくなり、ダンジョンから戻ると並べ直す
  */
 export const STAPLES: ItemKind[] = ['herb', 'herb', 'bread', 'bread'];
 
-/** 戻るたびに入れ替わる品の数 */
-const STOCK_SIZE: [number, number] = [3, 5];
+/** 戻るたびに入れ替わる品（日替わり）の数。常設4つと合わせて12（2026-11-11） */
+export const STOCK_SIZE = 8;
 
 /**
  * 入れ替わる品の出やすさ。強い印は出にくい。
@@ -68,20 +68,18 @@ const STOCK_POOL: { kind: ItemKind; weight: number; dungeon?: string }[] = [
 ];
 
 /**
- * 棚を並べ直す。薬草とパンを2つずつと、入れ替わる品（同じ品は並べない）を1つずつ。
+ * 棚を並べ直す。常設の薬草とパンを2つずつと、日替わりの品を8つ（同じ品が重なることもある）。
  * cleared は踏破したダンジョン（挑めるダンジョンの品だけ並べる）
  */
 export function rollStock(cleared: string[], random: () => number = Math.random): ItemKind[] {
-  const size = STOCK_SIZE[0] + Math.floor(random() * (STOCK_SIZE[1] - STOCK_SIZE[0] + 1));
   const open = (id: string) => DUNGEONS.some((d) => d.id === id && isUnlocked(d, cleared));
   const pool = STOCK_POOL.filter((e) => !e.dungeon || open(e.dungeon));
+  const total = pool.reduce((n, e) => n + e.weight, 0);
   const stock: ItemKind[] = [];
-  while (stock.length < size && pool.length > 0) {
-    const total = pool.reduce((n, e) => n + e.weight, 0);
+  for (let n = 0; n < STOCK_SIZE; n++) {
     let r = random() * total;
     const i = pool.findIndex((e) => (r -= e.weight) < 0);
-    const [picked] = pool.splice(i < 0 ? pool.length - 1 : i, 1);
-    stock.push(picked.kind);
+    stock.push(pool[i < 0 ? pool.length - 1 : i].kind);
   }
   return [...STAPLES, ...stock];
 }

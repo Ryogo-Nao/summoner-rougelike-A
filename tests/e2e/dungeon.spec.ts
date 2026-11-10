@@ -170,3 +170,28 @@ test('F-96 階段を降りる確かめは、ダンジョンの詳しい画面と
   expect(yes).toContain('btn-main');
   expect(no).toContain('hue-rotate');
 });
+
+test('F-98 足もとの道具と入れ替える画面も、バッグの一覧と同じく同じ道具を1行にまとめる', async ({ page }) => {
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  // 主人公の足もとに石を置き、バッグに薬草を3つ入れて開き直す
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('summoner-run') !== null)).toBe(true);
+  await page.evaluate(() => {
+    const run = JSON.parse(localStorage.getItem('summoner-run')!);
+    run.monsters = [];
+    run.bag = [1, 2, 3].map((n) => ({ id: 9000 + n, kind: 'herb' }));
+    run.floorItems = [{ item: { id: 9100, kind: 'bread' }, pos: { ...run.player.pos } }];
+    localStorage.setItem('summoner-run', JSON.stringify(run));
+  });
+  await page.reload();
+  await expect(page.locator('#base')).toBeHidden();
+  await expect(async () => {
+    await press(page, '#pad [data-dir="wait"]');
+    await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
+  }).toPass();
+  await page.locator('#sheet button', { hasText: 'バッグの道具と入れ替える' }).click();
+  const rows = page.locator('#sheet-body .line-row');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('薬草');
+  await expect(rows.first()).toContainText('×3');
+});

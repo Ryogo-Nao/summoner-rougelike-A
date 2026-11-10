@@ -210,11 +210,10 @@ export const SPELL_ICONS: Record<SpellId, string> = {
 };
 
 /**
- * バッグの一覧。行を押すと、そのアイテムでできること（使う・投げる・置く）を出す。
- * 同じ道具は「薬草 ×2」と1行にまとめる（拠点の持ち物・商店と同じ）。装備しているもの、＋の違う装備、中身のある袋、矢の束は分ける
+ * バッグの道具を、同じ道具ごとにまとめる（種類順）。装備しているもの、＋の違う装備、中身のある袋、矢の束は分ける。
+ * バッグの一覧と、足もとの道具と入れ替える画面で使う
  */
-export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
-  const p = state.player;
+function groupBag(state: GameState): Item[][] {
   const groups = new Map<string, Item[]>();
   for (const item of state.sorted(state.bag)) {
     const alone = state.isEquipped(item) || (item.contents?.length ?? 0) > 0 || item.count !== undefined;
@@ -223,7 +222,16 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
     if (group) group.push(item);
     else groups.set(key, [item]);
   }
-  const rows: SheetRow[] = [...groups.values()].map((items) => {
+  return [...groups.values()];
+}
+
+/**
+ * バッグの一覧。行を押すと、そのアイテムでできること（使う・投げる・置く）を出す。
+ * 同じ道具は「薬草 ×2」と1行にまとめる（拠点の持ち物・商店と同じ）。装備しているもの、＋の違う装備、中身のある袋、矢の束は分ける
+ */
+export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
+  const p = state.player;
+  const rows: SheetRow[] = groupBag(state).map((items) => {
     const item = items[0];
     return {
       icon: ITEMS[item.kind].emoji,
@@ -511,14 +519,15 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
   });
 }
 
-/** 足もとのアイテムと入れ替える、バッグのアイテムを選ぶ */
+/** 足もとのアイテムと入れ替える、バッグのアイテムを選ぶ。バッグの一覧と同じく、同じ道具は「薬草 ×2」と1行にまとめる */
 function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const floor = state.itemUnderfoot();
   if (!floor) return;
-  const rows: SheetRow[] = state.sorted(state.bag).map((item) => ({
+  const rows: SheetRow[] = groupBag(state).map(([item, ...rest]) => ({
     icon: ITEMS[item.kind].emoji,
     art: itemArt(item.kind),
-    name: state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item),
+    name: itemName(item),
+    tag: state.isEquipped(item) ? '装備中' : rest.length > 0 ? `×${rest.length + 1}` : undefined,
     sub: itemEffect(item),
     button: {
       label: '入れ替える',
@@ -531,6 +540,8 @@ function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction):
   }));
   sheet.open({ art: itemArt(floor.kind), icon: ITEMS[floor.kind].emoji, text: `${itemName(floor)}と入れ替える` }, rows, {
     note: '選んだ道具を足元に置いて拾う',
+    // バッグの一覧と同じ1行の形
+    lines: true,
     back: () => openFloorSheet(state, sheet, after),
   });
 }
