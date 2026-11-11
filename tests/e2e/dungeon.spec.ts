@@ -1,4 +1,4 @@
-// ダンジョンの画面（F-53・F-67・F-70〜F-72）と、描画の速さ（P-08）
+// ダンジョンの画面（F-53・F-67・F-70〜F-72・F-96・F-98・F-99・F-101）と、描画の速さ（P-08）
 import { expect, test } from '@playwright/test';
 import { brokenText, collectErrors, openWithProfile, overflow, press, profileWith, startDungeon } from './helpers';
 
@@ -164,7 +164,7 @@ test('F-96 階段を降りる確かめは、ダンジョンの詳しい画面と
   await expect(page.locator('#dialog-yes')).not.toHaveClass(/danger/);
   await expect(page.locator('#dialog-no')).toHaveText('やめる');
   await expect(page.locator('#dialog-no')).toHaveClass(/danger/);
-  // ［降りる］はダンジョンの詳しい画面の［挑む］と、［やめる］は同じ画面の［やめる］と同じ絵
+  // ［降りる］はダンジョンの詳しい画面の［準備する］と、［やめる］は同じ画面の［やめる］と同じ絵
   const look = (sel: string) => page.locator(sel).evaluate((el) => `${getComputedStyle(el).borderImageSource} ${getComputedStyle(el).filter}`);
   const [yes, no] = [await look('#dialog-yes'), await look('#dialog-no')];
   expect(yes).toContain('btn-main');
@@ -194,4 +194,52 @@ test('F-98 足もとの道具と入れ替える画面も、バッグの一覧と
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('薬草');
   await expect(rows.first()).toContainText('×3');
+});
+
+test('F-99 確かめは、左に取り消せない操作（空色）、右に赤い［やめる］。あきらめるも同じ', async ({ page }) => {
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  await expect(async () => {
+    await press(page, '#btn-menu');
+    await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  await page.locator('#sheet button', { hasText: 'ダンジョンをあきらめる' }).click();
+  await expect(page.locator('#dialog')).toBeVisible();
+  await expect(page.locator('#dialog-yes')).toHaveText('あきらめる');
+  await expect(page.locator('#dialog-yes')).not.toHaveClass(/danger/);
+  await expect(page.locator('#dialog-no')).toHaveText('やめる');
+  await expect(page.locator('#dialog-no')).toHaveClass(/danger/);
+  await expect(page.locator('#dialog-no')).not.toHaveClass(/main/);
+});
+
+test('F-101 袋の中も、同じ道具を1行にまとめ、［－］数［＋］で出す数を選ぶ', async ({ page }) => {
+  await openWithProfile(page, profileWith(1));
+  await startDungeon(page);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('summoner-run') !== null)).toBe(true);
+  // バッグに、薬草3つとパン1つが入った袋を入れて開き直す
+  await page.evaluate(() => {
+    const run = JSON.parse(localStorage.getItem('summoner-run')!);
+    run.monsters = [];
+    const contents = [1, 2, 3].map((n) => ({ id: 9200 + n, kind: 'herb' })).concat([{ id: 9210, kind: 'bread' }]);
+    run.bag = [{ id: 9300, kind: 'finePouch', capacity: 6, contents }];
+    localStorage.setItem('summoner-run', JSON.stringify(run));
+  });
+  await page.reload();
+  await expect(page.locator('#base')).toBeHidden();
+  await expect(async () => {
+    await press(page, '#btn-bag');
+    await expect(page.locator('#sheet')).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  await page.locator('#sheet-body .line-row', { hasText: '高級な袋' }).click();
+  await page.locator('#sheet button', { hasText: '中を見る' }).click();
+  const rows = page.locator('#sheet-body .line-row');
+  await expect(rows).toHaveCount(2);
+  const herb = rows.filter({ hasText: '薬草' });
+  await expect(herb).toContainText('×3');
+  await herb.getByRole('button', { name: '増やす' }).click();
+  await page.locator('#sheet-body .line-row', { hasText: '薬草' }).getByRole('button', { name: '増やす' }).click();
+  await page.locator('#sheet button', { hasText: '2個を出す' }).click();
+  // 薬草2つがバッグへ出て、袋には薬草1つとパンが残る
+  await press(page, '#btn-bag');
+  await expect(page.locator('#sheet-body .line-row', { hasText: '薬草' })).toContainText('×2');
 });

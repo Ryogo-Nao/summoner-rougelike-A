@@ -25,6 +25,10 @@ export interface SheetRow {
   className?: string;
   /** 1行の形（lines で開いた一覧）のとき、名前の横に小さく出す（Lv・×2・値段など） */
   tag?: string;
+  /** 1行の形のとき：tag を赤で出す・選んでいる行・右に置く部品（［－］数［＋］など） */
+  tagError?: boolean;
+  on?: boolean;
+  right?: HTMLElement;
 }
 
 /**
@@ -282,6 +286,58 @@ export function renderRow(row: SheetRow): HTMLElement {
     el.append(b);
   }
   return el;
+}
+
+/**
+ * 数を選ぶ［－］数［＋］（拠点の商店・持ち物と、ダンジョンの袋で使う）。数を押すと、じかに打ち込める。
+ * apply は0〜max に収めた数で呼ぶ。打ち込んだ数が max をこえたら、数は変えずに over を呼ぶ
+ */
+export function countStepper(value: number, max: number, apply: (v: number) => void, over: () => void): HTMLElement {
+  const set = (v: number) => apply(Math.max(0, Math.min(max, v)));
+  const box = document.createElement('div');
+  box.className = 'stepper';
+  const minus = document.createElement('button');
+  minus.className = 'step-minus';
+  minus.setAttribute('aria-label', '減らす');
+  minus.textContent = '－';
+  minus.disabled = value <= 0;
+  minus.addEventListener('click', () => set(value - 1));
+  const num = document.createElement('button');
+  num.className = 'stepper-num';
+  num.textContent = `${value}`;
+  num.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.className = 'stepper-num';
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.pattern = '[0-9]*';
+    input.value = value > 0 ? `${value}` : '';
+    let done = false;
+    const commit = () => {
+      if (done) return;
+      done = true;
+      const text = input.value.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+      const v = text === '' ? 0 : Number(text);
+      if (!Number.isInteger(v) || v < 0) set(value);
+      else if (v > max) over();
+      else set(v);
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+    input.addEventListener('blur', commit);
+    num.replaceWith(input);
+    input.focus();
+    input.select();
+  });
+  const plus = document.createElement('button');
+  plus.className = 'step-plus';
+  plus.setAttribute('aria-label', '増やす');
+  plus.textContent = '＋';
+  plus.disabled = value >= max;
+  plus.addEventListener('click', () => set(value + 1));
+  box.append(minus, num, plus);
+  return box;
 }
 
 /** 一覧のいちばん下に置く、横いっぱいのボタン */

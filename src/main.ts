@@ -288,7 +288,7 @@ function playScenes(done: () => void): void {
   requestAnimationFrame(frame);
 }
 
-/** 階段を降りるか確かめる。ボタンはダンジョンの詳しい画面と同じ：左に［降りる］（主役）、右に赤い［やめる］ */
+/** 階段を降りるか確かめる。ボタンはどの確かめとも同じ：左に［降りる］（主役）、右に赤い［やめる］ */
 function askDescend(): void {
   dialog.open(
     '階段を降りる？',
@@ -304,7 +304,7 @@ function askDescend(): void {
       }
     },
     undefined,
-    'stop',
+    'confirm',
   );
 }
 
@@ -514,7 +514,7 @@ onButton('btn-menu', () =>
             afterAction();
           },
           undefined,
-          'danger',
+          'confirm',
         );
       },
   ),

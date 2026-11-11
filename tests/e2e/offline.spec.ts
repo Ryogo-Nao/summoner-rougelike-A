@@ -12,6 +12,6 @@ test('N-03 通信なしでも開ける', async ({ page, context, browserName }) 
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator('#base')).toBeVisible();
-  await expect(page.locator('#base-title')).toContainText('召喚士');
+  await expect(page.locator('#base-title')).toContainText('拠点');
   await context.setOffline(false);
 });

@@ -1,7 +1,9 @@
 // 弱みのある魔物の強み（docs/test-plan.md F-93、balance.md 4.6）
 import { describe, expect, it } from 'vitest';
 import { DRAWBACK_GROWTH, cardStats, hasDrawback } from '../../src/game/cards';
+import { createItem } from '../../src/game/items';
 import { MIGHTY_RATE, SPECIES, mightyAtk, sturdyDamage } from '../../src/game/monsters';
+import { emptyState, placeMonster, sturdy } from '../helpers';
 
 const sp = (id: string) => SPECIES.find((s) => s.id === id)!;
 
@@ -13,6 +15,33 @@ describe('F-93 弱み（鈍足・ふらふら）のある魔物には強みが�
     expect(sturdyDamage(sp('tsubumaru'), 1)).toBe(1);
     expect(sturdyDamage(sp('kirigani'), 10)).toBe(10);
     expect(sp('patari').special).toBe('drain');
+  });
+
+  it('イワガメには、矢も物理として2/3になる（F-100）', () => {
+    // 同じ種（seed）・同じ防御で、同じ土の属性のツチモグとイワガメに矢を撃ち、受けたダメージを比べる
+    const shot = (seed: number, id: string) => {
+      const g = emptyState(seed);
+      g.allies = [];
+      sturdy(g);
+      const placed = placeMonster(g, id, 2);
+      if (!placed) return null;
+      placed.m.hp = 9999;
+      placed.m.def = 10;
+      g.player.facing = placed.dir;
+      const arrows = createItem('arrow', 5);
+      g.bag.push(arrows);
+      g.throwItem(arrows);
+      return 9999 - placed.m.hp;
+    };
+    let checked = 0;
+    for (let seed = 1; seed < 60 && checked < 5; seed++) {
+      const plain = shot(seed, 'tsuchimogu');
+      const armored = shot(seed, 'iwagame');
+      if (!plain || !armored) continue;
+      expect(armored, `seed ${seed}`).toBe(Math.max(1, Math.round(plain * (2 / 3))));
+      checked++;
+    }
+    expect(checked).toBe(5);
   });
 
   it('イワガメは物理（通常攻撃）で受けるダメージだけ2/3、魔法や投げたものはそのまま', () => {

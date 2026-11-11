@@ -3072,7 +3072,7 @@ body.fan-open::before {
   flex-direction: column;
 }
 
-/* ダンジョンの詳しい画面：説明と記録、下に確かめの窓と同じ［挑む］［やめる］ */
+/* ダンジョンの詳しい画面：説明と記録、下に確かめの窓と同じ［準備する］［やめる］ */
 .dungeon-detail .dialog-buttons {
   margin-top: 14px;
 }

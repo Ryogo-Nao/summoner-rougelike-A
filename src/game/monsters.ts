@@ -40,7 +40,7 @@ export interface Species {
   phasing?: boolean;
   /**
    * 弱み（鈍足・ふらふら）の代わりの強み（2026-11-08。balance.md 4.6）。
-   * mighty は通常攻撃の攻撃力が1.5倍、sturdy は受けるダメージが半分、armored は物理（通常攻撃）で受けるダメージが2/3
+   * mighty は通常攻撃の攻撃力が1.5倍、sturdy は受けるダメージが半分、armored は物理（通常攻撃・舌や触手・矢）で受けるダメージが2/3
    */
   mighty?: boolean;
   sturdy?: boolean;

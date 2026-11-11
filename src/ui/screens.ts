@@ -3,7 +3,7 @@ import { HAND_LIMIT, PERSONALITIES, STAT_LABEL, SUMMON_LIMIT, cardName, isPartne
 import { BAG_LIMIT, ITEMS, PLUS_LIMIT, SHORTCUT_LABELS, itemDesc, itemEffect, itemName, type Item } from '../game/items';
 import { ORDER_LABEL, type Ally, type AllyOrder } from '../game/cards';
 import { SPELLS, rankRate, rankedName, spellRate, type GameState, type SpellId } from '../game/state';
-import { Sheet, lineList, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
+import { Sheet, countStepper, lineList, listTools, selectButton, wideButton, type SheetRow, type SheetTitle } from './sheet';
 import { iconImage } from './icons';
 import type { Settings } from './settings';
 import { statusView } from './status';
@@ -209,20 +209,36 @@ export const SPELL_ICONS: Record<SpellId, string> = {
   bigFire: '☄️',
 };
 
+/** 同じ道具のまとまり。key はまとめ方（同じ道具なら同じ key） */
+interface ItemGroup {
+  key: string;
+  items: Item[];
+}
+
 /**
- * バッグの道具を、同じ道具ごとにまとめる（種類順）。装備しているもの、＋の違う装備、中身のある袋、矢の束は分ける。
- * バッグの一覧と、足もとの道具と入れ替える画面で使う
+ * 道具を、同じ道具ごとにまとめる（並びはそのまま）。装備しているもの、中身のある袋、矢の束は分け、＋の違う装備も分ける。
+ * バッグの一覧・足もとの道具と入れ替える画面・袋・錬金釜で使う
  */
-function groupBag(state: GameState): Item[][] {
+function groupItems(state: GameState, items: Item[]): ItemGroup[] {
   const groups = new Map<string, Item[]>();
-  for (const item of state.sorted(state.bag)) {
+  for (const item of items) {
     const alone = state.isEquipped(item) || (item.contents?.length ?? 0) > 0 || item.count !== undefined;
     const key = alone ? `#${item.id}` : `${item.kind}:${item.plus ?? 0}:${item.capacity ?? 0}`;
     const group = groups.get(key);
     if (group) group.push(item);
     else groups.set(key, [item]);
   }
-  return [...groups.values()];
+  return [...groups].map(([key, items]) => ({ key, items }));
+}
+
+/** バッグの道具を、同じ道具ごとにまとめる（種類順） */
+function groupBag(state: GameState): Item[][] {
+  return groupItems(state, state.sorted(state.bag)).map((g) => g.items);
+}
+
+/** まとめた道具の行の tag。装備しているものは「装備中」、2つ以上は「×n」 */
+function groupTag(state: GameState, items: Item[]): string | undefined {
+  return state.isEquipped(items[0]) ? '装備中' : items.length > 1 ? `×${items.length}` : undefined;
 }
 
 /**
@@ -237,7 +253,7 @@ export function openBagSheet(state: GameState, sheet: Sheet, after: AfterAction)
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
       name: itemName(item),
-      tag: state.isEquipped(item) ? '装備中' : items.length > 1 ? `×${items.length}` : undefined,
+      tag: groupTag(state, items),
       sub: itemEffect(item),
       onSelect: () => openItemSheet(state, sheet, item, after),
     };
@@ -332,49 +348,72 @@ function mainButton(button: HTMLButtonElement): HTMLButtonElement {
   return button;
 }
 
+/** 袋で選んでいる数（まとめた道具の key ごと）と、打ち込んだ数が多すぎた行 */
+interface Picks {
+  counts: Map<string, number>;
+  error: string | null;
+}
+
+const newPicks = (): Picks => ({ counts: new Map(), error: null });
+
+/** 選んでいる数の合計 */
+const pickedCount = (picks: Picks) => [...picks.counts.values()].reduce((n, v) => n + v, 0);
+
+/** 選んでいる道具（まとまりごとに、前から選んだ数だけ） */
+const pickedItems = (groups: ItemGroup[], picks: Picks) =>
+  groups.flatMap((g) => g.items.slice(0, picks.counts.get(g.key) ?? 0));
+
 /**
- * 選んだ道具に印を付けて並べる。行を押すと選ぶ・外す。limit より多くは選べない。
- * 選び終えたら、まとめて動かす（1ターン）
+ * 同じ道具を1行にまとめ、［－］数［＋］で選ぶ数を決める（拠点の持ち物・商店と同じ形）。
+ * 合わせて limit より多くは選べない。選び終えたら、まとめて動かす（1ターン）
  */
-function choiceRows(
-  items: Item[],
-  chosen: Set<Item>,
-  limit: number,
-  label: (item: Item) => string,
-  reopen: () => void,
-): SheetRow[] {
-  return items.map((item) => {
-    const on = chosen.has(item);
-    const toggle = () => {
-      if (on) chosen.delete(item);
-      else if (chosen.size < limit) chosen.add(item);
-      reopen();
-    };
+function countRows(state: GameState, groups: ItemGroup[], picks: Picks, limit: number, reopen: () => void): SheetRow[] {
+  const total = pickedCount(picks);
+  return groups.map((g) => {
+    const item = g.items[0];
+    const n = picks.counts.get(g.key) ?? 0;
+    const max = Math.min(g.items.length, n + Math.max(0, limit - total));
+    const error = picks.error === g.key;
     return {
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
-      name: label(item),
+      name: itemName(item),
+      tag: error ? `${max}個まで` : groupTag(state, g.items),
+      tagError: error,
       sub: itemEffect(item),
-      className: on ? 'chosen' : undefined,
-      onSelect: toggle,
-      button: { label: on ? '✓' : '選ぶ', disabled: !on && chosen.size >= limit, onClick: toggle },
+      on: n > 0,
+      right: countStepper(
+        n,
+        max,
+        (v) => {
+          picks.error = null;
+          picks.counts.set(g.key, v);
+          reopen();
+        },
+        () => {
+          picks.error = g.key;
+          reopen();
+        },
+      ),
     };
   });
 }
 
 /** 袋の中。選んだ道具をまとめてバッグへ出す。［道具をしまう］でバッグの道具を入れる。どちらも1ターン */
-function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, chosen = new Set<Item>()): void {
+function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, picks = newPicks()): void {
   const contents = pouch.contents ?? [];
   const space = BAG_LIMIT - state.bag.length;
-  const reopen = () => openPouchSheet(state, sheet, pouch, after, chosen);
-  const rows = choiceRows(state.sorted(contents), chosen, space, itemName, reopen);
+  const reopen = () => openPouchSheet(state, sheet, pouch, after, picks);
+  const groups = groupItems(state, state.sorted(contents));
+  const rows = countRows(state, groups, picks, space, reopen);
+  const picked = pickedCount(picks);
   const room = contents.length < (pouch.capacity ?? 0);
   const footer = document.createElement('div');
   footer.append(
     mainButton(
-      wideButton(chosen.size > 0 ? `${chosen.size}個を出す` : '出す道具を選ぶ', chosen.size === 0, () => {
+      wideButton(picked > 0 ? `${picked}個を出す` : '出す道具を選ぶ', picked === 0, () => {
         sheet.close();
-        state.takeFromPouch(pouch, [...chosen]);
+        state.takeFromPouch(pouch, pickedItems(groups, picks));
         after();
       }),
     ),
@@ -385,35 +424,38 @@ function openPouchSheet(state: GameState, sheet: Sheet, pouch: Item, after: Afte
     ),
   );
   const lines = [
-    contents.length === 0 ? '中は空' : space <= 0 ? 'バッグがいっぱいで出せない' : `押して選ぶ（あと${space}個まで出せる）`,
+    contents.length === 0 ? '中は空' : space <= 0 ? 'バッグがいっぱいで出せない' : `［＋］で選ぶ（あと${space}個まで出せる）`,
     ITEMS[pouch.kind].pouch?.holy ? '力つきても中の道具は失わない' : '',
   ];
   sheet.open({ art: itemArt(pouch.kind), icon: ITEMS[pouch.kind].emoji, text: itemName(pouch) }, rows, {
     note: lines.filter(Boolean).join('\n'),
     footer,
+    lines: true,
     back: () => openItemSheet(state, sheet, pouch, after),
   });
 }
 
 /** 袋にしまう道具を選ぶ。まとめてしまっても1ターン */
-function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, chosen = new Set<Item>()): void {
+function openPouchPutSheet(state: GameState, sheet: Sheet, pouch: Item, after: AfterAction, picks = newPicks()): void {
   const space = (pouch.capacity ?? 0) - (pouch.contents?.length ?? 0);
-  const reopen = () => openPouchPutSheet(state, sheet, pouch, after, chosen);
-  const name = (item: Item) => (state.isEquipped(item) ? `${itemName(item)}（装備中）` : itemName(item));
-  const rows = choiceRows(state.sorted(state.pouchable(pouch)), chosen, space, name, reopen);
+  const reopen = () => openPouchPutSheet(state, sheet, pouch, after, picks);
+  const groups = groupItems(state, state.sorted(state.pouchable(pouch)));
+  const rows = countRows(state, groups, picks, space, reopen);
+  const picked = pickedCount(picks);
   const footer = document.createElement('div');
   footer.append(
     mainButton(
-      wideButton(chosen.size > 0 ? `${chosen.size}個をしまう` : 'しまう道具を選ぶ', chosen.size === 0, () => {
+      wideButton(picked > 0 ? `${picked}個をしまう` : 'しまう道具を選ぶ', picked === 0, () => {
         sheet.close();
-        state.putInPouch(pouch, [...chosen]);
+        state.putInPouch(pouch, pickedItems(groups, picks));
         after();
       }),
     ),
   );
   sheet.open(`${itemName(pouch)}にしまう`, rows, {
-    note: `押して選ぶ（あと${space}個しまえる）\n袋は袋にしまえない`,
+    note: `［＋］で選ぶ（あと${space}個しまえる）\n袋は袋にしまえない`,
     footer,
+    lines: true,
     back: () => openPouchSheet(state, sheet, pouch, after),
   });
 }
@@ -440,6 +482,7 @@ function openRegisterSheet(state: GameState, sheet: Sheet, item: Item, after: Af
   });
   sheet.open({ art: itemArt(kind), icon: ITEMS[kind].emoji, text: `${ITEMS[kind].name}を登録` }, rows, {
     note: '［攻撃］を長押しして\n登録した枠の方へ指を滑らせると使える',
+    lines: true,
     back: () => openItemSheet(state, sheet, item, after),
   });
 }
@@ -481,27 +524,31 @@ function openSealTargetSheet(state: GameState, sheet: Sheet, item: Item, after: 
 
 /** 錬金釜。強くする装備を選び、次に合わせる同じ名前の装備を選ぶ */
 function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAction, back: () => void, base?: Item): void {
-  const label = (i: Item) => (state.isEquipped(i) ? `${itemName(i)}（装備中）` : itemName(i));
+  // バッグの一覧と同じく、同じ装備は「銅の剣 ×2」と1行にまとめる（どれを選んでも同じ）
   if (!base) {
-    const rows: SheetRow[] = state.sorted(state.potBases()).map((item) => ({
+    const rows: SheetRow[] = groupItems(state, state.sorted(state.potBases())).map(({ items: [item, ...rest] }) => ({
       icon: ITEMS[item.kind].emoji,
       art: itemArt(item.kind),
-      name: label(item),
+      name: itemName(item),
+      tag: groupTag(state, [item, ...rest]),
       sub: itemEffect(item),
       button: { label: '選ぶ', onClick: () => openPotSheet(state, sheet, pot, after, back, item) },
     }));
     sheet.open('錬金釜：1つ目の装備', rows, {
       note: '同じ名前の装備を2つ合わせる\n大きいほうの＋に＋1（最大+10）',
+      lines: true,
       back,
     });
     return;
   }
-  const rows: SheetRow[] = state.potPartners(base).map((other) => {
+  const rows: SheetRow[] = groupItems(state, state.potPartners(base)).map(({ items }) => {
+    const other = items[0];
     const plus = Math.min(PLUS_LIMIT, Math.max(base.plus ?? 0, other.plus ?? 0) + 1);
     return {
       icon: ITEMS[other.kind].emoji,
       art: itemArt(other.kind),
-      name: label(other),
+      name: itemName(other),
+      tag: groupTag(state, items),
       sub: `合わせると ${ITEMS[base.kind].name}+${plus}`,
       button: {
         label: '合わせる',
@@ -515,6 +562,7 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
   });
   sheet.open(`錬金釜：${itemName(base)}と合わせる`, rows, {
     note: '合わせた装備は1つになる\n装備しているほうが残る',
+    lines: true,
     back: () => openPotSheet(state, sheet, pot, after, back),
   });
 }
@@ -523,17 +571,17 @@ function openPotSheet(state: GameState, sheet: Sheet, pot: Item, after: AfterAct
 function openFloorSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const floor = state.itemUnderfoot();
   if (!floor) return;
-  const rows: SheetRow[] = groupBag(state).map(([item, ...rest]) => ({
-    icon: ITEMS[item.kind].emoji,
-    art: itemArt(item.kind),
-    name: itemName(item),
-    tag: state.isEquipped(item) ? '装備中' : rest.length > 0 ? `×${rest.length + 1}` : undefined,
-    sub: itemEffect(item),
+  const rows: SheetRow[] = groupBag(state).map((items) => ({
+    icon: ITEMS[items[0].kind].emoji,
+    art: itemArt(items[0].kind),
+    name: itemName(items[0]),
+    tag: groupTag(state, items),
+    sub: itemEffect(items[0]),
     button: {
       label: '入れ替える',
       onClick: () => {
         sheet.close();
-        state.swapWithFloor(item);
+        state.swapWithFloor(items[0]);
         after();
       },
     },
@@ -809,7 +857,7 @@ export function openAllySheet(state: GameState, sheet: Sheet, ally: Ally, after:
 
 /**
  * 手元がいっぱいのときに新しいカードを手に入れたら、外す1枚を選ぶまで閉じない。
- * ダンジョンに持ってきたカードは拠点へ預けられる。ここで手に入れたカードは預けられず、別れるしかない
+ * ダンジョンに連れてきた仲間は拠点へ預けられる。ここで手に入れたカードは預けられず、別れるしかない
  */
 export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction): void {
   const pending = state.pendingCard;
@@ -823,7 +871,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
     return {
       icon: cardIcon(card),
       art: card.species.id,
-      name: store ? `${name}（持ってきた）` : name,
+      name: store ? `${name}（連れてきた）` : name,
       sub: cardSub(card),
       className: card === pending ? 'chosen' : undefined,
       button: store
@@ -839,7 +887,7 @@ export function openSwapSheet(state: GameState, sheet: Sheet, after: AfterAction
     };
   });
   sheet.open('仲間がいっぱい', rows, {
-    note: 'いちばん上が新しい仲間。外す1体を選ぶ\n持ってきた仲間は拠点へ預けられる\nここで仲間にした魔物とは別れる',
+    note: 'いちばん上が新しい仲間。外す1体を選ぶ\n連れてきた仲間は拠点へ預けられる\nここで仲間にした魔物とは別れる',
     closable: false,
   });
 }
@@ -853,8 +901,10 @@ function openPartSheet(state: GameState, sheet: Sheet, card: Card, index: number
     state.partWith(index);
     after();
   });
-  part.classList.add('danger');
-  buttons.append(mainButton(wideButton('やめる', false, () => openSwapSheet(state, sheet, after))), part);
+  // どの確かめとも同じ並び：左に取り消せない［別れる］（主役の空色）、右に［やめる］（赤）
+  const stop = wideButton('やめる', false, () => openSwapSheet(state, sheet, after));
+  stop.classList.add('danger');
+  buttons.append(mainButton(part), stop);
   sheet.open(cardTitle(card, `${cardName(card)}と別れる？`), [], {
     note: `${cardSub(card)}\n別れた仲間は戻らない`,
     footer: buttons,

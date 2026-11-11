@@ -1620,7 +1620,7 @@ export class GameState {
       if (monster && this.rng.chance(HIT_RATE)) {
         const atk = Math.round(this.attackPower() * (def.arrow ?? 1));
         const rate = elementRate(def.element ?? 'none', monster.species.element);
-        this.damageMonster(monster, rollDamage(this.rng, atk, monster.def, rate), null, def.name, rate);
+        this.damageMonster(monster, rollDamage(this.rng, atk, monster.def, rate), null, def.name, rate, true);
         return;
       }
       if (monster) {
@@ -1716,11 +1716,11 @@ export class GameState {
 
   /**
    * by が null なら主人公の攻撃。how は「攻撃」「火の魔法」など、ログに出す行動の名前。
-   * rate は属性の倍率（raw にはもうかけてある）。よく効いた・効きにくいを出すのに使う。与えたダメージを返す
+   * rate は属性の倍率（raw にはもうかけてある）。よく効いた・効きにくいを出すのに使う。
+   * physical は物理の攻撃か（主人公と仲間の通常攻撃、矢）。イワガメはこれだけ2/3にする。与えたダメージを返す
    */
-  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string, rate = 1): number {
-    // 物理は主人公と仲間の通常攻撃（how が「攻撃」）
-    const dmg = sturdyDamage(m.species, fortified(raw, m.ailments), how === '攻撃');
+  private damageMonster(m: Monster, raw: number, by: Ally | null, how: string, rate = 1, physical = how === '攻撃'): number {
+    const dmg = sturdyDamage(m.species, fortified(raw, m.ailments), physical);
     m.hp -= dmg;
     this.wake(m.ailments);
     m.dormant = false;
@@ -1841,7 +1841,7 @@ export class GameState {
     );
   }
 
-  /** 拠点の保管庫へ預けられるか。預けられるのは、ダンジョンに持ってきたカードだけ（requirements.md 5.6） */
+  /** 拠点の保管庫へ預けられるか。預けられるのは、ダンジョンに連れてきた仲間だけ（requirements.md 5.6） */
   canStore(card: Card): boolean {
     return !card.obtainedHere;
   }

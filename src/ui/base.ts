@@ -24,7 +24,7 @@ import { WAREHOUSE_LIMIT, generationName, saveProfile, type Profile } from '../g
 import { ATTACK_SPELLS, BUFF_SPELLS, PLAYER_BASE, SPELLS, SPELL_MAX_RANK } from '../game/state';
 import { HOW_TO_PLAY, SPELL_ART, SPELL_ICONS, cardIcon, settingRows, spellEffect } from './screens';
 import type { Settings } from './settings';
-import { lineList, listTools, renderLine, renderRow, selectButton, wideButton, type SheetRow } from './sheet';
+import { countStepper, lineList, listTools, renderLine, renderRow, selectButton, wideButton, type SheetRow } from './sheet';
 import { statusView } from './status';
 import { artElement, faceElement, itemArt } from '../render/art';
 import { iconImage, setRichText } from './icons';
@@ -92,7 +92,7 @@ export class BaseScreen {
    * 拠点にいる間は覚えておき、ダンジョンから戻ったら選び直す
    */
   private dungeonId: string | null = null;
-  /** ダンジョンの一覧で押した、詳しく見ているダンジョン（［挑む］で dungeonId になる） */
+  /** ダンジョンの一覧で押した、詳しく見ているダンジョン（［準備する］で dungeonId になる） */
   private dungeonView: string | null = null;
   /** 商店で、買う画面か売る画面か。売る画面で選んでいる道具 */
   private shopMode: 'buy' | 'sell' = 'buy';
@@ -516,7 +516,7 @@ export class BaseScreen {
     return [note('挑むダンジョンを選ぶ', 'base-section'), lineList(rows)];
   }
 
-  /** ダンジョンの詳しい画面。説明と記録を出し、［挑む］で仲間と持ち物の準備へ、［戻る］で一覧へ */
+  /** ダンジョンの詳しい画面。説明と記録を出し、［準備する］で仲間と持ち物の準備へ、［戻る］で一覧へ */
   private dungeonDetail(p: Profile, id: string): HTMLElement {
     const d = dungeonById(id);
     const done = p.cleared.includes(d.id);
@@ -539,17 +539,17 @@ export class BaseScreen {
       record.textContent = `挑戦${rec.tries}回　踏破${rec.cleared}回　最高 B${rec.bestFloor}F`;
       box.append(record);
     }
-    // 確かめの窓と同じ並び：左に［挑む］（主役）、右に［やめる］
+    // 確かめの窓と同じ並び：左に［準備する］（主役）、右に［やめる］
     const buttons = document.createElement('div');
     buttons.className = 'dialog-buttons';
     const go = document.createElement('button');
-    go.textContent = '挑む';
+    go.textContent = '準備する';
     go.addEventListener('click', () => {
       this.dungeonId = d.id;
       this.dungeonView = null;
       this.render();
     });
-    // ［やめる］も［挑む］と同じ楕円の宝石で、色は赤（注意）
+    // ［やめる］も［準備する］と同じ楕円の宝石で、色は赤（注意）
     const cancel = document.createElement('button');
     cancel.className = 'danger';
     cancel.textContent = 'やめる';
@@ -805,7 +805,7 @@ export class BaseScreen {
           this.childFrom = 0;
         }),
         undefined,
-        'danger',
+        'confirm',
       );
     });
     go.classList.add('main');
@@ -1093,57 +1093,19 @@ export class BaseScreen {
    * 打ち込んだ数が max をこえたら、数は変えずに「n個まで…」を赤で出す
    */
   private stepper(key: string, value: number, max: number, set: (v: number) => void): HTMLElement {
-    const apply = (v: number) => {
-      this.countError = null;
-      set(Math.max(0, Math.min(max, v)));
-      this.render(true);
-    };
-    const box = document.createElement('div');
-    box.className = 'stepper';
-    const minus = document.createElement('button');
-    minus.className = 'step-minus';
-    minus.setAttribute('aria-label', '減らす');
-    minus.textContent = '－';
-    minus.disabled = value <= 0;
-    minus.addEventListener('click', () => apply(value - 1));
-    const num = document.createElement('button');
-    num.className = 'stepper-num';
-    num.textContent = `${value}`;
-    num.addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.className = 'stepper-num';
-      input.type = 'text';
-      input.inputMode = 'numeric';
-      input.pattern = '[0-9]*';
-      input.value = value > 0 ? `${value}` : '';
-      let done = false;
-      const commit = () => {
-        if (done) return;
-        done = true;
-        const text = input.value.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
-        const v = text === '' ? 0 : Number(text);
-        if (!Number.isInteger(v) || v < 0) this.render(true);
-        else if (v > max) {
-          this.countError = key;
-          this.render(true);
-        } else apply(v);
-      };
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') input.blur();
-      });
-      input.addEventListener('blur', commit);
-      num.replaceWith(input);
-      input.focus();
-      input.select();
-    });
-    const plus = document.createElement('button');
-    plus.className = 'step-plus';
-    plus.setAttribute('aria-label', '増やす');
-    plus.textContent = '＋';
-    plus.disabled = value >= max;
-    plus.addEventListener('click', () => apply(value + 1));
-    box.append(minus, num, plus);
-    return box;
+    return countStepper(
+      value,
+      max,
+      (v) => {
+        this.countError = null;
+        set(v);
+        this.render(true);
+      },
+      () => {
+        this.countError = key;
+        this.render(true);
+      },
+    );
   }
 
   /**
