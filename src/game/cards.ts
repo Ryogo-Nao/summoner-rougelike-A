@@ -101,8 +101,21 @@ export interface Card {
 export const FUSION_GROWTH = 0.05;
 export const FUSION_GROWTH_LIMIT = 10;
 
-/** 配合回数 fusions のときの伸びの倍率 */
-export const growthRate = (fusions = 0) => 1 + FUSION_GROWTH * Math.min(fusions, FUSION_GROWTH_LIMIT);
+/**
+ * 転生1回目の伸びの倍率と、そこから1回ごとに上がる分、上がるのをやめる回数（1.5 → 1.75 → 2.0 → 2.25 → 2.5倍）。
+ * 転生の書は出にくいので、配合よりずっと大きく伸ばす
+ */
+export const REBIRTH_GROWTH_FIRST = 1.5;
+export const REBIRTH_GROWTH = 0.25;
+export const REBIRTH_GROWTH_LIMIT = 5;
+
+/** 配合回数 fusions（イヅツチ partner なら転生回数）のときの伸びの倍率 */
+export const growthRate = (fusions = 0, partner = false) =>
+  partner
+    ? fusions <= 0
+      ? 1
+      : REBIRTH_GROWTH_FIRST + REBIRTH_GROWTH * (Math.min(fusions, REBIRTH_GROWTH_LIMIT) - 1)
+    : 1 + FUSION_GROWTH * Math.min(fusions, FUSION_GROWTH_LIMIT);
 
 /** ニックネームの長さの上限（文字） */
 export const NICKNAME_LIMIT = 8;
@@ -195,7 +208,7 @@ function growthSteps(pace: GrowthPace, level: number): number {
  */
 export function cardStats(species: Species, level: number, personality: PersonalityId = 'sunao', bonus?: Stats, fusions = 0): Stats {
   const drawback = hasDrawback(species) ? DRAWBACK_GROWTH : 1;
-  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus, growthRate(fusions) * drawback);
+  return statsAt(species, level, species.allyRate ?? CAPTURED_RATE, personality, bonus, growthRate(fusions, species.id === IZUTSUCHI.id) * drawback);
 }
 
 /**

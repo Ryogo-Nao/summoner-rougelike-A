@@ -70,7 +70,7 @@ export function statusView(
   const basics: [string, string][] = [
     ['経験値', next === null ? `${Math.floor(card.exp)}（最大レベル）` : `${Math.floor(card.exp)}（次のLvまで${Math.ceil(next)}）`],
     ...(card.fusions
-      ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions).toFixed(2)}`]] as [string, string][])
+      ? ([[isPartner(card) ? '転生' : '配合', `${card.fusions}回　伸び×${growthRate(card.fusions, isPartner(card)).toFixed(2)}`]] as [string, string][])
       : []),
     ['速さ', SPEED_LABEL[card.species.speed === 'slow' ? 'normal' : card.species.speed]],
   ];

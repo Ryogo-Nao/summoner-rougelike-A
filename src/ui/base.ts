@@ -783,7 +783,7 @@ export class BaseScreen {
           '足し算',
           [`HP+${bonus.maxHp}`, `攻撃+${bonus.atk}`, `防御+${bonus.def}`, `魔攻+${bonus.matk}`, `魔防+${bonus.mdef}`].map((t) => chip(t)),
         ],
-        ['伸び', `×${growthRate(fusions).toFixed(2)}`],
+        ['伸び', `×${growthRate(fusions, rebirthMode).toFixed(2)}`],
       ]),
     );
     const problem = costProblem(p, rebirthMode ? REBIRTH_BOOK : FUSION_BOOK);

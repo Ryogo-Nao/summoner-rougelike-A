@@ -181,7 +181,7 @@
 | 要塞の星・守り | 受けるダメージを減らす（`fortified`・`guarded`・`warded`） | balance.md 6.6・2.1 |
 | 経験値の山分け | 主人公と召喚中の仲間で等分。とどめを刺した者は1.5倍。毒で倒れたときは上乗せなし | balance.md 4.3 |
 | レベル | 累計経験値の表（主人公は ×1.2、仲間は ×2。1段は 7000 まで）。最大99 | combat.ts、balance.md 1.3・4.2 |
-| 仲間の能力 | （Lv1の値 ＋ 伸び × 成長の型 × 成長の早さ）× 性格 ＋ 足し算の補正。配合回数で伸びが増える | cards.ts `cardStats`、balance.md 4.2 |
+| 仲間の能力 | （Lv1の値 ＋ 伸び × 成長の型 × 成長の早さ）× 性格 ＋ 足し算の補正。配合回数（イヅツチは転生回数）で伸びが増える（`growthRate`） | cards.ts `cardStats`、balance.md 4.2 |
 | 敵の能力 | Lv1 は表の値。そこから仲間と同じ伸び方 | cards.ts `monsterStats`、balance.md 4.5 |
 | 封印の成功率 | 残りHPの割合で基本の確率を1〜5倍 | cards.ts `captureChance`、requirements.md 5.2 |
 | カードを落とす率 | 封印のしやすさ × 0.1 | balance.md 4.1 |
